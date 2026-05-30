@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Wissely App — Your Finances, Finally Clear</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#0c0c0a;--sage:#2d4a3e;--sage2:#3d6b58;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#f5e0a0;--cream:#f8f6f0;--cream2:#ede9df;--cream3:#dedad0;--text:#2a2a20;--muted:#7a7a66}
+body{background:var(--cream);font-family:'DM Sans',sans-serif;color:var(--text);margin:0}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:rgba(45,74,62,0.2);border-radius:3px}
+textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* NAV */
+nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-logo-mark{width:30px;height:30px;background:var(--sage);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:var(--gold)}
+.nav-logo-text{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.5px}
+.nav-tag{font-size:10px;color:rgba(255,255,255,0.25);font-family:'DM Mono',monospace;letter-spacing:1.5px;margin-left:4px}
+.model-row{display:flex;gap:8px}
+.model-btn{background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:100px;padding:5px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;gap:6px;color:rgba(255,255,255,0.3)}
+.model-btn.active{border-color:rgba(201,168,76,0.4);background:rgba(201,168,76,0.08);color:var(--gold2)}
+.model-dot{width:5px;height:5px;border-radius:50%;display:inline-block}
+
+/* BODY */
+.app-body{max-width:1060px;margin:0 auto;padding:24px 20px 60px;display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start}
+
+/* SIDEBAR */
+.sidebar{display:flex;flex-direction:column;gap:4px}
+.sidebar-label{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;padding-left:4px}
+.tool-btn{background:transparent;border:1px solid transparent;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;transition:all 0.15s;display:flex;align-items:flex-start;gap:10px;width:100%}
+.tool-btn:hover{background:rgba(45,74,62,0.06);border-color:rgba(45,74,62,0.2)}
+.tool-btn.active{background:var(--sage);border-color:var(--sage);box-shadow:0 2px 12px rgba(45,74,62,0.3)}
+.tool-icon{font-size:17px;line-height:1;margin-top:1px;flex-shrink:0}
+.tool-label{font-size:13px;font-weight:500;margin-bottom:2px;color:var(--text)}
+.tool-btn.active .tool-label{color:var(--gold3)}
+.tool-desc{font-size:11px;color:var(--muted);line-height:1.4}
+.tool-btn.active .tool-desc{color:rgba(255,255,255,0.75)}
+
+/* HISTORY */
+.history-section{margin-top:20px;border-top:1px solid var(--cream3);padding-top:16px}
+.hist-item{background:#fff;border:1px solid var(--cream3);border-radius:8px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all 0.15s}
+.hist-item:hover{background:var(--cream2);border-color:var(--sage)}
+.hist-tool{font-size:10px;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:3px}
+.hist-preview{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* MAIN */
+.main{display:flex;flex-direction:column;gap:14px}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat-card{background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
+.stat-val{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;color:var(--sage);display:block;line-height:1;letter-spacing:-1px}
+.stat-label{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-top:6px;display:block}
+
+/* INPUT CARD */
+.input-card{border-radius:14px;overflow:hidden;border:1px solid var(--cream3);box-shadow:0 4px 24px rgba(0,0,0,0.06)}
+.tool-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.tool-header-left{display:flex;align-items:center;gap:10px}
+.tool-header-icon{font-size:20px}
+.tool-header-title{font-size:14px;font-weight:600;color:#fff}
+.tool-header-desc{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
+.clear-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.7);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
+.clear-btn:hover{background:rgba(255,255,255,0.2);color:#fff}
+.textarea-wrap{background:#fff}
+textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#1a1a12;font-size:13px;font-family:'DM Mono',monospace;line-height:1.8;resize:vertical;outline:none;min-height:190px}
+.input-footer{padding:10px 20px;border-top:1px solid var(--cream3);display:flex;justify-content:space-between;align-items:center;background:#fff}
+.char-count{font-size:11px;color:#aaa;font-family:'DM Mono',monospace}
+.error-text{font-size:12px;color:#f87171;font-family:'DM Mono',monospace}
+
+/* GENERATE BTN */
+.generate-btn{width:100%;border:none;border-radius:0 0 14px 14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:0.3px;background:linear-gradient(135deg,#c9a84c,#a8873c);color:#0c0c0a;box-shadow:0 4px 24px rgba(201,168,76,0.3)}
+.generate-btn:hover{background:linear-gradient(135deg,#e8c97a,#c9a84c);transform:translateY(-1px);box-shadow:0 8px 32px rgba(201,168,76,0.4)}
+.generate-btn:disabled{background:rgba(201,168,76,0.2);color:rgba(0,0,0,0.35);cursor:not-allowed;transform:none;box-shadow:none}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+
+/* OUTPUT */
+.output-card{background:#fff;border:1px solid var(--cream3);border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);animation:fadeUp 0.35s ease}
+.output-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:13px 18px;display:flex;align-items:center;justify-content:space-between}
+.output-meta{display:flex;align-items:center;gap:8px}
+.output-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite}
+.output-label{font-size:11px;color:rgba(255,255,255,0.8);font-family:'DM Mono',monospace;letter-spacing:0.5px}
+.copy-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 12px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.8)}
+.copy-btn.copied{border-color:rgba(74,222,128,0.4);color:#4ade80;background:rgba(74,222,128,0.1)}
+.output-text{padding:22px;font-size:13.5px;line-height:1.9;color:var(--text);white-space:pre-wrap;max-height:440px;overflow-y:auto;font-family:'DM Mono',monospace}
+
+/* EMPTY STATE */
+.empty-state{border:1px dashed var(--cream3);border-radius:14px;padding:52px 24px;text-align:center;background:#fff}
+.empty-icon{font-size:36px;margin-bottom:12px;display:block;opacity:0.35}
+.empty-text{font-size:13px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:0.5px;margin-bottom:6px}
+.empty-sub{font-size:11px;color:#ccc;font-family:'DM Mono',monospace}
+
+/* FOOTER */
+.app-footer{text-align:center;padding-top:8px}
+.app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px}
+
+/* MOBILE */
+@media(max-width:700px){
+  .app-body{grid-template-columns:1fr;padding:16px 14px 40px}
+  .sidebar{flex-direction:column;gap:4px}
+  .tool-btn{min-width:unset;flex-shrink:unset;width:100%}
+  .history-section{display:none}
+  nav{padding:0 16px}
+  .nav-tag{display:none}
+  .model-row{gap:4px}
+  .model-btn{padding:4px 8px;font-size:10px}
+  .stats-row{grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat-val{font-size:22px}
+  .stat-label{font-size:9px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="https://wissely.com" class="nav-logo">
+    <div class="nav-logo-mark">W</div>
+    <div class="nav-logo-text">Wissely</div>
+    <span class="nav-tag">APP</span>
+  </a>
+  <div class="model-row">
+    <button class="model-btn active" id="btn-claude">
+      <span class="model-dot" style="background:#c9a84c;animation:pulse 2s infinite"></span>
+      Claude
+    </button>
+    <button class="model-btn" style="opacity:0.35;cursor:not-allowed">
+      <span class="model-dot" style="background:#555"></span>
+      GPT-4 · soon
+    </button>
+    <button class="model-btn" style="opacity:0.35;cursor:not-allowed">
+      <span class="model-dot" style="background:#555"></span>
+      Gemini · soon
+    </button>
+  </div>
+</nav>
+
+<!-- BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-label">Tools</div>
+    <button class="tool-btn active" onclick="selectTool(0)">
+      <span class="tool-icon">🔍</span>
+      <div><div class="tool-label">Invoice Analyzer</div><div class="tool-desc">Extract every detail instantly</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(1)">
+      <span class="tool-icon">🗂️</span>
+      <div><div class="tool-label">Expense Clarity</div><div class="tool-desc">Sort expenses for tax</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(2)">
+      <span class="tool-icon">📊</span>
+      <div><div class="tool-label">Finance Report</div><div class="tool-desc">A clear summary you can read</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(3)">
+      <span class="tool-icon">📧</span>
+      <div><div class="tool-label">Payment Request</div><div class="tool-desc">Get paid faster</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(4)">
+      <span class="tool-icon">🚨</span>
+      <div><div class="tool-label">Fraud Detection</div><div class="tool-desc">Catch errors early</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(5)">
+      <span class="tool-icon">📈</span>
+      <div><div class="tool-label">Cash Flow Forecast</div><div class="tool-desc">30, 60, 90 day picture</div></div>
+    </button>
+
+    <!-- History -->
+    <div class="history-section" id="historySection" style="display:none">
+      <div class="sidebar-label">Recent</div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><span class="stat-val">10hrs</span><span class="stat-label">Saved weekly</span></div>
+      <div class="stat-card"><span class="stat-val">30s</span><span class="stat-label">Per analysis</span></div>
+      <div class="stat-card"><span class="stat-val">$29</span><span class="stat-label">Per month</span></div>
+    </div>
+
+    <!-- Input Card -->
+    <div class="input-card">
+      <div class="tool-header">
+        <div class="tool-header-left">
+          <span class="tool-header-icon" id="activeIcon">🔍</span>
+          <div>
+            <div class="tool-header-title" id="activeTitle">Invoice Analyzer</div>
+            <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
+          </div>
+        </div>
+        <button class="clear-btn" onclick="clearAll()">Clear</button>
+      </div>
+      <div class="textarea-wrap">
+        <textarea id="inputText" onkeydown="handleKey(event)" oninput="updateChar()"
+          placeholder="Paste your invoice here...
+
+Example:
+Invoice #INV-2026-0547
+From: TechSupplies Ltd
+To: Your Business
+Date: May 29, 2026
+Due: June 28, 2026
+MacBook Pro x2: $3,998
+Software License: $1,200
+Support Package: $299
+Tax (8.5%): $512
+TOTAL: $6,544"></textarea>
+        <div class="input-footer">
+          <span class="char-count" id="charCount">0 chars · Ctrl+Enter to run</span>
+          <span class="error-text" id="errorText"></span>
+        </div>
+      </div>
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        🔍 Run Invoice Analyzer
+      </button>
+    </div>
+
+    <!-- Output -->
+    <div class="output-card" id="outputCard" style="display:none">
+      <div class="output-header">
+        <div class="output-meta">
+          <div class="output-dot"></div>
+          <span class="output-label" id="outputLabel">Invoice Analyzer · Claude</span>
+        </div>
+        <button class="copy-btn" id="copyBtn" onclick="copyOutput()">Copy</button>
+      </div>
+      <div class="output-text" id="outputText"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <span class="empty-icon">💡</span>
+      <div class="empty-text">Select a tool and paste your financial data</div>
+      <div class="empty-sub">Examples are pre-loaded in the text box</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="app-footer">
+      <span>WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOOLS = [
+  {
+    icon:"🔍", label:"Invoice Analyzer", desc:"Extract every detail instantly",
+    placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nSupport Package: $299\nTax (8.5%): $512\nTOTAL: $6,544",
+    prompt: t => `You are a financial expert. Analyze this invoice and extract: vendor name, invoice number, date, due date, every line item, subtotal, tax, total, payment terms. Flag any red flags or issues. Plain English only, no jargon. Text: ${t}`
+  },
+  {
+    icon:"🗂️", label:"Expense Clarity", desc:"Sort expenses for tax and accounting",
+    placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500\nTravel: $350",
+    prompt: t => `You are an accountant. Categorize these expenses clearly for tax purposes. For each: category, tax deductible yes or no, and notes. Give a clear totals summary by category. Plain English only. Text: ${t}`
+  },
+  {
+    icon:"📊", label:"Finance Report", desc:"A clear summary you can actually read",
+    placeholder:"Paste your financial data here...\n\nExample:\nRevenue: $12,400\nExpenses: $8,900\nUnpaid invoices: $3,200\nRent: $2,100\nTax paid: $0",
+    prompt: t => `You are a CFO. Write a clear plain English financial report. Explain what the numbers mean, what is going well, what needs attention, and give 3 specific action items. No jargon at all. Text: ${t}`
+  },
+  {
+    icon:"📧", label:"Payment Request", desc:"A follow-up that gets you paid",
+    placeholder:"Paste invoice details here...\n\nExample:\nClient: ABC Corp\nInvoice: $3,500\nDays overdue: 15\nProject: Website redesign",
+    prompt: t => `You are a professional business communicator. Write a firm but polite payment follow-up email with subject line. Sound human and professional. Include payment details and a clear call to action. Info: ${t}`
+  },
+  {
+    icon:"🚨", label:"Fraud Detection", desc:"Catch errors before they cost you",
+    placeholder:"Paste invoices or transactions here...\n\nExample:\nInvoice A: $2,500 - Supplier X - May 1\nInvoice B: $2,500 - Supplier X - May 1\nInvoice C: $8,999 - Unknown Vendor",
+    prompt: t => `You are a forensic accountant. Check this data for: duplicates, calculation errors, unusual amounts, missing info, and red flags. Rate each issue Low, Medium or High risk. Be specific. Plain English. Text: ${t}`
+  },
+  {
+    icon:"📈", label:"Cash Flow Forecast", desc:"See your 30, 60 and 90 day picture",
+    placeholder:"Paste your financial data here...\n\nExample:\nCurrent balance: $18,500\nMonthly expenses: $6,200\nExpected payments: $12,000\nOverdue invoices: $4,500\nUpcoming tax: $2,800",
+    prompt: t => `You are a financial forecaster. Give a clear 30, 60 and 90 day cash flow forecast. Tell the owner: will they have enough cash, when are the risk points, and exactly what to do. Specific numbers. Plain English. Text: ${t}`
+  }
+];
+
+let currentTool = 0;
+let history = [];
+let outputText = "";
+
+function selectTool(index) {
+  currentTool = index;
+  const t = TOOLS[index];
+  document.querySelectorAll('.tool-btn').forEach((b,i) => b.classList.toggle('active', i===index));
+  document.getElementById('activeIcon').textContent = t.icon;
+  document.getElementById('activeTitle').textContent = t.label;
+  document.getElementById('activeDesc').textContent = t.desc;
+  document.getElementById('inputText').placeholder = t.placeholder;
+  document.getElementById('generateBtn').textContent = `${t.icon} Run ${t.label}`;
+  document.getElementById('inputText').value = '';
+  document.getElementById('charCount').textContent = '0 chars · Ctrl+Enter to run';
+  document.getElementById('errorText').textContent = '';
+  document.getElementById('outputCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+}
+
+function updateChar() {
+  const len = document.getElementById('inputText').value.length;
+  document.getElementById('charCount').textContent = `${len} chars · Ctrl+Enter to run`;
+}
+
+function handleKey(e) {
+  if(e.ctrlKey && e.key==='Enter') generate();
+}
+
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('charCount').textContent = '0 chars · Ctrl+Enter to run';
+  document.getElementById('errorText').textContent = '';
+  document.getElementById('outputCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+}
+
+async function generate() {
+  const input = document.getElementById('inputText').value.trim();
+  if(!input) { document.getElementById('errorText').textContent = '⚠ Paste your financial data first.'; return; }
+  
+  document.getElementById('errorText').textContent = '';
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Analyzing with Claude...';
+  document.getElementById('outputCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+
+  try {
+    const res = await fetch('https://wissely-worker.thilinarashmika0727.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{role:'user', content: TOOLS[currentTool].prompt(input)}]
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+    outputText = data.content?.map(b=>b.text||'').join('\n') || 'No response.';
+    
+    const t = TOOLS[currentTool];
+    document.getElementById('outputLabel').textContent = `${t.label} · Claude · ${new Date().toLocaleTimeString()}`;
+    document.getElementById('outputText').textContent = outputText;
+    document.getElementById('outputCard').style.display = 'block';
+
+    // Add to history
+    history = [{tool:t.label, icon:t.icon, preview:input.slice(0,50)+'...', output:outputText}, ...history.slice(0,4)];
+    renderHistory();
+
+  } catch(e) {
+    document.getElementById('errorText').textContent = '⚠ Something went wrong. Please try again.';
+    document.getElementById('emptyState').style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `${TOOLS[currentTool].icon} Run ${TOOLS[currentTool].label}`;
+}
+
+function copyOutput() {
+  navigator.clipboard.writeText(outputText);
+  const btn = document.getElementById('copyBtn');
+  btn.textContent = '✓ Copied';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+}
+
+function renderHistory() {
+  if(history.length === 0) return;
+  document.getElementById('historySection').style.display = 'block';
+  document.getElementById('historyList').innerHTML = history.map((h,i) => `
+    <div class="hist-item" onclick="showHistory(${i})">
+      <div class="hist-tool">${h.icon} ${h.tool}</div>
+      <div class="hist-preview">${h.preview}</div>
+    </div>
+  `).join('');
+}
+
+function showHistory(i) {
+  outputText = history[i].output;
+  document.getElementById('outputText').textContent = outputText;
+  document.getElementById('outputLabel').textContent = `${history[i].tool} · Claude`;
+  document.getElementById('outputCard').style.display = 'block';
+  document.getElementById('emptyState').style.display = 'none';
+}
+</script>
+</body>
+</html>
