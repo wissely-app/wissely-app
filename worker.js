@@ -27,15 +27,23 @@ export default {
       });
 
       const text = await response.text();
+      const status = response.status;
+
+      // If not successful return the full error for debugging
+      if (!response.ok) {
+        return new Response(JSON.stringify({
+          error: { message: 'API Error ' + status + ': ' + text }
+        }), {
+          headers: {...h, 'Content-Type': 'application/json'}
+        });
+      }
+
       return new Response(text, {
-        headers: {
-          ...h,
-          'Content-Type': 'application/json'
-        }
+        headers: {...h, 'Content-Type': 'application/json'}
       });
 
     } catch(e) {
-      return new Response(JSON.stringify({error: {message: e.message}}), {
+      return new Response(JSON.stringify({error: {message: 'Worker error: ' + e.message}}), {
         status: 500,
         headers: {...h, 'Content-Type': 'application/json'}
       });
