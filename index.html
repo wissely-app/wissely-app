@@ -338,8 +338,6 @@ async function generate() {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
         messages: [{role:'user', content: TOOLS[currentTool].prompt(input)}]
       })
     });
@@ -357,7 +355,7 @@ async function generate() {
     renderHistory();
 
   } catch(e) {
-    document.getElementById('errorText').textContent = '⚠ Something went wrong. Please try again.';
+    document.getElementById('errorText').textContent = '⚠ ' + (e.message || 'Something went wrong. Please try again.');
     document.getElementById('emptyState').style.display = 'block';
   }
 
