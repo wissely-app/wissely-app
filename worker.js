@@ -150,13 +150,14 @@ export default {
         const expiresAtDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await env.DB.prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)").bind(sessionId, user.id, expiresAtDate.toISOString()).run();
 
-        const isProd = url.protocol === 'https:';
         const cookieStr = [
           `wissely_session=${sessionId}`,
           `Expires=${expiresAtDate.toUTCString()}`,
-          'HttpOnly', 'Path=/', 'SameSite=Lax',
-          isProd ? 'Secure' : ''
-        ].filter(Boolean).join('; ');
+          'HttpOnly',
+          'Path=/',
+          'SameSite=None',
+          'Secure'
+        ].join('; ');
 
         return createResponse(request, {
           success: true,
@@ -182,7 +183,7 @@ export default {
           await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(sessionId).run();
         }
         return createResponse(request, { success: true }, 200, {
-          'Set-Cookie': 'wissely_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax'
+          'Set-Cookie': 'wissely_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=None; Secure'
         });
       }
 
