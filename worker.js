@@ -7,6 +7,7 @@
 const ALLOWED_ORIGINS = [
   'https://wissely.com',
   'https://www.wissely.com',
+  'https://app.wissely.com',
   'https://wissely-worker.thilinarashmika0727.workers.dev'
 ];
 
