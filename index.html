@@ -16,10 +16,37 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 
+/* Full Screen Auth Shield */
+#auth-gate-shield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--cream);
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 0.2s ease-in-out;
+}
+.gate-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--cream3);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
 .nav-logo-mark{width:30px;height:30px;background:var(--sage);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:var(--gold)}
 .nav-logo-text{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.5px}
+.nav-right-zone{display:flex;align-items:center;gap:16px}
+.logout-btn{background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:8px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
+.logout-btn:hover{background:rgba(239,68,68,0.1);border-color:#f87171;color:#f87171}
 .ai-ready{display:flex;align-items:center;gap:6px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:100px;padding:5px 14px}
 .ai-ready-dot{width:6px;height:6px;border-radius:50%;background:#c9a84c;animation:pulse 2s infinite}
 .ai-ready-text{font-size:11px;color:#c9a84c;font-family:'DM Mono',monospace;letter-spacing:1px}
@@ -105,14 +132,21 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 </head>
 <body>
 
+<div id="auth-gate-shield">
+  <div class="gate-spinner"></div>
+</div>
+
 <nav>
   <a href="https://wissely.com" class="nav-logo">
     <div class="nav-logo-mark">W</div>
     <div class="nav-logo-text">Wissely</div>
   </a>
-  <div class="ai-ready">
-    <div class="ai-ready-dot"></div>
-    <span class="ai-ready-text">AI Ready</span>
+  <div class="nav-right-zone">
+    <button class="logout-btn" onclick="triggerLogout()">Logout</button>
+    <div class="ai-ready">
+      <div class="ai-ready-dot"></div>
+      <span class="ai-ready-text">AI Ready</span>
+    </div>
   </div>
 </nav>
 
@@ -151,9 +185,9 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 
   <div class="main">
     <div class="stats-row">
-      <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val">6 Tools</span><span class="stat-label">Ready to use</span></div>
-      <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Data never stored</span></div>
-      <div class="stat-card"><span class="stat-icon">⚡</span><span class="stat-val">30s</span><span class="stat-label">Per analysis</span></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">- / -</span><span class="stat-label">Analyses Used</span></div>
+      <div class="stat-card"><span class="stat-icon">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
+      <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
     </div>
 
     <div class="input-card">
@@ -223,6 +257,8 @@ TOTAL: $6,544"></textarea>
 </div>
 
 <script>
+const API_BASE_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
 const TOOLS = [
   {
     icon:"🔍", label:"Invoice Analyzer", desc:"Extract every detail instantly",
@@ -260,6 +296,53 @@ var currentTool = 0;
 var history = [];
 var outputText = "";
 
+// Security Verification Gate Implementation
+async function checkAuthSession() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/me`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!res.ok) throw new Error('Unauthenticated');
+    const data = await res.json();
+    
+    if (data.authenticated && data.user) {
+      updateQuotaUI(data.user);
+      
+      // Clear security barrier element smoothly
+      const shield = document.getElementById('auth-gate-shield');
+      if (shield) {
+        shield.style.opacity = '0';
+        setTimeout(() => shield.remove(), 200);
+      }
+    } else {
+      throw new Error('Invalid token session structure');
+    }
+  } catch (err) {
+    console.warn("Access authorization failure:", err.message);
+    window.location.href = 'auth.html';
+  }
+}
+
+function updateQuotaUI(user) {
+  document.getElementById('quota-plan-display').textContent = user.plan ? user.plan.toUpperCase() : 'FREE';
+  document.getElementById('quota-used-display').textContent = `${user.analyses_used} / ${user.analyses_limit}`;
+}
+
+async function triggerLogout() {
+  try {
+    await fetch(`${API_BASE_URL}/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+  } catch (err) {
+    console.error("Logout runtime context cleanup exception:", err);
+  } finally {
+    window.location.href = 'auth.html';
+  }
+}
+
 function selectTool(index) {
   currentTool = index;
   var t = TOOLS[index];
@@ -296,7 +379,6 @@ function clearAll() {
 
 function cleanOutput(text) {
   var t = text;
-  // Remove bold markers
   var parts = t.split('**');
   var result = '';
   for(var i=0;i<parts.length;i++){
@@ -304,13 +386,10 @@ function cleanOutput(text) {
     else { result += parts[i]; }
   }
   t = result;
-  // Remove em dashes
   t = t.split('\u2014').join(', ');
   t = t.split(' - ').join(': ');
-  // Clean bullets
   t = t.split('\n- ').join('\n\u2022 ');
   t = t.split('\n* ').join('\n\u2022 ');
-  // Convert line breaks
   t = t.split('\n\n').join('<br/><br/>');
   t = t.split('\n').join('<br/>');
   return t.trim();
@@ -326,26 +405,53 @@ async function generate() {
   document.getElementById('outputCard').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
   try {
-    var res = await fetch('https://wissely-worker.thilinarashmika0727.workers.dev', {
+    var res = await fetch(`${API_BASE_URL}/analyze`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
+      credentials: 'include',
       body: JSON.stringify({messages:[{role:'user',content:TOOLS[currentTool].prompt(input)}]})
     });
     var data = await res.json();
-    if(data.error) throw new Error(data.error.message || 'API error');
-    outputText = data.content ? data.content.map(function(b){return b.text||'';}).join('\n') : 'No response.';
+    if(!res.ok) throw new Error(data.error || 'Upstream validation failure');
+    
+    // Unpack data from Anthropic API signature format mapping
+    var textPayload = 'No response.';
+    if (data.success && data.data && data.data.content) {
+      textPayload = data.data.content.map(function(b){return b.text||'';}).join('\n');
+    } else if (data.content) {
+      textPayload = data.content.map(function(b){return b.text||'';}).join('\n');
+    }
+    
+    outputText = textPayload;
     var t = TOOLS[currentTool];
     document.getElementById('outputLabel').textContent = t.label + ' · Wissely AI · ' + new Date().toLocaleTimeString();
     document.getElementById('outputText').innerHTML = cleanOutput(outputText);
     document.getElementById('outputCard').style.display = 'block';
     history = [{tool:t.label, icon:t.icon, preview:input.slice(0,50)+'...', output:outputText}].concat(history.slice(0,4));
     renderHistory();
+    
+    // Refresh limits allocation safely in the background
+    forceQuotaSync();
   } catch(e) {
     document.getElementById('errorText').textContent = e.message || 'Something went wrong. Please try again.';
     document.getElementById('emptyState').style.display = 'block';
   }
   btn.disabled = false;
   btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+}
+
+async function forceQuotaSync() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        updateQuotaUI(data.user);
+      }
+    }
+  } catch (e) {
+    console.warn("Background limits parsing exception thrown:", e);
+  }
 }
 
 function copyOutput() {
@@ -373,6 +479,9 @@ function showHistory(i) {
   document.getElementById('outputCard').style.display = 'block';
   document.getElementById('emptyState').style.display = 'none';
 }
+
+// Bind Authentication Protection Hooks on Runtime Init Sequence
+window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-</html>
+  </html>
