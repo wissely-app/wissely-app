@@ -1,3 +1,8 @@
 name = "wissely-worker"
 main = "worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2026-06-02"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wissely-db"
+database_id = "b2ffe2c9-0ddf-4053-88fa-8377d837e962"
