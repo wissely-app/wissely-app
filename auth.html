@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -512,15 +511,25 @@ body::before {
 </div>
 
 <script>
-const REGISTER_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev/register';
-const LOGIN_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev/login';
+const API_BASE_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev';
 
-// Check for existing valid session on load
-(function checkSession() {
-  if (localStorage.getItem('wissely_user')) {
-    window.location.replace('index.html');
+// Validate existing session via cookie middleware verification on load
+async function checkSession() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/me`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (response.ok) {
+      window.location.replace('index.html');
+    }
+  } catch (err) {
+    console.error('Session validation failed:', err);
   }
-})();
+}
+
+// Initial structural self-execution
+checkSession();
 
 function switchForm(mode) {
   const registerPane = document.getElementById('registerPane');
@@ -570,7 +579,7 @@ async function handleAuth(event, type) {
   
   const email = document.getElementById(`${type}Email`).value;
   const password = document.getElementById(`${type}Password`).value;
-  const endpoint = type === 'register' ? REGISTER_URL : LOGIN_URL;
+  const endpoint = `${API_BASE_URL}/${type}`;
 
   // Processing configuration framework state updates
   button.disabled = true;
@@ -580,6 +589,7 @@ async function handleAuth(event, type) {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ email, password })
     });
 
@@ -594,22 +604,17 @@ async function handleAuth(event, type) {
       statusBanner.textContent = 'Account created successfully! Preparing secure login portal...';
       statusBanner.classList.add('success');
       
-      if (data && data.success && data.user) {
-        localStorage.setItem('wissely_user', JSON.stringify(data.user));
-        setTimeout(() => { window.location.href = 'index.html'; }, 1200);
-      } else {
-        setTimeout(() => {
-          switchForm('login');
-          const loginStatusBanner = document.getElementById('statusBanner');
-          loginStatusBanner.textContent = 'Your account is ready. Please sign in to verify credentials.';
-          loginStatusBanner.classList.add('success');
-        }, 1500);
-      }
+      setTimeout(() => {
+        switchForm('login');
+
+        const loginStatusBanner = document.getElementById('statusBanner');
+        loginStatusBanner.textContent = 'Your account is ready. Please sign in.';
+        loginStatusBanner.classList.add('success');
+      }, 1500);
     } else {
       statusBanner.textContent = 'Authentication verified. Launching financial studio dashboard...';
       statusBanner.classList.add('success');
       
-      localStorage.setItem('wissely_user', JSON.stringify(data.user));
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
     }
 
