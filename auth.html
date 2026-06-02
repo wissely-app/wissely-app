@@ -619,8 +619,10 @@ async function handleAuth(event, type) {
     }
 
   } catch (err) {
+    statusBanner.style.display = 'block';
     statusBanner.textContent = err.message;
     statusBanner.classList.add('error');
+
     button.disabled = false;
     btnTextNode.textContent = initialButtonText;
   }
