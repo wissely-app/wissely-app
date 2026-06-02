@@ -189,28 +189,43 @@ export default {
         const session = await authenticateSession(request, env);
         if (!session) return createResponse(request, { error: 'Unauthorized session window' }, 401);
         if (session.isExpiredTrial) return createResponse(request, { error: 'Usage suspended: Trial expired' }, 403);
-        if (session.analyses_used >= session.analyses_limit) return createResponse(request, { error: 'Usage limit reached for this month' }, 403);
+
+        const allocation = await env.DB.prepare(
+          "UPDATE users SET analyses_used = analyses_used + 1 WHERE id = ? AND analyses_used < analyses_limit"
+        ).bind(session.user_id).run();
+
+        if (allocation.meta.changes === 0) {
+          return createResponse(request, { error: 'Usage limit reached for this month' }, 403);
+        }
 
         const body = await request.json();
-        if (!body.messages) return createResponse(request, { error: 'Missing chat trace history' }, 400);
+        if (!body.messages) {
+          await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
+          return createResponse(request, { error: 'Missing chat trace history' }, 400);
+        }
 
-        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': env.ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: body.messages })
-        });
+        try {
+          const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': env.ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: body.messages })
+          });
 
-        const data = await anthropicRes.json();
+          const data = await anthropicRes.json();
 
-        if (anthropicRes.ok) {
-          await env.DB.prepare("UPDATE users SET analyses_used = analyses_used + 1 WHERE id = ?").bind(session.user_id).run();
-          return createResponse(request, { success: true, data });
-        } else {
-          return createResponse(request, { error: 'Upstream analysis system experienced an anomaly', upstream: data }, 502);
+          if (anthropicRes.ok) {
+            return createResponse(request, { success: true, data });
+          } else {
+            await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
+            return createResponse(request, { error: 'Upstream analysis system experienced an anomaly', upstream: data }, 502);
+          }
+        } catch (apiError) {
+          await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
+          throw apiError;
         }
       }
 
