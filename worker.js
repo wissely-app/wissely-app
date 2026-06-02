@@ -210,6 +210,7 @@ export default {
           console.log("[Analyze] Initializing Anthropic system outbound dispatch.");
           console.log(`[Analyze] Integration Check -> ANTHROPIC_API_KEY Present: ${!!env.ANTHROPIC_API_KEY}`);
 
+          // Updated target string using current production-validated, dateless naming architecture
           const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -217,12 +218,11 @@ export default {
               'x-api-key': env.ANTHROPIC_API_KEY,
               'anthropic-version': '2023-06-01'
             },
-            body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: body.messages })
+            body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, messages: body.messages })
           });
 
           console.log(`[Analyze] Anthropic execution cycle complete. HTTP Status: ${anthropicRes.status}`);
           
-          // Clone response stream to inspect payload without disturbing original pipeline execution
           const loggedRes = anthropicRes.clone();
           const rawPayload = await loggedRes.text();
           console.log("[Analyze] Raw Upstream Body String payload output:", rawPayload);
@@ -239,7 +239,6 @@ export default {
           } else {
             await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
             
-            // Forward actual error telemetry back to client interface
             const outErrorMsg = (data && data.error && data.error.message) 
               || `Upstream system dropped connection with code: ${anthropicRes.status}`;
               
