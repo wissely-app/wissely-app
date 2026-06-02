@@ -207,6 +207,9 @@ export default {
         }
 
         try {
+          console.log("[Analyze] Initializing Anthropic system outbound dispatch.");
+          console.log(`[Analyze] Integration Check -> ANTHROPIC_API_KEY Present: ${!!env.ANTHROPIC_API_KEY}`);
+
           const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -217,15 +220,36 @@ export default {
             body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: body.messages })
           });
 
-          const data = await anthropicRes.json();
+          console.log(`[Analyze] Anthropic execution cycle complete. HTTP Status: ${anthropicRes.status}`);
+          
+          // Clone response stream to inspect payload without disturbing original pipeline execution
+          const loggedRes = anthropicRes.clone();
+          const rawPayload = await loggedRes.text();
+          console.log("[Analyze] Raw Upstream Body String payload output:", rawPayload);
+
+          let data;
+          try {
+            data = JSON.parse(rawPayload);
+          } catch(e) {
+            data = { rawTextFallback: rawPayload };
+          }
 
           if (anthropicRes.ok) {
             return createResponse(request, { success: true, data });
           } else {
             await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
-            return createResponse(request, { error: 'Upstream analysis system experienced an anomaly', upstream: data }, 502);
+            
+            // Forward actual error telemetry back to client interface
+            const outErrorMsg = (data && data.error && data.error.message) 
+              || `Upstream system dropped connection with code: ${anthropicRes.status}`;
+              
+            return createResponse(request, { 
+              error: outErrorMsg, 
+              upstream: data 
+            }, 502);
           }
         } catch (apiError) {
+          console.error("[Analyze] Critical runtime exception during request dispatch:", apiError);
           await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
           throw apiError;
         }
