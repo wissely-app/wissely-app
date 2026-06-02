@@ -1,17 +1,30 @@
-export default {
-  async fetch(r, env) {
-    const h = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    };
+// Wissely API Worker
+// Deploy this on Cloudflare Workers
+// Add ANTHROPIC_API_KEY as an environment variable in Cloudflare
 
-    if (r.method === 'OPTIONS') return new Response(null, {headers: h});
-    if (r.method !== 'POST') return new Response('No', {status: 405, headers: h});
+export default {
+  async fetch(request, env) {
+    
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        }
+      });
+    }
+
+    // Only allow POST
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 });
+    }
 
     try {
-      const body = await r.json();
+      const body = await request.json();
 
+      // Call Claude API with your secret key
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -20,32 +33,28 @@ export default {
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
           messages: body.messages
         })
       });
 
-      const text = await response.text();
-      const status = response.status;
+      const data = await response.json();
 
-      // If not successful return the full error for debugging
-      if (!response.ok) {
-        return new Response(JSON.stringify({
-          error: { message: 'API Error ' + status + ': ' + text }
-        }), {
-          headers: {...h, 'Content-Type': 'application/json'}
-        });
-      }
-
-      return new Response(text, {
-        headers: {...h, 'Content-Type': 'application/json'}
+      return new Response(JSON.stringify(data), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
       });
 
-    } catch(e) {
-      return new Response(JSON.stringify({error: {message: 'Worker error: ' + e.message}}), {
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
-        headers: {...h, 'Content-Type': 'application/json'}
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
       });
     }
   }
