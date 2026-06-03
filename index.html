@@ -72,6 +72,7 @@ nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0
 
 .main{display:flex;flex-direction:column;gap:14px}
 
+/* Desktop Defaults for Cards Row */
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stat-card{background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:14px 16px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
 .stat-icon{font-size:18px;display:block;margin-bottom:4px}
@@ -121,15 +122,48 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 @media(max-width:700px){
   body{overflow-x:hidden!important}
   .app-body,.main{width:100%!important;max-width:100%!important}
-  nav{max-width:100%!important;width:100%!important;padding:0 16px}
+  nav{max-width:100%!important;width:100%!important;padding:0 16px!important}
   .app-body{grid-template-columns:1fr!important;padding:14px!important}
   .sidebar{flex-direction:column;gap:4px}
   .history-section{display:none}
   
-  /* Isolated Scroll Architecture prevents cards from breaking the root page wrapper canvas width */
-  .stats-row{display:grid!important;grid-template-columns:repeat(3,150px)!important;gap:10px!important;overflow-x:auto!important;max-width:100%!important;width:100%!important;padding:4px 4px 10px 4px!important;-webkit-overflow-scrolling:touch!important;scroll-snap-type:x mandatory!important}
-  .stat-card{scroll-snap-align:start!important;padding:12px 8px!important}
-  .stat-val{font-size:18px!important}
+  /* Mobile Fluid Auto-Sizing Row Matches Image 1000087616.jpg precisely */
+  .stats-row{
+    display:flex!important;
+    flex-direction:row!important;
+    justify-content:space-between!important;
+    align-items:stretch!important;
+    gap:8px!important;
+    width:100%!important;
+    max-width:100%!important;
+    padding:0!important;
+    margin:0 0 4px 0!important;
+    overflow:hidden!important;
+  }
+  .stat-card{
+    flex:1!important;
+    min-width:0!important;
+    padding:14px 4px!important;
+    border-radius:12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+  }
+  .stat-icon{font-size:16px!important;margin-bottom:4px!important}
+  .stat-val{font-size:18px!important;white-space:nowrap!important}
+  .stat-label{
+    font-size:7.5px!important;
+    letter-spacing:0.5px!important;
+    line-height:1.2!important;
+    margin-top:4px!important;
+    white-space:normal!important;
+    display:-webkit-box!important;
+    -webkit-line-clamp:2!important;
+    -webkit-box-orient:vertical!important;
+    overflow:hidden!important;
+    text-align:center!important;
+  }
   
   .mobile-recent-container{display:block;margin-top:20px;padding:0 4px}
   .output-actions{width:100%;justify-content:flex-end}
@@ -529,6 +563,10 @@ async function generate() {
       });
     });
     
+    // Safety check sequence protects execution from native runtime type errors
+    if (!Array.isArray(analysisHistory)) {
+      analysisHistory = [];
+    }
     analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview:input.slice(0,50)+'...', output:outputText}].concat(analysisHistory.slice(0,4));
     renderHistory();
   } catch(e) {
@@ -552,7 +590,7 @@ async function generate() {
 }
 
 function renderHistory() {
-  if(analysisHistory.length === 0) return;
+  if (!Array.isArray(analysisHistory) || analysisHistory.length === 0) return;
   document.getElementById('historySection').style.display = 'block';
   document.getElementById('mobileHistorySection').style.display = 'block';
   let html = '';
@@ -564,7 +602,7 @@ function renderHistory() {
 }
 
 function showHistory(i) {
-  if(!analysisHistory[i]) return;
+  if (!Array.isArray(analysisHistory) || !analysisHistory[i]) return;
   outputText = analysisHistory[i].output;
   
   const targetToolIndex = TOOLS.findIndex(t => t.label === analysisHistory[i].tool);
@@ -664,7 +702,7 @@ function exportPDF() {
   <html>
   <head>
   <title>Wissely Premium Financial Document Report</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
   ${mainStyles}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
