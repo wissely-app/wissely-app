@@ -117,8 +117,6 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 .app-footer{text-align:center;padding-top:8px}
 .app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px;white-space:nowrap}
 
-.mobile-recent-container{display:none}
-
 @media(max-width:700px){
   body{overflow-x:hidden!important}
   .app-body,.main{width:100%!important;max-width:100%!important}
@@ -165,7 +163,6 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
     text-align:center!important;
   }
   
-  .mobile-recent-container{display:block;margin-top:20px;padding:0 4px}
   .output-actions{width:100%;justify-content:flex-end}
   .output-label{font-size:10px;word-break:break-word}
   .big-amount{font-size:36px!important}
@@ -313,11 +310,6 @@ TOTAL: $6,544"></textarea>
       </div>
     </div>
 
-    <div class="mobile-recent-container" id="mobileHistorySection" style="display:none">
-      <div class="sidebar-label">Recent Analyses</div>
-      <div id="mobileHistoryList"></div>
-    </div>
-
     <div class="app-footer">
       <span>WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</span>
     </div>
@@ -425,7 +417,7 @@ function updateQuotaUI(user) {
   const remaining = Math.max(0, limit - used);
   
   document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
-  document.getElementById('quota-used-display').textContent = `${remaining} Remaining`;
+  document.getElementById('quota-used-display').textContent = `${remaining}`;
   
   const btn = document.getElementById('generateBtn');
   if (used >= limit) {
@@ -595,13 +587,11 @@ async function generate() {
 function renderHistory() {
   if (!Array.isArray(analysisHistory) || analysisHistory.length === 0) return;
   document.getElementById('historySection').style.display = 'block';
-  document.getElementById('mobileHistorySection').style.display = 'block';
   let html = '';
   for(let i=0; i<analysisHistory.length; i++){
     html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+escapeHTML(analysisHistory[i].icon)+' '+escapeHTML(analysisHistory[i].tool)+'</div><div class="hist-preview">'+escapeHTML(analysisHistory[i].preview)+'</div></div>';
   }
   document.getElementById('historyList').innerHTML = html;
-  document.getElementById('mobileHistoryList').innerHTML = html;
 }
 
 function showHistory(i) {
@@ -737,4 +727,4 @@ function exportPDF() {
 window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-  </html>
+          </html>
