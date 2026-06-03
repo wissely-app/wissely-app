@@ -125,7 +125,12 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   .app-body{grid-template-columns:1fr!important;padding:14px!important}
   .sidebar{flex-direction:column;gap:4px}
   .history-section{display:none}
-  .stats-row{display:grid;grid-template-columns:1fr;gap:10px}
+  
+  /* Horizontal swipe row configuration for metrics on mobile screens */
+  .stats-row{display:grid;grid-template-columns:repeat(3,165px);gap:10px;overflow-x:auto;padding-bottom:8px;width:100%;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+  .stat-card{scroll-snap-align:start;padding:12px 10px}
+  .stat-val{font-size:19px}
+  
   .mobile-recent-container{display:block;margin-top:20px;padding:0 4px}
   .output-actions{width:100%;justify-content:flex-end}
   .output-label{font-size:10px;word-break:break-word}
@@ -459,7 +464,7 @@ function clearAll() {
 function cleanOutput(text) {
   let t = escapeHTML(text);
   t = t.replace(/^#{1,6}\s*/gm,'');
-  t = t.replace(/\*\*/g,'').replace(/\*/g,'');
+  t = t.replace(/\*\处理/g,'').replace(/\*/g,'');
   t = t.replace(/^[-_=]{3,}$/gm,'');
   t = t.replace(/^\s*[-•*]\s+/gm,'');
   t = t.replace(/\n{3,}/g,'\n\n').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>');
@@ -529,7 +534,6 @@ async function generate() {
   } catch(e) {
     clearTimeout(timeoutId);
     
-    // Explicit state clearing implementation to prevent layout/data bleed across dynamic generations
     document.getElementById('outputText').innerHTML = '';
     
     if (e.name === 'AbortError') {
@@ -685,4 +689,4 @@ function exportPDF() {
 window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-  </html>
+</html>
