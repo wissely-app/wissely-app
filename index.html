@@ -16,7 +16,7 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 
-/* Full Screen Auth Shield */
+/* Security Isolation Authentication Gate Layer Overlay */
 #auth-gate-shield {
   position: fixed;
   top: 0;
@@ -29,7 +29,7 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
   justify-content: center;
   align-items: center;
   opacity: 1;
-  transition: opacity 0.2s ease-in-out;
+  transition: opacity 0.25s ease-in-out;
 }
 .gate-spinner {
   width: 40px;
@@ -40,7 +40,7 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
   animation: spin 0.8s linear infinite;
 }
 
-nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;max-width:1060px;margin:0 auto}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
 .nav-logo-mark{width:30px;height:30px;background:var(--sage);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:var(--gold)}
 .nav-logo-text{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.5px}
@@ -94,45 +94,69 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 
 .generate-btn{width:100%;border:none;border-radius:0 0 14px 14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:0.3px;background:linear-gradient(135deg,#c9a84c,#a8873c);color:#0c0c0a;box-shadow:0 4px 24px rgba(201,168,76,0.3)}
 .generate-btn:hover{background:linear-gradient(135deg,#e8c97a,#c9a84c);transform:translateY(-1px);box-shadow:0 8px 32px rgba(201,168,76,0.4)}
-.generate-btn:disabled{background:rgba(201,168,76,0.2);color:rgba(0,0,0,0.35);cursor:not-allowed;transform:none;box-shadow:none}
+.generate-btn:disabled{background:rgba(122,122,102,0.2)!important;color:rgba(0,0,0,0.35)!important;cursor:not-allowed!important;transform:none!important;box-shadow:none!important;background-image:none!important}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 
 .output-card{background:#fff;border:1px solid var(--cream3);border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);animation:fadeUp 0.35s ease}
-.output-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:13px 18px;display:flex;align-items:center;justify-content:space-between}
+.output-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:13px 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .output-meta{display:flex;align-items:center;gap:8px}
 .output-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite}
 .output-label{font-size:11px;color:rgba(255,255,255,0.8);font-family:'DM Mono',monospace;letter-spacing:0.5px}
+.output-actions{display:flex;gap:10px;align-items:center}
 .copy-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 12px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.8)}
 .copy-btn.copied{border-color:rgba(74,222,128,0.4);color:#4ade80;background:rgba(74,222,128,0.1)}
-.output-text{padding:22px;font-size:13.5px;line-height:1.9;color:var(--text);max-height:440px;overflow-y:auto;font-family:'DM Sans',sans-serif}
+.output-text{padding:18px;font-size:13.5px;line-height:1.8;color:var(--text);overflow:visible;max-height:none;font-family:'DM Sans',sans-serif}
 .output-text strong{color:var(--sage);font-weight:600}
 .output-text em{color:var(--muted);font-style:normal}
 
 .empty-state{border:1px dashed var(--cream3);border-radius:14px;padding:24px;background:#fff}
 .sample-label{font-size:10px;color:var(--sage);font-family:'DM Mono',monospace;letter-spacing:2px;margin-bottom:16px;text-align:center;text-transform:uppercase}
-.sample-result{background:var(--cream);border:1px solid var(--cream3);border-radius:10px;padding:16px;margin-bottom:14px}
-.sample-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--cream3);font-size:13px}
-.sample-row:last-child{border:none}
-.sample-key{color:var(--muted);font-family:'DM Mono',monospace;font-size:11px}
-.sample-val{color:var(--text);font-weight:500}
-.sample-action{background:rgba(45,74,62,0.06);border-left:3px solid var(--sage);border-radius:0 8px 8px 0;padding:10px 14px;font-size:12px;color:var(--sage);margin-top:10px;line-height:1.6}
 .empty-sub{font-size:11px;color:#bbb;font-family:'DM Mono',monospace;text-align:center;margin-top:12px}
 
 .app-footer{text-align:center;padding-top:8px}
-.app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px}
+.app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px;white-space:nowrap}
+
+.mobile-recent-container{display:none}
 
 @media(max-width:700px){
-  .app-body{grid-template-columns:1fr;padding:16px 14px 40px}
+  body{overflow-x:hidden!important}
+  .app-body,.main{width:100%!important;max-width:100%!important}
+  nav{max-width:100%;width:100%;padding:0 16px}
+  .app-body{grid-template-columns:1fr!important;padding:14px!important}
   .sidebar{flex-direction:column;gap:4px}
-  .tool-btn{min-width:unset;width:100%}
   .history-section{display:none}
-  nav{padding:0 16px}
+  .stats-row{display:none}
+  .mobile-recent-container{display:block;margin-top:20px;padding:0 4px}
+  .output-actions{width:100%;justify-content:flex-end}
+  .output-label{font-size:10px;word-break:break-word}
+  .big-amount{font-size:36px!important}
+  .summary-val{max-width:100%;overflow-wrap:anywhere;text-align:right}
+  .nav-logo-text{font-size:18px}
+  .ai-ready{padding:5px 10px}
+  .output-card,.input-card,.invoice-summary{width:100%}
+}
+
+/* Premium Visual Report Layout Definitions */
+.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px}
+.decision-status{display:inline-block;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px;background:#e8f5e9;color:#2d4a3e}
+.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0}
+.wissely-premium-header{display:flex!important;align-items:center!important;justify-content:space-between!important;border-bottom:1px solid #dedad0!important;padding-bottom:16px!important;margin-bottom:24px!important;gap:12px!important;flex-wrap:wrap!important}
+.wissely-premium-footer{display:block!important;text-align:center!important;border-top:1px solid #dedad0!important;padding-top:16px!important;margin-top:24px!important}
+.completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
+.completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
+.premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
+.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px}
+.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
+
+@media(max-width:700px){
+  .premium-data-grid{grid-template-columns:1fr}
+  .big-amount{font-size:48px!important;line-height:1.05}
 }
 </style>
 </head>
 <body>
 
-<div id="auth-gate-shield">
+<div id="auth-gate-shield" aria-hidden="true">
   <div class="gate-spinner"></div>
 </div>
 
@@ -177,6 +201,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
       <span class="tool-icon">📈</span>
       <div><div class="tool-label">Cash Flow Forecast</div><div class="tool-desc">30, 60, 90 day picture</div></div>
     </button>
+    
     <div class="history-section" id="historySection" style="display:none">
       <div class="sidebar-label">Recent</div>
       <div id="historyList"></div>
@@ -225,29 +250,33 @@ TOTAL: $6,544"></textarea>
       </button>
     </div>
 
+    <div style="height:18px" id="resultSpacer"></div>
     <div class="output-card" id="outputCard" style="display:none">
       <div class="output-header">
         <div class="output-meta">
           <div class="output-dot"></div>
           <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
         </div>
-        <button class="copy-btn" id="copyBtn" onclick="copyOutput()">Copy</button>
+        <div class="output-actions">
+          <button class="copy-btn" id="copyBtn" onclick="copyOutput()" aria-live="polite">Copy</button>
+          <button class="copy-btn" onclick="exportPDF()">PDF</button>
+        </div>
       </div>
       <div class="output-text" id="outputText"></div>
     </div>
 
     <div class="empty-state" id="emptyState">
-      <div class="sample-label">Sample Result · Invoice Analyzer</div>
-      <div class="sample-result">
-        <div class="sample-row"><span class="sample-key">Vendor</span><span class="sample-val">TechSupplies Ltd</span></div>
-        <div class="sample-row"><span class="sample-key">Invoice</span><span class="sample-val">INV-2026-0547</span></div>
-        <div class="sample-row"><span class="sample-key">Amount</span><span class="sample-val" style="color:var(--sage);font-weight:600">$6,544.72</span></div>
-        <div class="sample-row"><span class="sample-key">Due Date</span><span class="sample-val" style="color:#e67e22">June 28, 2026</span></div>
-        <div class="sample-row"><span class="sample-key">Tax Check</span><span class="sample-val" style="color:#27ae60">Correct</span></div>
-        <div class="sample-row"><span class="sample-key">Duplicates</span><span class="sample-val" style="color:#27ae60">None found</span></div>
-        <div class="sample-action">Payment due in 23 days. Schedule wire transfer by June 24 to avoid late fees.</div>
+      <div class="sample-label">Wissely AI Ready</div>
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:42px;margin-bottom:10px">📊</div>
+        <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
+        <div class="empty-sub">Paste invoice or financial data and click Run</div>
       </div>
-      <div class="empty-sub">Paste your own data above to get a real analysis</div>
+    </div>
+
+    <div class="mobile-recent-container" id="mobileHistorySection" style="display:none">
+      <div class="sidebar-label">Recent Analyses</div>
+      <div id="mobileHistoryList"></div>
     </div>
 
     <div class="app-footer">
@@ -263,12 +292,12 @@ const TOOLS = [
   {
     icon:"🔍", label:"Invoice Analyzer", desc:"Extract every detail instantly",
     placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544",
-    prompt: function(t){ return "You are a financial expert. Analyze this invoice clearly. Extract: vendor, invoice number, date, due date, every line item, subtotal, tax, total, payment terms. Flag any issues. Plain English only, no jargon. No markdown symbols. Use simple text only. Text: " + t; }
+    prompt: function(t){ return "You are a financial expert. Return a concise Invoice Summary. Use only these fields: Vendor Name, Customer Name, Invoice Number, Invoice Date, Due Date, Total Amount, Issues Found, Recommended Action. Extract data correctly. Flag any issues. Keep response under 150 words. Do not use asterisks or markdown. Output exactly as: Field: Value. Text: " + t; }
   },
   {
     icon:"🗂️", label:"Expense Clarity", desc:"Sort expenses for tax",
     placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500",
-    prompt: function(t){ return "You are an accountant. Categorize these expenses for tax purposes. For each: category, tax deductible yes or no, and notes. Give totals by category. Plain English only. No markdown symbols. Use simple text only. Text: " + t; }
+    prompt: function(t){ return "You are an accountant. Categorize these expenses for tax purposes. For each: category, tax deductible yes or no, and notes. Give totals by category. Output as a professional business report. No markdown. No asterisks. No bullet points. No emojis. Text: " + t; }
   },
   {
     icon:"📊", label:"Finance Report", desc:"A clear summary you can read",
@@ -278,7 +307,7 @@ const TOOLS = [
   {
     icon:"📧", label:"Payment Request", desc:"Get paid faster",
     placeholder:"Paste invoice details here...\n\nExample:\nClient: ABC Corp\nInvoice: $3,500\nDays overdue: 15\nProject: Website redesign",
-    prompt: function(t){ return "You are a professional business communicator. Write a firm but polite payment follow-up email with subject line. Sound human. Include payment details and a clear call to action. No markdown symbols. Plain text only. Info: " + t; }
+    prompt: function(t){ return "You are a professional business communicator. Write a firm but polite payment follow-up email with subject line. Sound human. Include payment details and a call to action. No markdown symbols. Plain text only. Info: " + t; }
   },
   {
     icon:"🚨", label:"Fraud Detection", desc:"Catch errors early",
@@ -292,196 +321,312 @@ const TOOLS = [
   }
 ];
 
-var currentTool = 0;
-var history = [];
-var outputText = "";
+let currentTool = 0;
+let analysisHistory = [];
+let outputText = "";
+let isQuotaExhausted = false;
 
-// Security Verification Gate Implementation
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, function(m) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+  });
+}
+
 async function checkAuthSession() {
   try {
-    const res = await fetch(`${API_BASE_URL}/me`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-    
+    const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
     if (!res.ok) throw new Error('Unauthenticated');
     const data = await res.json();
-    
     if (data.authenticated && data.user) {
       updateQuotaUI(data.user);
-      
-      // Clear security barrier element smoothly
       const shield = document.getElementById('auth-gate-shield');
-      if (shield) {
-        shield.style.opacity = '0';
-        setTimeout(() => shield.remove(), 200);
+      if (shield) { 
+        shield.style.opacity = '0'; 
+        setTimeout(() => shield.remove(), 250); 
       }
-    } else {
-      throw new Error('Invalid token session structure');
-    }
-  } catch (err) {
-    console.warn("Access authorization failure:", err.message);
-    window.location.href = 'auth.html';
-  }
+    } else { throw new Error('Invalid session structure'); }
+  } catch (err) { window.location.href = 'auth.html'; }
 }
 
 function updateQuotaUI(user) {
-  document.getElementById('quota-plan-display').textContent = user.plan ? user.plan.toUpperCase() : 'FREE';
-  document.getElementById('quota-used-display').textContent = `${user.analyses_used} / ${user.analyses_limit}`;
+  if(!user) return;
+  const used = parseInt(user.analyses_used || 0);
+  const limit = parseInt(user.analyses_limit || 0);
+  const isUnlimited = limit <= 0;
+  
+  document.getElementById('quota-plan-display').textContent = escapeHTML(user.plan ? user.plan.toUpperCase() : 'FREE');
+  document.getElementById('quota-used-display').textContent = isUnlimited ? `${used} / ∞` : `${used} / ${limit}`;
+  
+  const btn = document.getElementById('generateBtn');
+  if (!isUnlimited && used >= limit) {
+    isQuotaExhausted = true;
+    btn.disabled = true;
+    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+    document.getElementById('errorText').textContent = 'Your analysis quota is exhausted. Upgrade your tier to process further records.';
+  } else {
+    isQuotaExhausted = false;
+    if (!btn.classList.contains('processing-active')) {
+      btn.disabled = false;
+      btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+    }
+  }
 }
 
 async function triggerLogout() {
   try {
-    await fetch(`${API_BASE_URL}/logout`, {
-      method: 'POST',
-      credentials: 'include'
-    });
-  } catch (err) {
-    console.error("Logout runtime context cleanup exception:", err);
-  } finally {
-    window.location.href = 'auth.html';
-  }
+    await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
+  } catch (e) {}
+  window.location.href = 'auth.html';
 }
 
 function selectTool(index) {
   currentTool = index;
-  var t = TOOLS[index];
-  var btns = document.querySelectorAll('.tool-btn');
-  for(var i=0;i<btns.length;i++){ btns[i].classList.toggle('active', i===index); }
+  const t = TOOLS[index];
+  const btns = document.querySelectorAll('.tool-btn');
+  for(let i=0; i<btns.length; i++){ btns[i].classList.toggle('active', i===index); }
   document.getElementById('activeIcon').textContent = t.icon;
   document.getElementById('activeTitle').textContent = t.label;
   document.getElementById('activeDesc').textContent = t.desc;
   document.getElementById('inputText').placeholder = t.placeholder;
-  document.getElementById('generateBtn').textContent = t.icon + ' Run ' + t.label;
+  
+  const btn = document.getElementById('generateBtn');
+  if (!isQuotaExhausted) {
+    btn.disabled = false;
+    btn.textContent = t.icon + ' Run ' + t.label;
+    document.getElementById('errorText').textContent = '';
+  } else {
+    btn.disabled = true;
+    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+  }
+  
   document.getElementById('inputText').value = '';
   document.getElementById('charCount').textContent = '0 chars';
-  document.getElementById('errorText').textContent = '';
   document.getElementById('outputCard').style.display = 'none';
   document.getElementById('emptyState').style.display = 'block';
 }
 
-function updateChar() {
-  var len = document.getElementById('inputText').value.length;
-  document.getElementById('charCount').textContent = len + ' chars';
-}
+function updateChar() { document.getElementById('charCount').textContent = document.getElementById('inputText').value.length + ' chars'; }
 
-function handleKey(e) {
-  if(e.ctrlKey && e.key==='Enter') generate();
-}
+function handleKey(e) { if(e.ctrlKey && e.key==='Enter' && !isQuotaExhausted) generate(); }
 
 function clearAll() {
   document.getElementById('inputText').value = '';
   document.getElementById('charCount').textContent = '0 chars';
-  document.getElementById('errorText').textContent = '';
+  if (!isQuotaExhausted) document.getElementById('errorText').textContent = '';
   document.getElementById('outputCard').style.display = 'none';
   document.getElementById('emptyState').style.display = 'block';
 }
 
 function cleanOutput(text) {
-  var t = text;
-  var parts = t.split('**');
-  var result = '';
-  for(var i=0;i<parts.length;i++){
-    if(i%2===1){ result += '<strong>' + parts[i] + '</strong>'; }
-    else { result += parts[i]; }
-  }
-  t = result;
-  t = t.split('\u2014').join(', ');
-  t = t.split(' - ').join(': ');
-  t = t.split('\n- ').join('\n\u2022 ');
-  t = t.split('\n* ').join('\n\u2022 ');
-  t = t.split('\n\n').join('<br/><br/>');
-  t = t.split('\n').join('<br/>');
+  let t = escapeHTML(text);
+  t = t.replace(/^#{1,6}\s*/gm,'');
+  t = t.replace(/\*\*/g,'').replace(/\*/g,'');
+  t = t.replace(/^[-_=]{3,}$/gm,'');
+  t = t.replace(/^\s*[-•*]\s+/gm,'');
+  t = t.replace(/\n{3,}/g,'\n\n').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>');
   return t.trim();
 }
 
 async function generate() {
-  var input = document.getElementById('inputText').value.trim();
-  if(!input){ document.getElementById('errorText').textContent = 'Paste your financial data first.'; return; }
+  if (isQuotaExhausted) return;
+  const input = document.getElementById('inputText').value.trim();
+  if(!input){ document.getElementById('errorText').textContent = 'Paste financial data first.'; return; }
   document.getElementById('errorText').textContent = '';
-  var btn = document.getElementById('generateBtn');
+  
+  const btn = document.getElementById('generateBtn');
   btn.disabled = true;
+  btn.classList.add('processing-active');
   btn.innerHTML = '<span class="spin">⟳</span> Analyzing...';
   document.getElementById('outputCard').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  
   try {
-    var res = await fetch(`${API_BASE_URL}/analyze`, {
+    const res = await fetch(`${API_BASE_URL}/analyze`, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       credentials: 'include',
+      signal: controller.signal,
       body: JSON.stringify({messages:[{role:'user',content:TOOLS[currentTool].prompt(input)}]})
     });
-    var data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Upstream validation failure');
     
-    // Unpack data from Anthropic API signature format mapping
-    var textPayload = 'No response.';
-    if (data.success && data.data && data.data.content) {
-      textPayload = data.data.content.map(function(b){return b.text||'';}).join('\n');
-    } else if (data.content) {
-      textPayload = data.content.map(function(b){return b.text||'';}).join('\n');
+    clearTimeout(timeoutId);
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message || 'API processing error');
+    
+    outputText = data.data?.content[0]?.text || data.content?.[0]?.text || (data.content ? data.content.map(b => b.text || '').join('\n') : "No output.");
+    
+    document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
+    
+    if(currentTool === 0) {
+      renderInvoiceCards(outputText);
+    } else {
+      document.getElementById('outputText').innerHTML = cleanOutput(outputText);
     }
     
-    outputText = textPayload;
-    var t = TOOLS[currentTool];
-    document.getElementById('outputLabel').textContent = t.label + ' · Wissely AI · ' + new Date().toLocaleTimeString();
-    document.getElementById('outputText').innerHTML = cleanOutput(outputText);
     document.getElementById('outputCard').style.display = 'block';
-    history = [{tool:t.label, icon:t.icon, preview:input.slice(0,50)+'...', output:outputText}].concat(history.slice(0,4));
-    renderHistory();
     
-    // Refresh limits allocation safely in the background
-    forceQuotaSync();
-  } catch(e) {
-    document.getElementById('errorText').textContent = e.message || 'Something went wrong. Please try again.';
-    document.getElementById('emptyState').style.display = 'block';
-  }
-  btn.disabled = false;
-  btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
-}
-
-async function forceQuotaSync() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.authenticated && data.user) {
-        updateQuotaUI(data.user);
+    if (data.user) {
+      updateQuotaUI(data.user);
+    } else {
+      const checkRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        if (checkData.user) updateQuotaUI(checkData.user);
       }
     }
-  } catch (e) {
-    console.warn("Background limits parsing exception thrown:", e);
+    
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const card = document.getElementById('outputCard');
+        if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+    
+    analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview:input.slice(0,50)+'...', output:outputText}].concat(analysisHistory.slice(0,4));
+    renderHistory();
+  } catch(e) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') {
+      document.getElementById('errorText').textContent = 'Analysis connection timed out (30 seconds). Please try again.';
+    } else {
+      document.getElementById('errorText').textContent = e.message || 'Error executing processing analytics.';
+    }
+    document.getElementById('emptyState').style.display = 'block';
   }
+  
+  btn.classList.remove('processing-active');
+  if (!isQuotaExhausted) {
+    btn.disabled = false;
+    btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+  }
+}
+
+function renderHistory() {
+  if(analysisHistory.length === 0) return;
+  document.getElementById('historySection').style.display = 'block';
+  document.getElementById('mobileHistorySection').style.display = 'block';
+  let html = '';
+  for(let i=0; i<analysisHistory.length; i++){
+    html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+escapeHTML(analysisHistory[i].icon)+' '+escapeHTML(analysisHistory[i].tool)+'</div><div class="hist-preview">'+escapeHTML(analysisHistory[i].preview)+'</div></div>';
+  }
+  document.getElementById('historyList').innerHTML = html;
+  document.getElementById('mobileHistoryList').innerHTML = html;
+}
+
+function showHistory(i) {
+  if(!analysisHistory[i]) return;
+  outputText = analysisHistory[i].output;
+  if(analysisHistory[i].tool === 'Invoice Analyzer') {
+    renderInvoiceCards(outputText);
+  } else {
+    document.getElementById('outputText').innerHTML = cleanOutput(outputText);
+  }
+  document.getElementById('outputLabel').textContent = escapeHTML(analysisHistory[i].tool) + ' · Wissely AI';
+  document.getElementById('outputCard').style.display = 'block';
+  document.getElementById('emptyState').style.display = 'none';
 }
 
 function copyOutput() {
   navigator.clipboard.writeText(outputText);
-  var btn = document.getElementById('copyBtn');
+  const btn = document.getElementById('copyBtn');
   btn.textContent = 'Copied';
   btn.classList.add('copied');
   setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
 }
 
-function renderHistory() {
-  if(history.length===0) return;
-  document.getElementById('historySection').style.display = 'block';
-  var html = '';
-  for(var i=0;i<history.length;i++){
-    html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+history[i].icon+' '+history[i].tool+'</div><div class="hist-preview">'+history[i].preview+'</div></div>';
-  }
-  document.getElementById('historyList').innerHTML = html;
+function renderInvoiceCards(text){
+ function extract(labels){
+   const list = labels.split('|');
+   for(let j=0; j<list.length; j++){
+     // Double-escaped string interpretation pattern for clean engine execution 
+     const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
+     const m = text.match(r);
+     if(m && m[1]) return m[1].trim();
+   }
+   return '—';
+ }
+ const vendor = extract('Vendor Name|Vendor|From');
+ const customer = extract('Customer Name|Customer|To');
+ const invoice = extract('Invoice Number|Invoice #');
+ const due = extract('Due Date|Due');
+ const amount = extract('Total Amount|TOTAL|Total');
+ const issues = extract('Issues Found|Issues');
+ const action = extract('Recommended Action|Recommendations|Action');
+
+ let fields = 0;
+ if(vendor !== '—') fields++;
+ if(customer !== '—') fields++;
+ if(invoice !== '—') fields++;
+ if(due !== '—') fields++;
+ if(amount !== '—') fields++;
+ if(issues !== '—') fields++;
+ if(action !== '—') fields++;
+ 
+ const structuralCompleteness = {7:100, 6:85, 5:70, 4:55, 3:40, 2:25, 1:10, 0:0}[fields];
+ const analysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
+
+ document.getElementById('outputText').innerHTML = `
+ <div class="invoice-summary">
+   <div class="wissely-premium-header">
+     <div><strong style="font-size:24px">Wissely</strong><br><small>AI Financial Analysis Report</small></div>
+     <div><small>${escapeHTML(new Date().toLocaleDateString())}</small><br><small>${escapeHTML(analysisId)}</small></div>
+   </div>
+   <div class="decision-status">✓ ANALYZED</div>
+   <div class="big-amount">${escapeHTML(amount)}</div>
+   <div class="completeness-score-card">
+      <div class="completeness-score-value">${structuralCompleteness}%</div>
+      <div><strong>Document Completeness Score</strong><br><small>Based on key property values cleanly resolved from target structure</small></div>
+   </div>
+   <div class="premium-data-grid">
+      <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(vendor)}</div>
+      <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(due)}</div>
+      <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(invoice)}</div>
+      <div class="premium-info-card"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
+   </div>
+   <div class="finding-box"><strong>Issues Found</strong><br>${escapeHTML(issues)}</div>
+   <div class="finding-box" style="border-left-color: var(--gold)"><strong>Recommended Action</strong><br>${escapeHTML(action)}</div>
+   <div class="wissely-premium-footer">WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</div>
+ </div>`;
 }
 
-function showHistory(i) {
-  outputText = history[i].output;
-  document.getElementById('outputText').innerHTML = cleanOutput(outputText);
-  document.getElementById('outputLabel').textContent = history[i].tool + ' · Wissely AI';
-  document.getElementById('outputCard').style.display = 'block';
-  document.getElementById('emptyState').style.display = 'none';
+function exportPDF() {
+  const targetSummary = document.querySelector('.invoice-summary');
+  const content = targetSummary ? targetSummary.outerHTML : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+  const mainStyles = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
+  const w = window.open('', '_blank');
+
+  w.document.write(`
+  <!DOCTYPE html>
+  <html>
+  <head>
+  <title>Wissely Premium Financial Document Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+  ${mainStyles}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  @page{size:A4;margin:10mm}
+  body{margin:0!important;background:#f8f6f0!important;font-family:'DM Sans',sans-serif!important;padding:20px}
+  .pdf-page-wrapper{width:100%!important;padding:0!important;margin:0!important;background:#f8f6f0!important}
+  .invoice-summary{width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important;page-break-inside:avoid!important}
+  </style>
+  </head>
+  <body>
+    <div class="pdf-page-wrapper">${content}</div>
+    <script>
+      document.fonts.ready.then(()=>{
+        setTimeout(()=>window.print(),500);
+      });
+    <\/script>
+  </body>
+  </html>`);
+  w.document.close();
 }
 
-// Bind Authentication Protection Hooks on Runtime Init Sequence
 window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-  </html>
+</html>
