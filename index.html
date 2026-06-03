@@ -127,7 +127,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   .sidebar{flex-direction:column;gap:4px}
   .history-section{display:none}
   
-  /* Mobile Fluid Auto-Sizing Row Matches Image 1000087616.jpg precisely */
+  /* Mobile Fluid Auto-Sizing Row Matches Layout Expectations */
   .stats-row{
     display:flex!important;
     flex-direction:row!important;
@@ -563,11 +563,14 @@ async function generate() {
       });
     });
     
-    // Safety check sequence protects execution from native runtime type errors
+    // String protection verification logic prevents slicing crashes
     if (!Array.isArray(analysisHistory)) {
       analysisHistory = [];
     }
-    analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview:input.slice(0,50)+'...', output:outputText}].concat(analysisHistory.slice(0,4));
+    const safeString = String(input || '');
+    const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
+    
+    analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview:slicePreview, output:outputText}].concat(analysisHistory.slice(0,4));
     renderHistory();
   } catch(e) {
     clearTimeout(timeoutId);
@@ -655,14 +658,21 @@ function renderInvoiceCards(text){
  const issues = extract('Issues Found|Issues');
  const action = extract('Recommended Action|Recommendations|Action');
 
+ // Validates actual values versus explicit context/fallback missing strings
+ function isValidField(val) {
+   if (!val || val === '—') return false;
+   const clean = val.toLowerCase();
+   return !(clean.includes('not provided') || clean.includes('n/a') || clean === 'none' || clean === 'unknown');
+ }
+
  let fields = 0;
- if(vendor !== '—') fields++;
- if(customer !== '—') fields++;
- if(invoice !== '—') fields++;
- if(due !== '—') fields++;
- if(amount !== '—') fields++;
- if(issues !== '—') fields++;
- if(action !== '—') fields++;
+ if(isValidField(vendor)) fields++;
+ if(isValidField(customer)) fields++;
+ if(isValidField(invoice)) fields++;
+ if(isValidField(due)) fields++;
+ if(isValidField(amount)) fields++;
+ if(isValidField(issues)) fields++;
+ if(isValidField(action)) fields++;
  
  const structuralCompleteness = {7:100, 6:85, 5:70, 4:55, 3:40, 2:25, 1:10, 0:0}[fields];
  const analysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
@@ -727,4 +737,4 @@ function exportPDF() {
 window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-</html>
+  </html>
