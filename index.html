@@ -210,7 +210,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 
   <div class="main">
     <div class="stats-row">
-      <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">- / -</span><span class="stat-label">Analyses Used</span></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">-</span><span class="stat-label">Analyses Remaining</span></div>
       <div class="stat-card"><span class="stat-icon">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
       <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
     </div>
@@ -334,32 +334,62 @@ function escapeHTML(str) {
 }
 
 async function checkAuthSession() {
+  const shield = document.getElementById('auth-gate-shield');
   try {
     const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    if (!res.ok) throw new Error('Unauthenticated');
+    
+    if (res.status === 401 || res.status === 403) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    
+    if (!res.ok) {
+      console.warn('Wissely Engine connectivity degradation detected.');
+      if (shield) {
+        shield.style.opacity = '0';
+        setTimeout(() => shield.remove(), 250);
+      }
+      return;
+    }
+    
     const data = await res.json();
-    if (data.authenticated && data.user) {
+    if (data && data.authenticated && data.user) {
       updateQuotaUI(data.user);
-      const shield = document.getElementById('auth-gate-shield');
       if (shield) { 
         shield.style.opacity = '0'; 
         setTimeout(() => shield.remove(), 250); 
       }
-    } else { throw new Error('Invalid session structure'); }
-  } catch (err) { window.location.href = 'auth.html'; }
+    } else { window.location.href = 'auth.html'; }
+  } catch (err) { 
+    console.error('Session security validation fault context:', err);
+    if (shield) {
+      shield.style.opacity = '0';
+      setTimeout(() => shield.remove(), 250);
+    }
+  }
 }
 
 function updateQuotaUI(user) {
   if(!user) return;
-  const used = parseInt(user.analyses_used || 0);
-  const limit = parseInt(user.analyses_limit || 0);
-  const isUnlimited = limit <= 0;
   
-  document.getElementById('quota-plan-display').textContent = escapeHTML(user.plan ? user.plan.toUpperCase() : 'FREE');
-  document.getElementById('quota-used-display').textContent = isUnlimited ? `${used} / ∞` : `${used} / ${limit}`;
+  const rawPlan = user.plan ? String(user.plan).toLowerCase() : 'trial';
+  
+  const VALID_TIERS = {
+    'trial': 20,
+    'starter': 50,
+    'growth': 250,
+    'pro': 1000
+  };
+
+  const limit = parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20;
+  const used = parseInt(user.analyses_used || 0);
+  const remaining = Math.max(0, limit - used);
+  
+  document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
+  document.getElementById('quota-used-display').textContent = `${remaining} Remaining`;
   
   const btn = document.getElementById('generateBtn');
-  if (!isUnlimited && used >= limit) {
+  if (used >= limit) {
     isQuotaExhausted = true;
     btn.disabled = true;
     btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
@@ -388,7 +418,15 @@ function selectTool(index) {
   document.getElementById('activeIcon').textContent = t.icon;
   document.getElementById('activeTitle').textContent = t.label;
   document.getElementById('activeDesc').textContent = t.desc;
-  document.getElementById('inputText').placeholder = t.placeholder;
+  
+  const currentInput = document.getElementById('inputText').value.trim();
+  if (!currentInput) {
+    document.getElementById('inputText').placeholder = t.placeholder;
+    document.getElementById('inputText').value = '';
+    document.getElementById('charCount').textContent = '0 chars';
+    document.getElementById('outputCard').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+  }
   
   const btn = document.getElementById('generateBtn');
   if (!isQuotaExhausted) {
@@ -399,16 +437,16 @@ function selectTool(index) {
     btn.disabled = true;
     btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
   }
-  
-  document.getElementById('inputText').value = '';
-  document.getElementById('charCount').textContent = '0 chars';
-  document.getElementById('outputCard').style.display = 'none';
-  document.getElementById('emptyState').style.display = 'block';
 }
 
 function updateChar() { document.getElementById('charCount').textContent = document.getElementById('inputText').value.length + ' chars'; }
 
-function handleKey(e) { if(e.ctrlKey && e.key==='Enter' && !isQuotaExhausted) generate(); }
+function handleKey(e) { 
+  if(e.ctrlKey && e.key==='Enter') {
+    e.preventDefault();
+    if(!isQuotaExhausted) generate();
+  }
+}
 
 function clearAll() {
   document.getElementById('inputText').value = '';
@@ -490,6 +528,10 @@ async function generate() {
     renderHistory();
   } catch(e) {
     clearTimeout(timeoutId);
+    
+    // Explicit state clearing implementation to prevent layout/data bleed across dynamic generations
+    document.getElementById('outputText').innerHTML = '';
+    
     if (e.name === 'AbortError') {
       document.getElementById('errorText').textContent = 'Analysis connection timed out (30 seconds). Please try again.';
     } else {
@@ -520,6 +562,21 @@ function renderHistory() {
 function showHistory(i) {
   if(!analysisHistory[i]) return;
   outputText = analysisHistory[i].output;
+  
+  const targetToolIndex = TOOLS.findIndex(t => t.label === analysisHistory[i].tool);
+  if (targetToolIndex !== -1) {
+    currentTool = targetToolIndex;
+    const btns = document.querySelectorAll('.tool-btn');
+    for(let b = 0; b < btns.length; b++) { 
+      btns[b].classList.toggle('active', b === targetToolIndex); 
+    }
+    const t = TOOLS[targetToolIndex];
+    document.getElementById('activeIcon').textContent = t.icon;
+    document.getElementById('activeTitle').textContent = t.label;
+    document.getElementById('activeDesc').textContent = t.desc;
+    document.getElementById('inputText').placeholder = t.placeholder;
+  }
+
   if(analysisHistory[i].tool === 'Invoice Analyzer') {
     renderInvoiceCards(outputText);
   } else {
@@ -542,7 +599,6 @@ function renderInvoiceCards(text){
  function extract(labels){
    const list = labels.split('|');
    for(let j=0; j<list.length; j++){
-     // Double-escaped string interpretation pattern for clean engine execution 
      const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
      const m = text.match(r);
      if(m && m[1]) return m[1].trim();
@@ -595,7 +651,7 @@ function renderInvoiceCards(text){
 
 function exportPDF() {
   const targetSummary = document.querySelector('.invoice-summary');
-  const content = targetSummary ? targetSummary.outerHTML : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+  const content = targetSummary ? targetSummary.outerHTML : `<div class="invoice-summary">${document.getElementById('outputText').innerHTML}</div>`;
   const mainStyles = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
   const w = window.open('', '_blank');
 
@@ -629,4 +685,4 @@ function exportPDF() {
 window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-</html>
+  </html>
