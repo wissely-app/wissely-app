@@ -432,7 +432,7 @@ body::before {
         </div>
         <button type="submit" class="auth-btn">
           <div class="spinner"></div>
-          <span class="btn-text">Start Free Trial </span>
+          <span class="btn-text">Start Free Trial</span>
         </button>
       </form>
     </div>
@@ -528,8 +528,18 @@ async function checkSession() {
   }
 }
 
+function initRouting() {
+  const mode = new URLSearchParams(window.location.search).get('mode');
+  if (mode === 'login') {
+    switchForm('login');
+  } else {
+    switchForm('register');
+  }
+}
+
 // Initial structural self-execution
 checkSession();
+document.addEventListener("DOMContentLoaded", initRouting);
 
 function switchForm(mode) {
   const registerPane = document.getElementById('registerPane');
@@ -543,6 +553,8 @@ function switchForm(mode) {
   
   document.getElementById('loginForm').reset();
   document.getElementById('registerForm').reset();
+
+  window.history.replaceState({}, '', `?mode=${mode}`);
 
   if (mode === 'register') {
     tabLogin.classList.remove('active');
@@ -630,4 +642,4 @@ async function handleAuth(event, type) {
 </script>
 
 </body>
-</html>
+            </html>
