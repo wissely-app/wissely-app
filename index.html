@@ -5,11 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Wissely — Your Finances, Finally Clear</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js" integrity="sha512-9+gSUIgsc6S6XoD36UbeY9OdBw787G65f1NfS9Z9u+L7DcsYfcl9M5Q7gV0C8O8pSOn6sn+7XfNisZ6U7K9E7g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--ink:#0c0c0a;--sage:#2d4a3e;--sage2:#3d6b58;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#f5e0a0;--cream:#f8f6f0;--cream2:#ede9df;--cream3:#dedad0;--text:#2a2a20;--muted:#7a7a66;--error:#ef4444}
-body{background:var(--cream);font-family:'DM Sans',sans-serif;color:var(--text);margin:0;overflow-x:hidden}
+:root{--ink:#0c0c0a;--sage:#2d4a3e;--sage2:#3d6b58;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#f5e0a0;--cream:#f8f6f0;--cream2:#ede9df;--cream3:#dedad0;--text:#2a2a20;--muted:#7a7a66}
+body{background:var(--cream);font-family:'DM Sans',sans-serif;color:var(--text);margin:0}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-thumb{background:rgba(45,74,62,0.2);border-radius:3px}
 textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
@@ -17,7 +16,7 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 
-/* Fail-Secure Absolute UI Interceptor */
+/* Security Isolation Authentication Gate Layer Overlay */
 #auth-gate-shield {
   position: fixed;
   top: 0;
@@ -25,13 +24,12 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
   width: 100vw;
   height: 100vh;
   background-color: var(--cream);
-  z-index: 999999;
+  z-index: 99999;
   display: flex;
   justify-content: center;
   align-items: center;
   opacity: 1;
-  visibility: visible;
-  transition: opacity 0.25s ease, visibility 0.25s ease;
+  transition: opacity 0.25s ease-in-out;
 }
 .gate-spinner {
   width: 40px;
@@ -42,19 +40,13 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
   animation: spin 0.8s linear infinite;
 }
 
-#wissely-app-root {
-  display: none;
-}
-
 nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;max-width:1060px;margin:0 auto}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-.nav-logo:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
 .nav-logo-mark{width:30px;height:30px;background:var(--sage);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:var(--gold)}
 .nav-logo-text{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.5px}
 .nav-right-zone{display:flex;align-items:center;gap:16px}
 .logout-btn{background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:8px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
 .logout-btn:hover{background:rgba(239,68,68,0.1);border-color:#f87171;color:#f87171}
-.logout-btn:focus-visible{outline:2px solid #f87171;outline-offset:2px}
 .ai-ready{display:flex;align-items:center;gap:6px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:100px;padding:5px 14px}
 .ai-ready-dot{width:6px;height:6px;border-radius:50%;background:#c9a84c;animation:pulse 2s infinite}
 .ai-ready-text{font-size:11px;color:#c9a84c;font-family:'DM Mono',monospace;letter-spacing:1px}
@@ -65,62 +57,58 @@ nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0
 .sidebar-label{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;padding-left:4px}
 .tool-btn{background:transparent;border:1px solid transparent;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;transition:all 0.15s;display:flex;align-items:flex-start;gap:10px;width:100%}
 .tool-btn:hover{background:rgba(45,74,62,0.06);border-color:rgba(45,74,62,0.2)}
-.tool-btn:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
 .tool-btn.active{background:var(--sage);border-color:var(--sage);box-shadow:0 2px 12px rgba(45,74,62,0.3)}
 .tool-icon{font-size:17px;line-height:1;margin-top:1px;flex-shrink:0}
 .tool-label{font-size:13px;font-weight:500;margin-bottom:2px;color:var(--text)}
 .tool-btn.active .tool-label{color:var(--gold3)}
-.tool-desc{font-size:11px;color:var(--muted);line-height:1.4;word-break:break-word}
+.tool-desc{font-size:11px;color:var(--muted);line-height:1.4}
 .tool-btn.active .tool-desc{color:rgba(255,255,255,0.75)}
 
 .history-section{margin-top:20px;border-top:1px solid var(--cream3);padding-top:16px}
 .hist-item{background:#fff;border:1px solid var(--cream3);border-radius:8px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all 0.15s}
 .hist-item:hover{background:var(--cream2);border-color:var(--sage)}
-.hist-item:focus-visible{outline:2px solid var(--sage);outline-offset:1px}
 .hist-tool{font-size:10px;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:3px}
 .hist-preview{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .main{display:flex;flex-direction:column;gap:14px}
 
+/* Desktop Defaults for Cards Row */
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stat-card{background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:14px 16px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
 .stat-icon{font-size:18px;display:block;margin-bottom:4px}
-.stat-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--sage);display:block;line-height:1;letter-spacing:-0.5px;word-break:break-all}
+.stat-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--sage);display:block;line-height:1;letter-spacing:-0.5px}
 .stat-label{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;display:block}
 
 .input-card{border-radius:14px;overflow:hidden;border:1px solid var(--cream3);box-shadow:0 4px 24px rgba(0,0,0,0.06)}
-.tool-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tool-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
 .tool-header-left{display:flex;align-items:center;gap:10px}
 .tool-header-icon{font-size:20px}
 .tool-header-title{font-size:14px;font-weight:600;color:#fff}
 .tool-header-desc{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
 .clear-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.7);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
 .clear-btn:hover{background:rgba(255,255,255,0.2);color:#fff}
-.clear-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .textarea-wrap{background:#fff}
 textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#1a1a12;font-size:13px;font-family:'DM Mono',monospace;line-height:1.8;resize:vertical;outline:none;min-height:190px}
-textarea:focus-visible{background:rgba(45,74,62,0.01)}
-.input-footer{padding:10px 20px;border-top:1px solid var(--cream3);display:flex;justify-content:space-between;align-items:center;background:#fff;gap:12px}
-.char-count{font-size:11px;color:#aaa;font-family:'DM Mono',monospace;flex-shrink:0}
-.error-text{font-size:12px;color:var(--error);font-family:'DM Mono',monospace;word-break:break-word}
+.input-footer{padding:10px 20px;border-top:1px solid var(--cream3);display:flex;justify-content:space-between;align-items:center;background:#fff}
+.char-count{font-size:11px;color:#aaa;font-family:'DM Mono',monospace}
+.error-text{font-size:12px;color:#f87171;font-family:'DM Mono',monospace}
 
 .generate-btn{width:100%;border:none;border-radius:0 0 14px 14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:0.3px;background:linear-gradient(135deg,#c9a84c,#a8873c);color:#0c0c0a;box-shadow:0 4px 24px rgba(201,168,76,0.3)}
 .generate-btn:hover{background:linear-gradient(135deg,#e8c97a,#c9a84c);transform:translateY(-1px);box-shadow:0 8px 32px rgba(201,168,76,0.4)}
-.generate-btn:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
-.generate-btn:disabled{background:rgba(122,122,102,0.2)!important;color:rgba(0,0,0,0.35)!important;cursor:not-allowed!important;transform:none!important;box-shadow:none!important}
+.generate-btn:disabled{background:rgba(122,122,102,0.2)!important;color:rgba(0,0,0,0.35)!important;cursor:not-allowed!important;transform:none!important;box-shadow:none!important;background-image:none!important}
 .spin{display:inline-block;animation:spin 1s linear infinite}
 
 .output-card{background:#fff;border:1px solid var(--cream3);border-radius:14px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);animation:fadeUp 0.35s ease}
-.output-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.output-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:13px 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .output-meta{display:flex;align-items:center;gap:8px}
 .output-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite}
 .output-label{font-size:11px;color:rgba(255,255,255,0.8);font-family:'DM Mono',monospace;letter-spacing:0.5px}
 .output-actions{display:flex;gap:10px;align-items:center}
 .copy-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 12px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.8)}
-.copy-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .copy-btn.copied{border-color:rgba(74,222,128,0.4);color:#4ade80;background:rgba(74,222,128,0.1)}
-.output-text{padding:18px;font-size:13.5px;line-height:1.8;color:var(--text);font-family:'DM Sans',sans-serif;word-break:break-word}
+.output-text{padding:18px;font-size:13.5px;line-height:1.8;color:var(--text);overflow:visible;max-height:none;font-family:'DM Sans',sans-serif}
 .output-text strong{color:var(--sage);font-weight:600}
+.output-text em{color:var(--muted);font-style:normal}
 
 .empty-state{border:1px dashed var(--cream3);border-radius:14px;padding:24px;background:#fff}
 .sample-label{font-size:10px;color:var(--sage);font-family:'DM Mono',monospace;letter-spacing:2px;margin-bottom:16px;text-align:center;text-transform:uppercase}
@@ -129,25 +117,76 @@ textarea:focus-visible{background:rgba(45,74,62,0.01)}
 .app-footer{text-align:center;padding-top:8px}
 .app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px;white-space:nowrap}
 
-.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px;width:100%}
+@media(max-width:700px){
+  body{overflow-x:hidden!important}
+  .app-body,.main{width:100%!important;max-width:100%!important}
+  nav{max-width:100%!important;width:100%!important;padding:0 16px!important}
+  .app-body{grid-template-columns:1fr!important;padding:14px!important}
+  .sidebar{flex-direction:column;gap:4px}
+  .history-section{display:none}
+  
+  /* Mobile Fluid Auto-Sizing Row Matches Layout Expectations */
+  .stats-row{
+    display:flex!important;
+    flex-direction:row!important;
+    justify-content:space-between!important;
+    align-items:stretch!important;
+    gap:8px!important;
+    width:100%!important;
+    max-width:100%!important;
+    padding:0!important;
+    margin:0 0 4px 0!important;
+    overflow:hidden!important;
+  }
+  .stat-card{
+    flex:1!important;
+    min-width:0!important;
+    padding:14px 4px!important;
+    border-radius:12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+  }
+  .stat-icon{font-size:16px!important;margin-bottom:4px!important}
+  .stat-val{font-size:18px!important;white-space:nowrap!important}
+  .stat-label{
+    font-size:7.5px!important;
+    letter-spacing:0.5px!important;
+    line-height:1.2!important;
+    margin-top:4px!important;
+    white-space:normal!important;
+    display:-webkit-box!important;
+    -webkit-line-clamp:2!important;
+    -webkit-box-orient:vertical!important;
+    overflow:hidden!important;
+    text-align:center!important;
+  }
+  
+  .output-actions{width:100%;justify-content:flex-end}
+  .output-label{font-size:10px;word-break:break-word}
+  .big-amount{font-size:36px!important}
+  .summary-val{max-width:100%;overflow-wrap:anywhere;text-align:right}
+  .nav-logo-text{font-size:18px}
+  .ai-ready{padding:5px 10px}
+  .output-card,.input-card,.invoice-summary{width:100%}
+}
+
+/* Premium Visual Report Layout Definitions */
+.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px}
 .decision-status{display:inline-block;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px;background:#e8f5e9;color:#2d4a3e}
-.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0;word-break:break-all}
-.wissely-premium-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dedad0;padding-bottom:16px;margin-bottom:24px;gap:12px;flex-wrap:wrap}
-.wissely-premium-footer{display:block;text-align:center;border-top:1px solid #dedad0;padding-top:16px;margin-top:24px}
-.completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0}
+.wissely-premium-header{display:flex!important;align-items:center!important;justify-content:space-between!important;border-bottom:1px solid #dedad0!important;padding-bottom:16px!important;margin-bottom:24px!important;gap:12px!important;flex-wrap:wrap!important}
+.wissely-premium-footer{display:block!important;text-align:center!important;border-top:1px solid #dedad0!important;padding-top:16px!important;margin-top:24px!important}
+.completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
 .completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
 .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
-.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px;word-break:break-word}
-.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px;word-break:break-word}
+.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px}
+.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
 
 @media(max-width:700px){
-  .app-body{grid-template-columns:1fr!important;padding:14px!important}
-  .history-section{display:none !important}
-  .stats-row{display:flex!important;flex-direction:row!important;justify-content:space-between!important;gap:8px!important}
-  .stat-card{flex:1!important;padding:14px 4px!important}
-  .stat-val{font-size:16px!important}
-  .stat-label{font-size:7.5px!important;letter-spacing:0.5px!important}
-  .premium-data-grid{grid-template-columns:1fr!important}
+  .premium-data-grid{grid-template-columns:1fr}
+  .big-amount{font-size:48px!important;line-height:1.05}
 }
 </style>
 </head>
@@ -157,113 +196,111 @@ textarea:focus-visible{background:rgba(45,74,62,0.01)}
   <div class="gate-spinner"></div>
 </div>
 
-<div id="wissely-app-root">
-  <nav role="navigation" aria-label="Main Navigation">
-    <a href="https://wissely.com" class="nav-logo" aria-label="Wissely Home">
-      <div class="nav-logo-mark" aria-hidden="true">W</div>
-      <div class="nav-logo-text">Wissely</div>
-    </a>
-    <div class="nav-right-zone">
-      <button class="logout-btn" onclick="triggerLogout()" aria-label="Logout Session">Logout</button>
-      <div class="ai-ready" role="status" aria-live="polite">
-        <div class="ai-ready-dot" aria-hidden="true"></div>
-        <span class="ai-ready-text">AI Ready</span>
+<nav>
+  <a href="https://wissely.com" class="nav-logo">
+    <div class="nav-logo-mark">W</div>
+    <div class="nav-logo-text">Wissely</div>
+  </a>
+  <div class="nav-right-zone">
+    <button class="logout-btn" onclick="triggerLogout()">Logout</button>
+    <div class="ai-ready">
+      <div class="ai-ready-dot"></div>
+      <span class="ai-ready-text">AI Ready</span>
+    </div>
+  </div>
+</nav>
+
+<div class="app-body">
+  <div class="sidebar">
+    <div class="sidebar-label">Tools</div>
+    <button class="tool-btn active" onclick="selectTool(0)">
+      <span class="tool-icon">🔍</span>
+      <div><div class="tool-label">Invoice Analyzer</div><div class="tool-desc">Extract every detail instantly</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(1)">
+      <span class="tool-icon">🗂️</span>
+      <div><div class="tool-label">Expense Clarity</div><div class="tool-desc">Sort expenses for tax</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(2)">
+      <span class="tool-icon">📊</span>
+      <div><div class="tool-label">Finance Report</div><div class="tool-desc">A clear summary you can read</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(3)">
+      <span class="tool-icon">📧</span>
+      <div><div class="tool-label">Payment Request</div><div class="tool-desc">Get paid faster</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(4)">
+      <span class="tool-icon">🚨</span>
+      <div><div class="tool-label">Fraud Detection</div><div class="tool-desc">Catch errors early</div></div>
+    </button>
+    <button class="tool-btn" onclick="selectTool(5)">
+      <span class="tool-icon">📈</span>
+      <div><div class="tool-label">Cash Flow Forecast</div><div class="tool-desc">30, 60, 90 day picture</div></div>
+    </button>
+    
+    <div class="history-section" id="historySection" style="display:none">
+      <div class="sidebar-label">Recent</div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="stats-row">
+      <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">-</span><span class="stat-label">Analyses Remaining</span></div>
+      <div class="stat-card"><span class="stat-icon">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
+      <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
+    </div>
+
+    <div class="input-card">
+      <div class="tool-header">
+        <div class="tool-header-left">
+          <span class="tool-header-icon" id="activeIcon">🔍</span>
+          <div>
+            <div class="tool-header-title" id="activeTitle">Invoice Analyzer</div>
+            <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
+          </div>
+        </div>
+        <button class="clear-btn" onclick="clearAll()">Clear</button>
+      </div>
+      <div class="textarea-wrap">
+        <textarea id="inputText" onkeydown="handleKey(event)" oninput="updateChar()"
+          placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
+        <div class="input-footer">
+          <span class="char-count" id="charCount">0 chars</span>
+          <span class="error-text" id="errorText"></span>
+        </div>
+      </div>
+      <button class="generate-btn" id="generateBtn" onclick="generate()">
+        🔍 Run Invoice Analyzer
+      </button>
+    </div>
+
+    <div style="height:18px" id="resultSpacer"></div>
+    <div class="output-card" id="outputCard" style="display:none">
+      <div class="output-header">
+        <div class="output-meta">
+          <div class="output-dot"></div>
+          <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
+        </div>
+        <div class="output-actions">
+          <button class="copy-btn" id="copyBtn" onclick="copyOutput()" aria-live="polite">Copy</button>
+          <button class="copy-btn" onclick="exportPDF()">PDF</button>
+        </div>
+      </div>
+      <div class="output-text" id="outputText"></div>
+    </div>
+
+    <div class="empty-state" id="emptyState">
+      <div class="sample-label">Wissely AI Ready</div>
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:42px;margin-bottom:10px">📊</div>
+        <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
+        <div class="empty-sub">Paste invoice or financial data and click Run</div>
       </div>
     </div>
-  </nav>
 
-  <div class="app-body">
-    <div class="sidebar" role="navigation" aria-label="Tools Navigation">
-      <div class="sidebar-label">Tools</div>
-      <button class="tool-btn active" onclick="selectTool(0)" id="tool-btn-0" aria-selected="true">
-        <span class="tool-icon" aria-hidden="true">🔍</span>
-        <div><div class="tool-label">Invoice Analyzer</div><div class="tool-desc">Extract every detail instantly</div></div>
-      </button>
-      <button class="tool-btn" onclick="selectTool(1)" id="tool-btn-1" aria-selected="false">
-        <span class="tool-icon" aria-hidden="true">🗂️</span>
-        <div><div class="tool-label">Expense Clarity</div><div class="tool-desc">Sort expenses for tax</div></div>
-      </button>
-      <button class="tool-btn" onclick="selectTool(2)" id="tool-btn-2" aria-selected="false">
-        <span class="tool-icon" aria-hidden="true">📊</span>
-        <div><div class="tool-label">Finance Report</div><div class="tool-desc">A clear summary you can read</div></div>
-      </button>
-      <button class="tool-btn" onclick="selectTool(3)" id="tool-btn-3" aria-selected="false">
-        <span class="tool-icon" aria-hidden="true">📧</span>
-        <div><div class="tool-label">Payment Request</div><div class="tool-desc">Get paid faster</div></div>
-      </button>
-      <button class="tool-btn" onclick="selectTool(4)" id="tool-btn-4" aria-selected="false">
-        <span class="tool-icon" aria-hidden="true">🚨</span>
-        <div><div class="tool-label">Fraud Detection</div><div class="tool-desc">Catch errors early</div></div>
-      </button>
-      <button class="tool-btn" onclick="selectTool(5)" id="tool-btn-5" aria-selected="false">
-        <span class="tool-icon" aria-hidden="true">📈</span>
-        <div><div class="tool-label">Cash Flow Forecast</div><div class="tool-desc">30, 60, 90 day picture</div></div>
-      </button>
-      
-      <div class="history-section" id="historySection" style="display:none" aria-label="Recent Analyses">
-        <div class="sidebar-label">Recent</div>
-        <div id="historyList" role="list"></div>
-      </div>
-    </div>
-
-    <div class="main" role="main">
-      <div class="stats-row" role="region" aria-label="Usage Metrics Summary">
-        <div class="stat-card"><span class="stat-icon" aria-hidden="true">✅</span><span class="stat-val" id="quota-used-display">-</span><span class="stat-label">Analyses Remaining</span></div>
-        <div class="stat-card"><span class="stat-icon" aria-hidden="true">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
-        <div class="stat-card"><span class="stat-icon" aria-hidden="true">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
-      </div>
-
-      <div class="input-card">
-        <div class="tool-header">
-          <div class="tool-header-left">
-            <span class="tool-header-icon" id="activeIcon" aria-hidden="true">🔍</span>
-            <div>
-              <h1 class="tool-header-title" id="activeTitle" style="font-size:14px; font-weight:600; margin:0;">Invoice Analyzer</h1>
-              <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
-            </div>
-          </div>
-          <button class="clear-btn" onclick="clearAll()" aria-label="Clear context input data">Clear</button>
-        </div>
-        <div class="textarea-wrap">
-          <textarea id="inputText" onkeydown="handleKey(event)" oninput="updateChar()" aria-label="Financial Input Data Box"
-            placeholder="Paste your invoice here..."></textarea>
-          <div class="input-footer">
-            <span class="char-count" id="charCount" aria-live="polite">0 chars</span>
-            <span class="error-text" id="errorText" role="alert" aria-live="assertive"></span>
-          </div>
-        </div>
-        <button class="generate-btn" id="generateBtn" onclick="generate()" aria-label="Execute Selected Structural Analysis">
-          🔍 Run Invoice Analyzer
-        </button>
-      </div>
-
-      <div style="height:18px" id="resultSpacer"></div>
-      <div class="output-card" id="outputCard" style="display:none" aria-live="polite">
-        <div class="output-header">
-          <div class="output-meta">
-            <div class="output-dot" aria-hidden="true"></div>
-            <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
-          </div>
-          <div class="output-actions">
-            <button class="copy-btn" id="copyBtn" onclick="copyOutput()">Copy</button>
-            <button class="copy-btn" onclick="exportPDF()">Print Report</button>
-          </div>
-        </div>
-        <div class="output-text" id="outputText"></div>
-      </div>
-
-      <div class="empty-state" id="emptyState">
-        <div class="sample-label">Wissely AI Ready</div>
-        <div style="text-align:center;padding:20px">
-          <div style="font-size:42px;margin-bottom:10px" aria-hidden="true">📊</div>
-          <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
-          <div class="empty-sub">Paste invoice or financial data and click Run</div>
-        </div>
-      </div>
-
-      <div class="app-footer">
-        <span>WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · <span id="footerYear">2026</span></span>
-      </div>
+    <div class="app-footer">
+      <span>WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</span>
     </div>
   </div>
 </div>
@@ -274,33 +311,33 @@ const API_BASE_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev';
 const TOOLS = [
   {
     icon:"🔍", label:"Invoice Analyzer", desc:"Extract every detail instantly",
-    placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTOTAL: $6,544",
-    prompt: function(t){ return "Extract data exactly as key-value pairs without markdown decoration text blocks. Field: Value. Input: " + t; }
+    placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544",
+    prompt: function(t){ return "You are a financial expert. Return a concise Invoice Summary. Use only these fields: Vendor Name, Customer Name, Invoice Number, Invoice Date, Due Date, Total Amount, Issues Found, Recommended Action. Extract data correctly. Flag any issues. Keep response under 150 words. Do not use asterisks or markdown. Output exactly as: Field: Value. Text: " + t; }
   },
   {
     icon:"🗂️", label:"Expense Clarity", desc:"Sort expenses for tax",
-    placeholder:"Paste your expenses here...",
-    prompt: function(t){ return "Categorize these financial items for corporate bookkeeping tax optimization thresholds. Input: " + t; }
+    placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500",
+    prompt: function(t){ return "You are an accountant. Categorize these expenses for tax purposes. For each: category, tax deductible yes or no, and notes. Give totals by category. Output as a professional business report. No markdown. No asterisks. No bullet points. No emojis. Text: " + t; }
   },
   {
     icon:"📊", label:"Finance Report", desc:"A clear summary you can read",
-    placeholder:"Paste your financial data here...",
-    prompt: function(t){ return "Generate strategic financial data reporting profiles based on tracking logs: " + t; }
+    placeholder:"Paste your financial data here...\n\nExample:\nRevenue: $12,400\nExpenses: $8,900\nUnpaid invoices: $3,200\nRent: $2,100\nTax paid: $0",
+    prompt: function(t){ return "You are a CFO. Write a clear plain English financial report. Explain what the numbers mean, what is going well, what needs attention, and give 3 action items. No markdown symbols. Use simple text only. Text: " + t; }
   },
   {
     icon:"📧", label:"Payment Request", desc:"Get paid faster",
-    placeholder:"Paste invoice details here...",
-    prompt: function(t){ return "Draft clear communication profile regarding collection targets: " + t; }
+    placeholder:"Paste invoice details here...\n\nExample:\nClient: ABC Corp\nInvoice: $3,500\nDays overdue: 15\nProject: Website redesign",
+    prompt: function(t){ return "You are a professional business communicator. Write a firm but polite payment follow-up email with subject line. Sound human. Include payment details and a call to action. No markdown symbols. Plain text only. Info: " + t; }
   },
   {
     icon:"🚨", label:"Fraud Detection", desc:"Catch errors early",
-    placeholder:"Paste invoices or transactions here...",
-    prompt: function(t){ return "Perform structural validation audit scanning against risk behaviors: " + t; }
+    placeholder:"Paste invoices or transactions here...\n\nExample:\nInvoice A: $2,500 - Supplier X - May 1\nInvoice B: $2,500 - Supplier X - May 1\nInvoice C: $8,999 - Unknown Vendor",
+    prompt: function(t){ return "You are a forensic accountant. Check this data for duplicates, calculation errors, unusual amounts, missing info, and red flags. Rate each issue Low, Medium or High risk. Plain English. No markdown symbols. Text: " + t; }
   },
   {
     icon:"📈", label:"Cash Flow Forecast", desc:"30, 60, 90 day picture",
-    placeholder:"Paste your financial data here...",
-    prompt: function(t){ return "Analyze data matrix parameters to isolate cash runtime milestones: " + t; }
+    placeholder:"Paste your financial data here...\n\nExample:\nCurrent balance: $18,500\nMonthly expenses: $6,200\nExpected payments: $12,000\nOverdue invoices: $4,500",
+    prompt: function(t){ return "You are a financial forecaster. Give a clear, highly concise 30, 60 and 90 day cash flow forecast. Tell the owner if they will have enough cash, when the risk points are, and give exactly 3 bulleted action items. Keep the entire response under 200 words so it does not get cut off. Specific numbers. Plain English. No markdown symbols. Text: " + t; }
   }
 ];
 
@@ -308,8 +345,6 @@ let currentTool = 0;
 let analysisHistory = [];
 let outputText = "";
 let isQuotaExhausted = false;
-let isAnalyzingCurrently = false;
-let clientInteractionDebounceTimestamp = 0;
 
 function escapeHTML(str) {
   if (!str) return '';
@@ -318,71 +353,70 @@ function escapeHTML(str) {
   });
 }
 
-function secureSetHTML(elementId, roughHTML) {
-  const target = document.getElementById(elementId);
-  if (!target) return;
-  if (typeof DOMPurify !== 'undefined' && DOMPurify.sanitize) {
-    target.innerHTML = DOMPurify.sanitize(roughHTML, { 
-      ALLOWED_TAGS: ['div', 'span', 'br', 'strong', 'small', 'p', 'h1', 'h2', 'h3'],
-      ALLOWED_ATTR: [],
-      FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'link', 'embed', 'form'],
-      RETURN_DOM_FRAGMENT: false,
-      FORCE_BODY: true
-    });
-  } else {
-    target.textContent = roughHTML;
-  }
-}
-
 async function checkAuthSession() {
   const shield = document.getElementById('auth-gate-shield');
-  const appRoot = document.getElementById('wissely-app-root');
   try {
     const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+    
     if (res.status === 401 || res.status === 403) {
-      window.location.replace('auth.html');
-      return false;
+      window.location.href = 'auth.html';
+      return;
     }
-    if (!res.ok) throw new Error('Session state response code unmapped context anomalies.');
+    
+    if (!res.ok) {
+      console.warn('Wissely Engine connectivity degradation detected.');
+      if (shield) {
+        shield.style.opacity = '0';
+        setTimeout(() => shield.remove(), 250);
+      }
+      return;
+    }
+    
     const data = await res.json();
     if (data && data.authenticated && data.user) {
       updateQuotaUI(data.user);
-      if (appRoot) appRoot.style.display = 'block';
-      if (shield) {
-        shield.style.opacity = '0';
-        shield.style.visibility = 'hidden';
-        setTimeout(() => shield.remove(), 250);
+      if (shield) { 
+        shield.style.opacity = '0'; 
+        setTimeout(() => shield.remove(), 250); 
       }
-      return true;
+    } else { window.location.href = 'auth.html'; }
+  } catch (err) { 
+    console.error('Session security validation fault context:', err);
+    if (shield) {
+      shield.style.opacity = '0';
+      setTimeout(() => shield.remove(), 250);
     }
-    window.location.replace('auth.html');
-    return false;
-  } catch (err) {
-    console.error('Session security perimeter monitoring failed:', err);
-    window.location.replace('auth.html');
-    return false;
   }
 }
 
 function updateQuotaUI(user) {
   if(!user) return;
+  
   const rawPlan = user.plan ? String(user.plan).toLowerCase() : 'trial';
-  const limit = parseInt(user.analyses_limit, 10) || 20;
-  const used = parseInt(user.analyses_used, 10) || 0;
+  
+  const VALID_TIERS = {
+    'trial': 20,
+    'starter': 50,
+    'growth': 250,
+    'pro': 1000
+  };
+
+  const limit = parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20;
+  const used = parseInt(user.analyses_used || 0);
   const remaining = Math.max(0, limit - used);
   
   document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
-  document.getElementById('quota-used-display').textContent = String(remaining);
+  document.getElementById('quota-used-display').textContent = `${remaining}`;
   
   const btn = document.getElementById('generateBtn');
   if (used >= limit) {
     isQuotaExhausted = true;
     btn.disabled = true;
-    btn.textContent = '❌ Quota Limit Reached';
-    document.getElementById('errorText').textContent = 'Your analysis quota is exhausted.';
+    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+    document.getElementById('errorText').textContent = 'Your analysis quota is exhausted. Upgrade your tier to process further records.';
   } else {
     isQuotaExhausted = false;
-    if (!isAnalyzingCurrently) {
+    if (!btn.classList.contains('processing-active')) {
       btn.disabled = false;
       btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
     }
@@ -390,50 +424,48 @@ function updateQuotaUI(user) {
 }
 
 async function triggerLogout() {
-  try { 
+  try {
     await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
-  } catch (e) {
-    console.error('Logout synchronization termination trace failed:', e);
-  } finally {
-    analysisHistory = null;
-    outputText = null;
-    document.body.innerHTML = "";
-    window.location.replace('auth.html');
-  }
+  } catch (e) {}
+  window.location.href = 'auth.html';
 }
 
 function selectTool(index) {
-  if (isAnalyzingCurrently) return;
   currentTool = index;
-  
-  const btns = document.querySelectorAll('.tool-btn');
-  btns.forEach((btn, i) => {
-    const isTarget = (i === index);
-    btn.classList.toggle('active', isTarget);
-    btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
-  });
-
   const t = TOOLS[index];
+  const btns = document.querySelectorAll('.tool-btn');
+  for(let i=0; i<btns.length; i++){ btns[i].classList.toggle('active', i===index); }
   document.getElementById('activeIcon').textContent = t.icon;
   document.getElementById('activeTitle').textContent = t.label;
   document.getElementById('activeDesc').textContent = t.desc;
-  document.getElementById('inputText').placeholder = t.placeholder;
-  clearAll();
+  
+  const currentInput = document.getElementById('inputText').value.trim();
+  if (!currentInput) {
+    document.getElementById('inputText').placeholder = t.placeholder;
+    document.getElementById('inputText').value = '';
+    document.getElementById('charCount').textContent = '0 chars';
+    document.getElementById('outputCard').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+  }
+  
+  const btn = document.getElementById('generateBtn');
+  if (!isQuotaExhausted) {
+    btn.disabled = false;
+    btn.textContent = t.icon + ' Run ' + t.label;
+    document.getElementById('errorText').textContent = '';
+  } else {
+    btn.disabled = true;
+    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+  }
 }
 
-function updateChar() { 
-  document.getElementById('charCount').textContent = document.getElementById('inputText').value.length + ' chars'; 
-}
+function updateChar() { document.getElementById('charCount').textContent = document.getElementById('inputText').value.length + ' chars'; }
 
 function handleKey(e) { 
-  if (isAnalyzingCurrently) {
+  if(e.ctrlKey && e.key==='Enter') {
     e.preventDefault();
-    return;
+    if(!isQuotaExhausted) generate();
   }
-  if(e.ctrlKey && e.key === 'Enter') { 
-    e.preventDefault(); 
-    generate(); 
-  } 
 }
 
 function clearAll() {
@@ -446,31 +478,26 @@ function clearAll() {
 
 function cleanOutput(text) {
   let t = escapeHTML(text);
-  t = t.replace(/\n{3,}/g, '\n\n').replace(/\n\n/g, '<br/><br/>').replace(/\n/g, '<br/>');
+  t = t.replace(/^#{1,6}\s*/gm,'');
+  t = t.replace(/\*\处理/g,'').replace(/\*/g,'');
+  t = t.replace(/^[-_=]{3,}$/gm,'');
+  t = t.replace(/^\s*[-•*]\s+/gm,'');
+  t = t.replace(/\n{3,}/g,'\n\n').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>');
   return t.trim();
 }
 
 async function generate() {
-  if (isQuotaExhausted || isAnalyzingCurrently) return;
-  
-  const interfaceTimestamp = Date.now();
-  if (interfaceTimestamp - clientInteractionDebounceTimestamp < 1500) {
-    document.getElementById('errorText').textContent = 'Request throttling active. Please reduce input frequency.';
-    return;
-  }
-  clientInteractionDebounceTimestamp = interfaceTimestamp;
-
+  if (isQuotaExhausted) return;
   const input = document.getElementById('inputText').value.trim();
-  if(!input){ 
-    document.getElementById('errorText').textContent = 'Paste financial data first.'; 
-    return; 
-  }
-  
-  isAnalyzingCurrently = true;
+  if(!input){ document.getElementById('errorText').textContent = 'Paste financial data first.'; return; }
   document.getElementById('errorText').textContent = '';
+  
   const btn = document.getElementById('generateBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spin" aria-hidden="true">⟳</span> Processing Calculations...';
+  btn.classList.add('processing-active');
+  btn.innerHTML = '<span class="spin">⟳</span> Analyzing...';
+  document.getElementById('outputCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -485,64 +512,64 @@ async function generate() {
     });
     
     clearTimeout(timeoutId);
-    
-    if (res.status === 401) {
-      window.location.replace('auth.html');
-      return;
-    }
-    
-    if (res.status === 403 || res.status === 429) {
-      isQuotaExhausted = true;
-      document.getElementById('errorText').textContent = 'Server-side usage verification boundary reached.';
-      isAnalyzingCurrently = false;
-      updateQuotaUI({analyses_limit: 20, analyses_used: 20, plan: 'exhausted'});
-      return;
-    }
-
-    if (res.status === 404) {
-      document.getElementById('errorText').textContent = 'Analysis engine endpoint route configuration error (404).';
-      return;
-    }
-
-    if (res.status >= 500) {
-      document.getElementById('errorText').textContent = 'Downstream calculations faulted. System error (500).';
-      return;
-    }
-    
-    if (!res.ok) throw new Error('Unhandled operational transaction context.');
-    
     const data = await res.json();
-    outputText = data.data?.content[0]?.text || data.content?.[0]?.text || "No output trace resolved.";
-    document.getElementById('outputLabel').textContent = '✓ Verification Matrix Set · ' + new Date().toLocaleTimeString();
+    if(data.error) throw new Error(data.error.message || 'API processing error');
+    
+    outputText = data.data?.content[0]?.text || data.content?.[0]?.text || (data.content ? data.content.map(b => b.text || '').join('\n') : "No output.");
+    
+    document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
     
     if(currentTool === 0) {
       renderInvoiceCards(outputText);
     } else {
-      secureSetHTML('outputText', cleanOutput(outputText));
+      document.getElementById('outputText').innerHTML = cleanOutput(outputText);
     }
     
     document.getElementById('outputCard').style.display = 'block';
-    document.getElementById('emptyState').style.display = 'none';
     
-    if (data.user) updateQuotaUI(data.user);
+    if (data.user) {
+      updateQuotaUI(data.user);
+    } else {
+      const checkRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        if (checkData.user) updateQuotaUI(checkData.user);
+      }
+    }
     
-    const maximumPayloadTruncationLimit = 300;
-    const minimalistHistoryPayload = input.length > maximumPayloadTruncationLimit ? input.slice(0, maximumPayloadTruncationLimit) + '... [Truncated for Optimization]' : input;
-    analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview: minimalistHistoryPayload.slice(0,40), output:outputText}].concat(analysisHistory.slice(0,4));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const card = document.getElementById('outputCard');
+        if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+      });
+    });
+    
+    // String protection verification logic prevents slicing crashes
+    if (!Array.isArray(analysisHistory)) {
+      analysisHistory = [];
+    }
+    const safeString = String(input || '');
+    const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
+    
+    analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview:slicePreview, output:outputText}].concat(analysisHistory.slice(0,4));
     renderHistory();
   } catch(e) {
     clearTimeout(timeoutId);
+    
+    document.getElementById('outputText').innerHTML = '';
+    
     if (e.name === 'AbortError') {
-      document.getElementById('errorText').textContent = 'Transaction deadline exceeded. Network operations timed out.';
+      document.getElementById('errorText').textContent = 'Analysis connection timed out (30 seconds). Please try again.';
     } else {
-      document.getElementById('errorText').textContent = 'Platform connectivity failure. Verify interface network parameters.';
+      document.getElementById('errorText').textContent = e.message || 'Error executing processing analytics.';
     }
-  } finally {
-    isAnalyzingCurrently = false;
-    if (!isQuotaExhausted) {
-      btn.disabled = false;
-      btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
-    }
+    document.getElementById('emptyState').style.display = 'block';
+  }
+  
+  btn.classList.remove('processing-active');
+  if (!isQuotaExhausted) {
+    btn.disabled = false;
+    btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
   }
 }
 
@@ -551,180 +578,142 @@ function renderHistory() {
   document.getElementById('historySection').style.display = 'block';
   let html = '';
   for(let i=0; i<analysisHistory.length; i++){
-    html += `<div class="hist-item" onclick="showHistory(${i})" tabindex="0" role="button" aria-label="Load historical report ${i+1}: ${escapeHTML(analysisHistory[i].tool)}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showHistory(${i});}"><div class="hist-tool">${escapeHTML(analysisHistory[i].icon)} ${escapeHTML(analysisHistory[i].tool)}</div><div class="hist-preview">${escapeHTML(analysisHistory[i].preview)}</div></div>`;
+    html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+escapeHTML(analysisHistory[i].icon)+' '+escapeHTML(analysisHistory[i].tool)+'</div><div class="hist-preview">'+escapeHTML(analysisHistory[i].preview)+'</div></div>';
   }
-  secureSetHTML('historyList', html);
+  document.getElementById('historyList').innerHTML = html;
 }
 
 function showHistory(i) {
-  if (!analysisHistory || !analysisHistory[i]) return;
+  if (!Array.isArray(analysisHistory) || !analysisHistory[i]) return;
   outputText = analysisHistory[i].output;
+  
+  const targetToolIndex = TOOLS.findIndex(t => t.label === analysisHistory[i].tool);
+  if (targetToolIndex !== -1) {
+    currentTool = targetToolIndex;
+    const btns = document.querySelectorAll('.tool-btn');
+    for(let b = 0; b < btns.length; b++) { 
+      btns[b].classList.toggle('active', b === targetToolIndex); 
+    }
+    const t = TOOLS[targetToolIndex];
+    document.getElementById('activeIcon').textContent = t.icon;
+    document.getElementById('activeTitle').textContent = t.label;
+    document.getElementById('activeDesc').textContent = t.desc;
+    document.getElementById('inputText').placeholder = t.placeholder;
+  }
+
   if(analysisHistory[i].tool === 'Invoice Analyzer') {
     renderInvoiceCards(outputText);
   } else {
-    secureSetHTML('outputText', cleanOutput(outputText));
+    document.getElementById('outputText').innerHTML = cleanOutput(outputText);
   }
+  document.getElementById('outputLabel').textContent = escapeHTML(analysisHistory[i].tool) + ' · Wissely · AI';
   document.getElementById('outputCard').style.display = 'block';
   document.getElementById('emptyState').style.display = 'none';
 }
 
 function copyOutput() {
+  navigator.clipboard.writeText(outputText);
   const btn = document.getElementById('copyBtn');
-  if (typeof navigator.clipboard !== 'undefined' && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(outputText).then(() => {
-      btn.textContent = 'Copied';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-    }).catch(() => executeFallbackCopy(btn));
-  } else {
-    executeFallbackCopy(btn);
-  }
-}
-
-function executeFallbackCopy(btnElement) {
-  const textarea = document.createElement('textarea');
-  textarea.value = outputText;
-  textarea.style.position = 'fixed';
-  textarea.style.top = '0';
-  textarea.style.left = '0';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  try {
-    document.execCommand('copy');
-    btnElement.textContent = 'Copied';
-    setTimeout(() => { btnElement.textContent = 'Copy'; }, 2000);
-  } catch (err) {
-    console.error('Unified browser execution copy parameters failure:', err);
-  } finally {
-    document.body.removeChild(textarea);
-  }
-}
-
-function parseInvoiceText(text) {
-  const cleanText = text.replace(/[*#_`]/g, '');
-  function extract(labels){
-    const list = labels.split('|');
-    for(let j=0; j<list.length; j++){
-      const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
-      const m = cleanText.match(r);
-      if(m && m[1]) return m[1].trim();
-    }
-    return '—';
-  }
-  
-  const vendor = extract('Vendor Name|Vendor|From');
-  const customer = extract('Customer Name|Customer|To');
-  const invoice = extract('Invoice Number|Invoice #');
-  const date = extract('Invoice Date|Date');
-  const due = extract('Due Date|Due');
-  const amount = extract('Total Amount|TOTAL|Total');
-  const issues = extract('Issues Found|Issues');
-  const action = extract('Recommended Action|Recommendations|Action');
-
-  let fields = 0;
-  if(vendor !== '—') fields++; 
-  if(customer !== '—') fields++; 
-  if(invoice !== '—') fields++; 
-  if(amount !== '—') fields++;
-  const structuralCompleteness = {4:100, 3:75, 2:50, 1:25, 0:0}[fields] || 0;
-
-  return { vendor, customer, invoice, date, due, amount, issues, action, structuralCompleteness };
+  btn.textContent = 'Copied';
+  btn.classList.add('copied');
+  setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
 }
 
 function renderInvoiceCards(text){
- const data = parseInvoiceText(text);
- const layoutMarkup = `
+ function extract(labels){
+   const list = labels.split('|');
+   for(let j=0; j<list.length; j++){
+     const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
+     const m = text.match(r);
+     if(m && m[1]) return m[1].trim();
+   }
+   return '—';
+ }
+ const vendor = extract('Vendor Name|Vendor|From');
+ const customer = extract('Customer Name|Customer|To');
+ const invoice = extract('Invoice Number|Invoice #');
+ const due = extract('Due Date|Due');
+ const amount = extract('Total Amount|TOTAL|Total');
+ const issues = extract('Issues Found|Issues');
+ const action = extract('Recommended Action|Recommendations|Action');
+
+ // Validates actual values versus explicit context/fallback missing strings
+ function isValidField(val) {
+   if (!val || val === '—') return false;
+   const clean = val.toLowerCase();
+   return !(clean.includes('not provided') || clean.includes('n/a') || clean === 'none' || clean === 'unknown');
+ }
+
+ let fields = 0;
+ if(isValidField(vendor)) fields++;
+ if(isValidField(customer)) fields++;
+ if(isValidField(invoice)) fields++;
+ if(isValidField(due)) fields++;
+ if(isValidField(amount)) fields++;
+ if(isValidField(issues)) fields++;
+ if(isValidField(action)) fields++;
+ 
+ const structuralCompleteness = {7:100, 6:85, 5:70, 4:55, 3:40, 2:25, 1:10, 0:0}[fields];
+ const analysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
+
+ document.getElementById('outputText').innerHTML = `
  <div class="invoice-summary">
    <div class="wissely-premium-header">
-     <div><strong>Wissely</strong><br><small>AI Financial Analysis Report</small></div>
-     <div><small>System Export Summary</small></div>
+     <div><strong style="font-size:24px">Wissely</strong><br><small>AI Financial Analysis Report</small></div>
+     <div><small>${escapeHTML(new Date().toLocaleDateString())}</small><br><small>${escapeHTML(analysisId)}</small></div>
    </div>
-   <div class="decision-status">✓ PARSED AND VERIFIED</div>
-   <div class="big-amount">${escapeHTML(data.amount)}</div>
+   <div class="decision-status">✓ ANALYZED</div>
+   <div class="big-amount">${escapeHTML(amount)}</div>
    <div class="completeness-score-card">
-      <div class="completeness-score-value">${data.structuralCompleteness}%</div>
-      <div><strong>Document Completeness Metric</strong></div>
+      <div class="completeness-score-value">${structuralCompleteness}%</div>
+      <div><strong>Document Completeness Score</strong><br><small>Based on key property values cleanly resolved from target structure</small></div>
    </div>
    <div class="premium-data-grid">
-      <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(data.vendor)}</div>
-      <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(data.due)}</div>
-      <div class="premium-info-card"><strong>Invoice ID</strong><br>${escapeHTML(data.invoice)}</div>
-      <div class="premium-info-card"><strong>Customer Entity</strong><br>${escapeHTML(data.customer)}</div>
+      <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(vendor)}</div>
+      <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(due)}</div>
+      <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(invoice)}</div>
+      <div class="premium-info-card"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
    </div>
-   <div class="finding-box"><strong>Extracted Vulnerabilities/Issues Matrix</strong><br>${escapeHTML(data.issues)}</div>
-   <div class="finding-box" style="border-left-color:var(--gold)"><strong>Recommended Path Action</strong><br>${escapeHTML(data.action)}</div>
+   <div class="finding-box"><strong>Issues Found</strong><br>${escapeHTML(issues)}</div>
+   <div class="finding-box" style="border-left-color: var(--gold)"><strong>Recommended Action</strong><br>${escapeHTML(action)}</div>
+   <div class="wissely-premium-footer">WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</div>
  </div>`;
-
- secureSetHTML('outputText', layoutMarkup);
 }
 
 function exportPDF() {
-  const sourceContent = document.getElementById('outputText').innerHTML;
-  
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('sandbox', 'allow-modals allow-forms allow-print');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '100%';
-  iframe.style.bottom = '100%';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = 'none';
-  
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow.document;
-  
-  const sanitizedMarkup = typeof DOMPurify !== 'undefined' && DOMPurify.sanitize
-    ? DOMPurify.sanitize(sourceContent, { 
-        ALLOWED_TAGS: ['div', 'span', 'br', 'strong', 'small', 'p', 'h1', 'h2', 'h3'], 
-        ALLOWED_ATTR: [],
-        RETURN_DOM_FRAGMENT: false,
-        FORCE_BODY: true
-      })
-    : sourceContent;
-    
-  doc.write(\`
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <title>Wissely Export Report</title>
-        <style>
-          body { font-family: 'DM Sans', sans-serif; background: #f8f6f0; color: #2a2a20; padding: 20px; margin: 0; }
-          .invoice-summary { border: 1px solid #dedad0; padding: 18px; border-radius: 12px; background: #fff; width: 100%; box-sizing: border-box; }
-          .big-amount { font-size: 32px; font-weight: 700; color: #2d4a3e; margin: 12px 0; word-break: break-all; }
-          .wissely-premium-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #dedad0; padding-bottom: 16px; margin-bottom: 24px; gap: 12px; }
-          .decision-status { display: inline-block; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #e8f5e9; color: #2d4a3e; }
-          .completeness-score-card { background: rgba(45,74,62,.04); border: 1px solid rgba(45,74,62,.1); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; gap: 16px; align-items: center; }
-          .completeness-score-value { font-size: 36px; font-weight: 700; color: #2d4a3e; }
-          .premium-data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 24px 0; }
-          .premium-info-card { background: #f8f6f0; border: 1px solid #dedad0; padding: 14px; border-radius: 12px; word-break: break-word; }
-          .finding-box { border-left: 4px solid #2d4a3e; padding: 12px; margin-top: 14px; background: #f4f1e8; border-radius: 6px; word-break: break-word; }
-          @media (max-width: 600px) { .premium-data-grid { grid-template-columns: 1fr; } }
-        </style>
-      </head>
-      <body>\${sanitizedMarkup}</body>
-    </html>
-  \`);
-  doc.close();
-  
-  setTimeout(() => {
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch (err) {
-      console.error('Sandboxed environment print request blocked or unsupported:', err);
-    } finally {
-      if (iframe && iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe);
-      }
-    }
-  }, 1000);
+  const targetSummary = document.querySelector('.invoice-summary');
+  const content = targetSummary ? targetSummary.outerHTML : `<div class="invoice-summary">${document.getElementById('outputText').innerHTML}</div>`;
+  const mainStyles = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
+  const w = window.open('', '_blank');
+
+  w.document.write(`
+  <!DOCTYPE html>
+  <html>
+  <head>
+  <title>Wissely Premium Financial Document Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+  ${mainStyles}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  @page{size:A4;margin:10mm}
+  body{margin:0!important;background:#f8f6f0!important;font-family:'DM Sans',sans-serif!important;padding:20px}
+  .pdf-page-wrapper{width:100%!important;padding:0!important;margin:0!important;background:#f8f6f0!important}
+  .invoice-summary{width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important;page-break-inside:avoid!important}
+  </style>
+  </head>
+  <body>
+    <div class="pdf-page-wrapper">${content}</div>
+    <script>
+      document.fonts.ready.then(()=>{
+        setTimeout(()=> { self.print(); }, 500);
+      });
+    <\/script>
+  </body>
+  </html>`);
+  w.document.close();
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('footerYear').textContent = String(new Date().getFullYear());
-  checkAuthSession();
-});
+window.addEventListener('DOMContentLoaded', checkAuthSession);
 </script>
 </body>
-          </html>
+  </html>
