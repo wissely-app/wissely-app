@@ -82,7 +82,7 @@ nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0
 .tool-header-left{display:flex;align-items:center;gap:10px}
 .tool-header-icon{font-size:20px}
 .tool-header-title{font-size:14px;font-weight:600;color:#fff}
-.tool-header-desc{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
+.tool-header-desc覆蓋{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
 .clear-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.7);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
 .clear-btn:hover{background:rgba(255,255,255,0.2);color:#fff}
 .textarea-wrap{background:#fff}
@@ -478,7 +478,7 @@ function updateQuotaUI(user) {
   
   const csvBtn = document.getElementById('csvBtn');
   if (csvBtn) {
-    if (currentUserPlan === 'starter' || currentUserPlan === 'trial') {
+    if (currentUserPlan === 'starter') {
       csvBtn.style.display = 'none';
     } else {
       csvBtn.style.display = 'inline-block';
@@ -589,8 +589,8 @@ function extractFlexible(text, labels) {
 }
 
 function exportCSV() {
-  if (currentUserPlan === 'starter' || currentUserPlan === 'trial') {
-    alert('Structured CSV export is only available on Growth and Professional tiers.');
+  if (currentUserPlan === 'starter') {
+    alert('Structured CSV export is only available on higher tiers.');
     return;
   }
   if (!outputText || !outputText.trim()) { alert('No analysis available to export.'); return; }
@@ -1044,4 +1044,4 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-      </html>
+  </html>
