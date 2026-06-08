@@ -445,7 +445,7 @@ function updateQuotaUI(user) {
   document.getElementById('quota-used-display').textContent = `${remaining}`;
   
   const csvBtn = document.getElementById('csvBtn');
-  if (csvBtn) csvBtn.style.display = (currentUserPlan === 'trial' || currentUserPlan === 'starter') ? 'none' : 'inline-block';
+  if (csvBtn) csvBtn.style.display = (currentUserPlan === 'starter') ? 'none' : 'inline-block';
 
   const btn = document.getElementById('generateBtn');
   if (used >= limit) {
@@ -546,7 +546,7 @@ function extractFlexible(text, labels) {
 }
 
 function exportCSV() {
-  if (currentUserPlan === 'trial' || currentUserPlan === 'starter') {
+  if (currentUserPlan === 'starter') {
     alert('Structured CSV export is only available on higher tiers.');
     return;
   }
@@ -980,4 +980,4 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-  </html>
+</html>
