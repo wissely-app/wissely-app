@@ -280,6 +280,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
         </div>
         <div class="output-actions">
           <button class="copy-btn" id="copyBtn" onclick="copyOutput()" aria-live="polite">Copy</button>
+          <button class="copy-btn" id="csvBtn" onclick="exportCSV()">CSV</button>
           <button class="copy-btn" onclick="exportPDF()">PDF</button>
         </div>
       </div>
@@ -288,7 +289,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 
     <div class="empty-state" id="emptyState">
       <div class="sample-label">Wissely AI Ready</div>
-      <div style="text-align:center;padding:20px">
+      <div style="text-align:center;padding:24px">
         <div style="font-size:42px;margin-bottom:10px">📊</div>
         <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
         <div class="empty-sub">Paste invoice or financial data and click Run</div>
@@ -344,6 +345,7 @@ let isQuotaExhausted = false;
 let isProcessing = false;
 let currentAnalysisId = "";
 let currentAnalysisDate = "";
+let currentUserPlan = "";
 
 let toolButtonsCollection;
 const staticPrintStyles = `
@@ -395,10 +397,14 @@ function initLocalStorageHistory() {
         return item;
       });
       renderHistory();
+    } else {
+      analysisHistory = [];
+      renderHistory();
     }
   } catch (e) {
     console.warn('LocalStorage structure recovery profile initialized:', e);
     analysisHistory = [];
+    renderHistory();
   }
 }
 
@@ -460,6 +466,7 @@ function updateQuotaUI(user) {
   if(!user) return;
   
   const rawPlan = user.plan ? String(user.plan).toLowerCase() : 'trial';
+  currentUserPlan = rawPlan;
   const VALID_TIERS = { 'trial': 20, 'starter': 50, 'growth': 250, 'pro': 1000 };
 
   const limit = parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20;
@@ -469,6 +476,15 @@ function updateQuotaUI(user) {
   document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
   document.getElementById('quota-used-display').textContent = `${remaining}`;
   
+  const csvBtn = document.getElementById('csvBtn');
+  if (csvBtn) {
+    if (currentUserPlan === 'starter' || currentUserPlan === 'trial') {
+      csvBtn.style.display = 'none';
+    } else {
+      csvBtn.style.display = 'inline-block';
+    }
+  }
+
   const btn = document.getElementById('generateBtn');
   if (used >= limit) {
     isQuotaExhausted = true;
@@ -488,11 +504,21 @@ async function triggerLogout() {
   try {
     await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
   } catch (e) {}
+  
+  analysisHistory = [];
+  try {
+    localStorage.removeItem('wissely_history_v2');
+    localStorage.removeItem('wissely_history_v1');
+  } catch (e) {}
+  
   window.location.href = 'auth.html';
 }
 
 function selectTool(index) {
-  if (isProcessing) return;
+  if (isProcessing) {
+    alert('Please wait until the current analysis operation completes.');
+    return;
+  }
   currentTool = index;
   const t = TOOLS[index];
   
@@ -514,13 +540,13 @@ function selectTool(index) {
   }
   
   const btn = document.getElementById('generateBtn');
-  if (!isQuotaExhausted) {
+  if (isQuotaExhausted) {
+    btn.disabled = true;
+    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+  } else {
     btn.disabled = false;
     btn.textContent = t.icon + ' Run ' + t.label;
     document.getElementById('errorText').textContent = '';
-  } else {
-    btn.disabled = true;
-    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
   }
 }
 
@@ -552,6 +578,78 @@ function cleanOutput(text) {
   return safeText.trim();
 }
 
+function extractFlexible(text, labels) {
+  const list = labels.split('|');
+  for(let j=0; j<list.length; j++){
+    const r = new RegExp('(?:\\*\\*)?' + list[j] + '(?:\\*\\*)?\\s*[:\\-]?\\s*([^\\n\\*]+)', 'i');
+    const m = text.match(r);
+    if(m && m[1]) return m[1].trim();
+  }
+  return '—';
+}
+
+function exportCSV() {
+  if (currentUserPlan === 'starter' || currentUserPlan === 'trial') {
+    alert('Structured CSV export is only available on Growth and Professional tiers.');
+    return;
+  }
+  if (!outputText || !outputText.trim()) { alert('No analysis available to export.'); return; }
+  
+  let toolLabel = TOOLS[currentTool].label;
+  let cleanLabel = toolLabel.replace(/\s+/g, '_');
+  
+  let d = new Date();
+  let year = d.getFullYear();
+  let month = String(d.getMonth() + 1).padStart(2, '0');
+  let day = String(d.getDate()).padStart(2, '0');
+  let formattedDate = `${year}-${month}-${day}`;
+  
+  let filename = `${cleanLabel}_Report_${formattedDate}.csv`;
+  let csvContent = "";
+  
+  if (currentTool === 0) {
+    const vendor = extractFlexible(outputText, 'Vendor Name|Vendor|From');
+    const customer = extractFlexible(outputText, 'Customer Name|Customer|To');
+    const invoice = extractFlexible(outputText, 'Invoice Number|Invoice #');
+    const due = extractFlexible(outputText, 'Due Date|Due');
+    const amount = extractFlexible(outputText, 'Total Amount|TOTAL|Total');
+    const issues = extractFlexible(outputText, 'Issues Found|Issues');
+    const action = extractFlexible(outputText, 'Recommended Action|Recommendations|Action');
+    
+    let headers = ["Field", "Value"];
+    let rows = [
+      ["Vendor Name", vendor],
+      ["Customer Name", customer],
+      ["Invoice Number", invoice],
+      ["Due Date", due],
+      ["Total Amount", amount],
+      ["Issues Found", issues],
+      ["Recommended Action", action]
+    ];
+    
+    csvContent += headers.map(h => `"${h.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`).join(",") + "\n";
+    rows.forEach(r => {
+      csvContent += r.map(v => `"${String(v).replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`).join(",") + "\n";
+    });
+  } else {
+    let headers = ["Analysis Output"];
+    csvContent += headers.map(h => `"${h.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`).join(",") + "\n";
+    csvContent += `"${outputText.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"\n`;
+  }
+  
+  let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  let link = document.createElement("a");
+  if (link.download !== undefined) {
+    let url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
 async function generate() {
   if (isQuotaExhausted || isProcessing) return;
   const input = document.getElementById('inputText').value.trim();
@@ -579,12 +677,15 @@ async function generate() {
     
     clearTimeout(timeoutId);
 
-    let data;
-    try {
-      data = await res.json();
-    } catch(jsonErr) {
-      throw new Error("Unable to decode operational framework configurations.");
+    if (!res.ok) {
+      throw new Error(`Server returned status code: ${res.status}`);
     }
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      throw new Error("Server did not return valid JSON data payload.");
+    }
+
+    const data = await res.json();
 
     if(data.error) throw new Error(data.error.message || 'API processing failure');
     
@@ -621,21 +722,32 @@ async function generate() {
       });
     });
     
-    if (!Array.isArray(analysisHistory)) analysisHistory = [];
-    const safeString = String(input || '');
-    const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
-    
-    analysisHistory = [{
-      toolIndex: currentTool, 
-      icon: TOOLS[currentTool].icon, 
-      preview: slicePreview, 
-      output: outputText,
-      analysisId: currentAnalysisId,
-      timestamp: currentAnalysisDate
-    }].concat(analysisHistory.slice(0,4));
+    try {
+      let latestRaw = localStorage.getItem('wissely_history_v2');
+      let currentHistoryArray = [];
+      if (latestRaw) {
+        let parsed = JSON.parse(latestRaw);
+        currentHistoryArray = Array.isArray(parsed) ? parsed : [];
+      }
+      
+      const safeString = String(input || '');
+      const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
+      
+      const newHistoryItem = {
+        toolIndex: currentTool, 
+        icon: TOOLS[currentTool].icon, 
+        preview: slicePreview, 
+        output: outputText,
+        analysisId: currentAnalysisId,
+        timestamp: currentAnalysisDate
+      };
 
-    renderHistory();
-    syncHistoryToStorage();
+      analysisHistory = [newHistoryItem].concat(currentHistoryArray).slice(0, 5);
+      renderHistory();
+      syncHistoryToStorage();
+    } catch (storageErr) {
+      console.error('History array synchronization failed:', storageErr);
+    }
   } catch(e) {
     clearTimeout(timeoutId);
     document.getElementById('outputText').innerHTML = '';
@@ -648,7 +760,10 @@ async function generate() {
     document.getElementById('emptyState').style.display = 'block';
   } finally {
     isProcessing = false;
-    if (!isQuotaExhausted) {
+    if (isQuotaExhausted) {
+      btn.disabled = true;
+      btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+    } else {
       btn.disabled = false;
       btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
     }
@@ -679,18 +794,30 @@ function renderHistory() {
   if (listEl) listEl.innerHTML = html;
 }
 
-function showHistory(i) {
+async function showHistory(i) {
   if (isProcessing) return;
   if (!Array.isArray(analysisHistory) || i < 0 || i >= analysisHistory.length || !analysisHistory[i]) return;
   
+  try {
+    const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+    if (!res.ok || res.status === 401 || res.status === 403) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    const data = await res.json();
+    if (!data || !data.authenticated || !data.user) {
+      window.location.href = 'auth.html';
+      return;
+    }
+    updateQuotaUI(data.user);
+  } catch (e) {
+    console.error('Security verification check dropped execution context:', e);
+    return;
+  }
+
   const targetToolIndex = analysisHistory[i].toolIndex;
   if (typeof targetToolIndex !== 'number' || targetToolIndex < 0 || targetToolIndex >= TOOLS.length) return;
   
-  fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' })
-    .then(res => { if (res.ok) return res.json(); })
-    .then(data => { if (data && data.user) updateQuotaUI(data.user); })
-    .catch(e => console.warn('Background quota synchronization bypass active:', e));
-
   outputText = analysisHistory[i].output;
   currentTool = targetToolIndex;
   
@@ -758,22 +885,13 @@ function triggerCopyFeedback(btn) {
 }
 
 function renderInvoiceCards(text){
- function extract(labels){
-   const list = labels.split('|');
-   for(let j=0; j<list.length; j++){
-     const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
-     const m = text.match(r);
-     if(m && m[1]) return m[1].trim();
-   }
-   return '—';
- }
- const vendor = extract('Vendor Name|Vendor|From');
- const customer = extract('Customer Name|Customer|To');
- const invoice = extract('Invoice Number|Invoice #');
- const due = extract('Due Date|Due');
- const amount = extract('Total Amount|TOTAL|Total');
- const issues = extract('Issues Found|Issues');
- const action = extract('Recommended Action|Recommendations|Action');
+ const vendor = extractFlexible(text, 'Vendor Name|Vendor|From');
+ const customer = extractFlexible(text, 'Customer Name|Customer|To');
+ const invoice = extractFlexible(text, 'Invoice Number|Invoice #');
+ const due = extractFlexible(text, 'Due Date|Due');
+ const amount = extractFlexible(text, 'Total Amount|TOTAL|Total');
+ const issues = extractFlexible(text, 'Issues Found|Issues');
+ const action = extractFlexible(text, 'Recommended Action|Recommendations|Action');
 
  function isValidField(val) {
    if (!val || val === '—') return false;
@@ -818,23 +936,13 @@ function renderInvoiceCards(text){
 }
 
 function buildPremiumPDFReport(text) {
-  function extract(labels){
-    const list = labels.split('|');
-    for(let j=0; j<list.length; j++){
-      const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
-      const m = text.match(r);
-      if(m && m[1]) return m[1].trim();
-    }
-    return '—';
-  }
-
-  const vendor = extract('Vendor Name|Vendor|From');
-  const customer = extract('Customer Name|Customer|To');
-  const invoice = extract('Invoice Number|Invoice #');
-  const due = extract('Due Date|Due');
-  const amount = extract('Total Amount|TOTAL|Total');
-  const issues = extract('Issues Found|Issues');
-  const action = extract('Recommended Action|Recommendations|Action');
+  const vendor = extractFlexible(text, 'Vendor Name|Vendor|From');
+  const customer = extractFlexible(text, 'Customer Name|Customer|To');
+  const invoice = extractFlexible(text, 'Invoice Number|Invoice #');
+  const due = extractFlexible(text, 'Due Date|Due');
+  const amount = extractFlexible(text, 'Total Amount|TOTAL|Total');
+  const issues = extractFlexible(text, 'Issues Found|Issues');
+  const action = extractFlexible(text, 'Recommended Action|Recommendations|Action');
   const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
 
   return `
@@ -860,6 +968,8 @@ function buildPremiumPDFReport(text) {
 }
 
 function exportPDF() {
+  if (!outputText || !outputText.trim()) { alert('No analysis available to export.'); return; }
+  
   let content = "";
   if (currentTool === 0) {
     content = buildPremiumPDFReport(outputText);
@@ -872,6 +982,7 @@ function exportPDF() {
     alert('Export blocked. Please allow popups to export financial PDF documents.'); 
     return; 
   }
+  w.opener = null;
 
   w.document.write(`
   <!DOCTYPE html>
@@ -907,9 +1018,20 @@ function exportPDF() {
     }
   `;
   w.document.body.appendChild(printScript);
-  
   w.document.close();
 }
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'wissely_history_v2') {
+    initLocalStorageHistory();
+  }
+});
+
+window.addEventListener('focus', () => {
+  if (!isProcessing) {
+    checkAuthSession();
+  }
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   toolButtonsCollection = document.getElementsByClassName('tool-btn');
