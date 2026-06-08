@@ -16,7 +16,6 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 
-/* Security Isolation Authentication Gate Layer Overlay */
 #auth-gate-shield {
   position: fixed;
   top: 0;
@@ -72,7 +71,6 @@ nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0
 
 .main{display:flex;flex-direction:column;gap:14px}
 
-/* Desktop Defaults for Cards Row */
 .stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .stat-card{background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:14px 16px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.04)}
 .stat-icon{font-size:18px;display:block;margin-bottom:4px}
@@ -125,7 +123,6 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   .sidebar{flex-direction:column;gap:4px}
   .history-section{display:none}
   
-  /* Mobile Fluid Auto-Sizing Row Matches Layout Expectations */
   .stats-row{
     display:flex!important;
     flex-direction:row!important;
@@ -172,17 +169,16 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   .output-card,.input-card,.invoice-summary{width:100%}
 }
 
-/* Premium Visual Report Layout Definitions */
-.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px}
+.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px;word-wrap:break-word;overflow-wrap:break-word}
 .decision-status{display:inline-block;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px;background:#e8f5e9;color:#2d4a3e}
-.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0}
+.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0;word-wrap:break-word;overflow-wrap:break-word}
 .wissely-premium-header{display:flex!important;align-items:center!important;justify-content:space-between!important;border-bottom:1px solid #dedad0!important;padding-bottom:16px!important;margin-bottom:24px!important;gap:12px!important;flex-wrap:wrap!important}
 .wissely-premium-footer{display:block!important;text-align:center!important;border-top:1px solid #dedad0!important;padding-top:16px!important;margin-top:24px!important}
 .completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
 .completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
 .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
-.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px}
-.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
+.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px;word-wrap:break-word;overflow-wrap:break-word}
+.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px;word-wrap:break-word;overflow-wrap:break-word}
 
 @media(max-width:700px){
   .premium-data-grid{grid-template-columns:1fr}
@@ -213,27 +209,27 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 <div class="app-body">
   <div class="sidebar">
     <div class="sidebar-label">Tools</div>
-    <button class="tool-btn active" onclick="selectTool(0)">
+    <button class="tool-btn active">
       <span class="tool-icon">🔍</span>
       <div><div class="tool-label">Invoice Analyzer</div><div class="tool-desc">Extract every detail instantly</div></div>
     </button>
-    <button class="tool-btn" onclick="selectTool(1)">
+    <button class="tool-btn">
       <span class="tool-icon">🗂️</span>
       <div><div class="tool-label">Expense Clarity</div><div class="tool-desc">Sort expenses for tax</div></div>
     </button>
-    <button class="tool-btn" onclick="selectTool(2)">
+    <button class="tool-btn">
       <span class="tool-icon">📊</span>
       <div><div class="tool-label">Finance Report</div><div class="tool-desc">A clear summary you can read</div></div>
     </button>
-    <button class="tool-btn" onclick="selectTool(3)">
+    <button class="tool-btn">
       <span class="tool-icon">📧</span>
       <div><div class="tool-label">Payment Request</div><div class="tool-desc">Get paid faster</div></div>
     </button>
-    <button class="tool-btn" onclick="selectTool(4)">
+    <button class="tool-btn">
       <span class="tool-icon">🚨</span>
       <div><div class="tool-label">Fraud Detection</div><div class="tool-desc">Catch errors early</div></div>
     </button>
-    <button class="tool-btn" onclick="selectTool(5)">
+    <button class="tool-btn">
       <span class="tool-icon">📈</span>
       <div><div class="tool-label">Cash Flow Forecast</div><div class="tool-desc">30, 60, 90 day picture</div></div>
     </button>
@@ -263,7 +259,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
         <button class="clear-btn" onclick="clearAll()">Clear</button>
       </div>
       <div class="textarea-wrap">
-        <textarea id="inputText" onkeydown="handleKey(event)" oninput="updateChar()"
+        <textarea id="inputText" onkeydown="handleKey(event)" oninput="updateChar()" maxlength="100000"
           placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
         <div class="input-footer">
           <span class="char-count" id="charCount">0 chars</span>
@@ -317,12 +313,12 @@ const TOOLS = [
   {
     icon:"🗂️", label:"Expense Clarity", desc:"Sort expenses for tax",
     placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500",
-    prompt: function(t){ return "You are an accountant. Categorize these expenses for tax purposes. For each: category, tax deductible yes or no, and notes. Give totals by category. Output as a professional business report. No markdown. No asterisks. No bullet points. No emojis. Text: " + t; }
+    prompt: function(t){ return "Act as a tax accountant. Categorize these business expenses for IRS filing. For each item list: Category, Tax Deductible (Yes/No), and a 5-word deduction rule. Group and calculate total spending per category. Finish with a 1-sentence cash-saving tip. Strict limit: 150 words. Do not use asterisks, hashes, or markdown symbols. Raw text only: " + t; }
   },
   {
     icon:"📊", label:"Finance Report", desc:"A clear summary you can read",
     placeholder:"Paste your financial data here...\n\nExample:\nRevenue: $12,400\nExpenses: $8,900\nUnpaid invoices: $3,200\nRent: $2,100\nTax paid: $0",
-    prompt: function(t){ return "You are a CFO. Write a clear plain English financial report. Explain what the numbers mean, what is going well, what needs attention, and give 3 action items. No markdown symbols. Use simple text only. Text: " + t; }
+    prompt: function(t){ return "Act as a small business CFO. Write a brief executive performance overview. State total revenue, expenses, and net profit margin. Highlight the single largest operational expense and the single greatest cash risk. Provide 3 clear, practical action steps for the owner this week. Strict limit: 150 words. Do not use asterisks, hashes, or markdown symbols. Raw text only: " + t; }
   },
   {
     icon:"📧", label:"Payment Request", desc:"Get paid faster",
@@ -332,7 +328,7 @@ const TOOLS = [
   {
     icon:"🚨", label:"Fraud Detection", desc:"Catch errors early",
     placeholder:"Paste invoices or transactions here...\n\nExample:\nInvoice A: $2,500 - Supplier X - May 1\nInvoice B: $2,500 - Supplier X - May 1\nInvoice C: $8,999 - Unknown Vendor",
-    prompt: function(t){ return "You are a forensic accountant. Check this data for duplicates, calculation errors, unusual amounts, missing info, and red flags. Rate each issue Low, Medium or High risk. Plain English. No markdown symbols. Text: " + t; }
+    prompt: function(t){ return "Act as a forensic auditor. Inspect this data for financial anomalies, duplicate billing, pricing inconsistencies, or missing validation attributes. List each detected anomaly as: Issue, Risk Level (High/Medium/Low), and Quick Fix. If no issues exist, state that the data appears clear. Strict limit: 150 words. Do not use asterisks, hashes, or markdown symbols. Raw text only: " + t; }
   },
   {
     icon:"📈", label:"Cash Flow Forecast", desc:"30, 60, 90 day picture",
@@ -345,12 +341,73 @@ let currentTool = 0;
 let analysisHistory = [];
 let outputText = "";
 let isQuotaExhausted = false;
+let isProcessing = false;
+let currentAnalysisId = "";
+let currentAnalysisDate = "";
+
+let toolButtonsCollection;
+const staticPrintStyles = `
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;font-family:'DM Sans',sans-serif;color:#2a2a20;font-size:14px;line-height:1.6}
+  .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:24px;width:100%;max-width:100%;box-shadow:none}
+  .wissely-premium-header{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c0c0a;padding-bottom:16px;margin-bottom:24px}
+  .decision-status{display:inline-block;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;background:#e8f5e9;color:#2d4a3e;text-transform:uppercase}
+  .big-amount{font-size:38px;font-weight:700;color:#2d4a3e;margin:16px 0}
+  .completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
+  .completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
+  .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0}
+  .premium-info-card{background:#fff;border:1px solid #dedad0;border-radius:12px;padding:14px}
+  .finding-box{margin-top:14px;padding:14px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
+  .wissely-premium-footer{text-align:center;border-top:1px solid #dedad0;padding-top:16px;margin-top:32px;font-size:10px;color:#7a7a66;font-family:'DM Mono',monospace}
+`;
 
 function escapeHTML(str) {
   if (!str) return '';
-  return str.replace(/[&<>"']/g, function(m) {
+  return String(str).replace(/[&<>"']/g, function(m) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
   });
+}
+
+function initLocalStorageHistory() {
+  try {
+    let unparsedPayload = localStorage.getItem('wissely_history_v2');
+    
+    if (!unparsedPayload && localStorage.getItem('wissely_history_v1')) {
+      unparsedPayload = localStorage.getItem('wissely_history_v1');
+      if (unparsedPayload) {
+        localStorage.setItem('wissely_history_v2', unparsedPayload);
+      }
+      localStorage.removeItem('wissely_history_v1');
+    }
+
+    if (unparsedPayload) {
+      const parsed = JSON.parse(unparsedPayload);
+      analysisHistory = Array.isArray(parsed) ? parsed : [];
+      
+      analysisHistory = analysisHistory.map(item => {
+        if (item && item.tool && typeof item.toolIndex === 'undefined') {
+          const indexMatch = TOOLS.findIndex(t => t.label === item.tool);
+          item.toolIndex = indexMatch !== -1 ? indexMatch : 0;
+        }
+        if (item && typeof item.timestamp === 'undefined') {
+          item.timestamp = '';
+        }
+        return item;
+      });
+      renderHistory();
+    }
+  } catch (e) {
+    console.warn('LocalStorage structure recovery profile initialized:', e);
+    analysisHistory = [];
+  }
+}
+
+function syncHistoryToStorage() {
+  try {
+    localStorage.setItem('wissely_history_v2', JSON.stringify(analysisHistory));
+  } catch (e) {
+    console.error('History validation trace write failure:', e);
+  }
 }
 
 async function checkAuthSession() {
@@ -364,24 +421,34 @@ async function checkAuthSession() {
     }
     
     if (!res.ok) {
-      console.warn('Wissely Engine connectivity degradation detected.');
       if (shield) {
         shield.style.opacity = '0';
         setTimeout(() => shield.remove(), 250);
       }
+      initLocalStorageHistory();
       return;
     }
     
-    const data = await res.json();
+    let data;
+    try {
+      data = await res.json();
+    } catch(parseErr) {
+      throw new Error("Invalid format layout execution parameters.");
+    }
+
     if (data && data.authenticated && data.user) {
       updateQuotaUI(data.user);
+      initLocalStorageHistory();
       if (shield) { 
         shield.style.opacity = '0'; 
         setTimeout(() => shield.remove(), 250); 
       }
-    } else { window.location.href = 'auth.html'; }
+    } else { 
+      window.location.href = 'auth.html'; 
+    }
   } catch (err) { 
-    console.error('Session security validation fault context:', err);
+    console.error('Session authentication validation tracing scope:', err);
+    initLocalStorageHistory();
     if (shield) {
       shield.style.opacity = '0';
       setTimeout(() => shield.remove(), 250);
@@ -393,13 +460,7 @@ function updateQuotaUI(user) {
   if(!user) return;
   
   const rawPlan = user.plan ? String(user.plan).toLowerCase() : 'trial';
-  
-  const VALID_TIERS = {
-    'trial': 20,
-    'starter': 50,
-    'growth': 250,
-    'pro': 1000
-  };
+  const VALID_TIERS = { 'trial': 20, 'starter': 50, 'growth': 250, 'pro': 1000 };
 
   const limit = parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20;
   const used = parseInt(user.analyses_used || 0);
@@ -416,7 +477,7 @@ function updateQuotaUI(user) {
     document.getElementById('errorText').textContent = 'Your analysis quota is exhausted. Upgrade your tier to process further records.';
   } else {
     isQuotaExhausted = false;
-    if (!btn.classList.contains('processing-active')) {
+    if (!isProcessing) {
       btn.disabled = false;
       btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
     }
@@ -431,10 +492,14 @@ async function triggerLogout() {
 }
 
 function selectTool(index) {
+  if (isProcessing) return;
   currentTool = index;
   const t = TOOLS[index];
-  const btns = document.querySelectorAll('.tool-btn');
-  for(let i=0; i<btns.length; i++){ btns[i].classList.toggle('active', i===index); }
+  
+  for(let i=0; i < toolButtonsCollection.length; i++){ 
+    toolButtonsCollection[i].classList.toggle('active', i === index); 
+  }
+  
   document.getElementById('activeIcon').textContent = t.icon;
   document.getElementById('activeTitle').textContent = t.label;
   document.getElementById('activeDesc').textContent = t.desc;
@@ -462,13 +527,14 @@ function selectTool(index) {
 function updateChar() { document.getElementById('charCount').textContent = document.getElementById('inputText').value.length + ' chars'; }
 
 function handleKey(e) { 
-  if(e.ctrlKey && e.key==='Enter') {
+  if(e.ctrlKey && e.key === 'Enter') {
     e.preventDefault();
-    if(!isQuotaExhausted) generate();
+    if(!isQuotaExhausted && !isProcessing) generate();
   }
 }
 
 function clearAll() {
+  if (isProcessing) return;
   document.getElementById('inputText').value = '';
   document.getElementById('charCount').textContent = '0 chars';
   if (!isQuotaExhausted) document.getElementById('errorText').textContent = '';
@@ -477,24 +543,24 @@ function clearAll() {
 }
 
 function cleanOutput(text) {
-  let t = escapeHTML(text);
-  t = t.replace(/^#{1,6}\s*/gm,'');
-  t = t.replace(/\*\处理/g,'').replace(/\*/g,'');
-  t = t.replace(/^[-_=]{3,}$/gm,'');
-  t = t.replace(/^\s*[-•*]\s+/gm,'');
-  t = t.replace(/\n{3,}/g,'\n\n').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>');
-  return t.trim();
+  let safeText = escapeHTML(text);
+  safeText = safeText.replace(/^#{1,6}\s*/gm,'');
+  safeText = safeText.replace(/\*\处理/g,'').replace(/\*/g,'');
+  safeText = safeText.replace(/^[-_=]{3,}$/gm,'');
+  safeText = safeText.replace(/^\s*[-•*]\s+/gm,'');
+  safeText = safeText.replace(/\n{3,}/g,'\n\n').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>');
+  return safeText.trim();
 }
 
 async function generate() {
-  if (isQuotaExhausted) return;
+  if (isQuotaExhausted || isProcessing) return;
   const input = document.getElementById('inputText').value.trim();
   if(!input){ document.getElementById('errorText').textContent = 'Paste financial data first.'; return; }
   document.getElementById('errorText').textContent = '';
   
+  isProcessing = true;
   const btn = document.getElementById('generateBtn');
   btn.disabled = true;
-  btn.classList.add('processing-active');
   btn.innerHTML = '<span class="spin">⟳</span> Analyzing...';
   document.getElementById('outputCard').style.display = 'none';
   document.getElementById('emptyState').style.display = 'none';
@@ -512,13 +578,22 @@ async function generate() {
     });
     
     clearTimeout(timeoutId);
-    const data = await res.json();
-    if(data.error) throw new Error(data.error.message || 'API processing error');
+
+    let data;
+    try {
+      data = await res.json();
+    } catch(jsonErr) {
+      throw new Error("Unable to decode operational framework configurations.");
+    }
+
+    if(data.error) throw new Error(data.error.message || 'API processing failure');
     
-    outputText = data.data?.content[0]?.text || data.content?.[0]?.text || (data.content ? data.content.map(b => b.text || '').join('\n') : "No output.");
+    outputText = data.data?.content[0]?.text || data.content?.[0]?.text || (data.content ? data.content.map(b => b.text || '').join('\n') : "No output available.");
     
+    currentAnalysisDate = new Date().toLocaleDateString();
     document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
-    
+    currentAnalysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
+
     if(currentTool === 0) {
       renderInvoiceCards(outputText);
     } else {
@@ -532,8 +607,10 @@ async function generate() {
     } else {
       const checkRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
       if (checkRes.ok) {
-        const checkData = await checkRes.json();
-        if (checkData.user) updateQuotaUI(checkData.user);
+        try {
+          const checkData = await checkRes.json();
+          if (checkData.user) updateQuotaUI(checkData.user);
+        } catch(e){}
       }
     }
     
@@ -544,76 +621,137 @@ async function generate() {
       });
     });
     
-    // String protection verification logic prevents slicing crashes
-    if (!Array.isArray(analysisHistory)) {
-      analysisHistory = [];
-    }
+    if (!Array.isArray(analysisHistory)) analysisHistory = [];
     const safeString = String(input || '');
     const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
     
-    analysisHistory = [{tool:TOOLS[currentTool].label, icon:TOOLS[currentTool].icon, preview:slicePreview, output:outputText}].concat(analysisHistory.slice(0,4));
+    analysisHistory = [{
+      toolIndex: currentTool, 
+      icon: TOOLS[currentTool].icon, 
+      preview: slicePreview, 
+      output: outputText,
+      analysisId: currentAnalysisId,
+      timestamp: currentAnalysisDate
+    }].concat(analysisHistory.slice(0,4));
+
     renderHistory();
+    syncHistoryToStorage();
   } catch(e) {
     clearTimeout(timeoutId);
-    
     document.getElementById('outputText').innerHTML = '';
     
     if (e.name === 'AbortError') {
       document.getElementById('errorText').textContent = 'Analysis connection timed out (30 seconds). Please try again.';
     } else {
-      document.getElementById('errorText').textContent = e.message || 'Error executing processing analytics.';
+      document.getElementById('errorText').textContent = e.message || 'Error executing processing operations.';
     }
     document.getElementById('emptyState').style.display = 'block';
-  }
-  
-  btn.classList.remove('processing-active');
-  if (!isQuotaExhausted) {
-    btn.disabled = false;
-    btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+  } finally {
+    isProcessing = false;
+    if (!isQuotaExhausted) {
+      btn.disabled = false;
+      btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+    }
   }
 }
 
 function renderHistory() {
-  if (!Array.isArray(analysisHistory) || analysisHistory.length === 0) return;
-  document.getElementById('historySection').style.display = 'block';
+  const section = document.getElementById('historySection');
+  const listEl = document.getElementById('historyList');
+  
+  if (!Array.isArray(analysisHistory) || analysisHistory.length === 0) {
+    if (section) section.style.display = 'none';
+    if (listEl) listEl.innerHTML = '';
+    return;
+  }
+  
+  if (section) section.style.display = 'block';
   let html = '';
   for(let i=0; i<analysisHistory.length; i++){
-    html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+escapeHTML(analysisHistory[i].icon)+' '+escapeHTML(analysisHistory[i].tool)+'</div><div class="hist-preview">'+escapeHTML(analysisHistory[i].preview)+'</div></div>';
+    if (!analysisHistory[i]) continue;
+    const idx = analysisHistory[i].toolIndex;
+    
+    if (typeof idx !== 'number' || idx < 0 || idx >= TOOLS.length) continue;
+    
+    const toolLabel = TOOLS[idx].label;
+    html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+escapeHTML(analysisHistory[i].icon)+' '+escapeHTML(toolLabel)+'</div><div class="hist-preview">'+escapeHTML(analysisHistory[i].preview)+'</div></div>';
   }
-  document.getElementById('historyList').innerHTML = html;
+  if (listEl) listEl.innerHTML = html;
 }
 
 function showHistory(i) {
-  if (!Array.isArray(analysisHistory) || !analysisHistory[i]) return;
-  outputText = analysisHistory[i].output;
+  if (isProcessing) return;
+  if (!Array.isArray(analysisHistory) || i < 0 || i >= analysisHistory.length || !analysisHistory[i]) return;
   
-  const targetToolIndex = TOOLS.findIndex(t => t.label === analysisHistory[i].tool);
-  if (targetToolIndex !== -1) {
-    currentTool = targetToolIndex;
-    const btns = document.querySelectorAll('.tool-btn');
-    for(let b = 0; b < btns.length; b++) { 
-      btns[b].classList.toggle('active', b === targetToolIndex); 
-    }
-    const t = TOOLS[targetToolIndex];
-    document.getElementById('activeIcon').textContent = t.icon;
-    document.getElementById('activeTitle').textContent = t.label;
-    document.getElementById('activeDesc').textContent = t.desc;
-    document.getElementById('inputText').placeholder = t.placeholder;
-  }
+  const targetToolIndex = analysisHistory[i].toolIndex;
+  if (typeof targetToolIndex !== 'number' || targetToolIndex < 0 || targetToolIndex >= TOOLS.length) return;
+  
+  fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' })
+    .then(res => { if (res.ok) return res.json(); })
+    .then(data => { if (data && data.user) updateQuotaUI(data.user); })
+    .catch(e => console.warn('Background quota synchronization bypass active:', e));
 
-  if(analysisHistory[i].tool === 'Invoice Analyzer') {
+  outputText = analysisHistory[i].output;
+  currentTool = targetToolIndex;
+  
+  for(let b = 0; b < toolButtonsCollection.length; b++) { 
+    toolButtonsCollection[b].classList.toggle('active', b === targetToolIndex); 
+  }
+  
+  const t = TOOLS[targetToolIndex];
+  document.getElementById('activeIcon').textContent = t.icon;
+  document.getElementById('activeTitle').textContent = t.label;
+  document.getElementById('activeDesc').textContent = t.desc;
+  document.getElementById('inputText').placeholder = t.placeholder;
+
+  document.getElementById('outputLabel').textContent = escapeHTML(t.label) + ' · Wissely · AI';
+  currentAnalysisId = analysisHistory[i].analysisId;
+  currentAnalysisDate = analysisHistory[i].timestamp || '';
+
+  if(currentTool === 0) {
     renderInvoiceCards(outputText);
   } else {
     document.getElementById('outputText').innerHTML = cleanOutput(outputText);
   }
-  document.getElementById('outputLabel').textContent = escapeHTML(analysisHistory[i].tool) + ' · Wissely · AI';
   document.getElementById('outputCard').style.display = 'block';
   document.getElementById('emptyState').style.display = 'none';
 }
 
 function copyOutput() {
-  navigator.clipboard.writeText(outputText);
   const btn = document.getElementById('copyBtn');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(outputText)
+      .then(() => triggerCopyFeedback(btn))
+      .catch(() => fallbackCopyMechanism(outputText, btn));
+  } else {
+    fallbackCopyMechanism(outputText, btn);
+  }
+}
+
+function fallbackCopyMechanism(text, btnElement) {
+  try {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    textArea.style.pointerEvents = "none";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (success) {
+      triggerCopyFeedback(btnElement);
+    } else {
+      alert("Please highlight and copy the text manually.");
+    }
+  } catch (err) {
+    console.error("Text manipulation tracking context failure:", err);
+    alert("Please highlight and copy the text manually.");
+  }
+}
+
+function triggerCopyFeedback(btn) {
   btn.textContent = 'Copied';
   btn.classList.add('copied');
   setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
@@ -637,7 +775,6 @@ function renderInvoiceCards(text){
  const issues = extract('Issues Found|Issues');
  const action = extract('Recommended Action|Recommendations|Action');
 
- // Validates actual values versus explicit context/fallback missing strings
  function isValidField(val) {
    if (!val || val === '—') return false;
    const clean = val.toLowerCase();
@@ -654,13 +791,13 @@ function renderInvoiceCards(text){
  if(isValidField(action)) fields++;
  
  const structuralCompleteness = {7:100, 6:85, 5:70, 4:55, 3:40, 2:25, 1:10, 0:0}[fields];
- const analysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
+ const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
 
  document.getElementById('outputText').innerHTML = `
  <div class="invoice-summary">
    <div class="wissely-premium-header">
      <div><strong style="font-size:24px">Wissely</strong><br><small>AI Financial Analysis Report</small></div>
-     <div><small>${escapeHTML(new Date().toLocaleDateString())}</small><br><small>${escapeHTML(analysisId)}</small></div>
+     <div style="text-align: right;"><small>${escapeHTML(formattedPrintDate)}</small><br><small>${escapeHTML(currentAnalysisId)}</small></div>
    </div>
    <div class="decision-status">✓ ANALYZED</div>
    <div class="big-amount">${escapeHTML(amount)}</div>
@@ -680,11 +817,61 @@ function renderInvoiceCards(text){
  </div>`;
 }
 
+function buildPremiumPDFReport(text) {
+  function extract(labels){
+    const list = labels.split('|');
+    for(let j=0; j<list.length; j++){
+      const r = new RegExp(list[j] + '\\s*:?\\s*([^\\n]+)', 'i');
+      const m = text.match(r);
+      if(m && m[1]) return m[1].trim();
+    }
+    return '—';
+  }
+
+  const vendor = extract('Vendor Name|Vendor|From');
+  const customer = extract('Customer Name|Customer|To');
+  const invoice = extract('Invoice Number|Invoice #');
+  const due = extract('Due Date|Due');
+  const amount = extract('Total Amount|TOTAL|Total');
+  const issues = extract('Issues Found|Issues');
+  const action = extract('Recommended Action|Recommendations|Action');
+  const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
+
+  return `
+    <div class="invoice-summary">
+      <div class="wissely-premium-header">
+        <div><strong style="font-size:24px">Wissely</strong><br><small>Executive Financial Report</small></div>
+        <div style="text-align: right;"><small>Date: ${escapeHTML(formattedPrintDate)}</small><br><small>Ref: ${escapeHTML(currentAnalysisId)}</small></div>
+      </div>
+      <div style="margin-bottom: 30px;">
+        <small style="text-transform: uppercase; color: #7a7a66;">Total Amount</small>
+        <div class="big-amount" style="font-size: 42px;">${escapeHTML(amount)}</div>
+      </div>
+      <div class="premium-data-grid">
+         <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(vendor)}</div>
+         <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(invoice)}</div>
+         <div class="premium-info-card"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
+         <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(due)}</div>
+      </div>
+      <div class="finding-box" style="margin-bottom: 20px;"><strong>Key Findings</strong><br>${escapeHTML(issues)}</div>
+      <div class="finding-box" style="border-left-color: #c9a84c;"><strong>Recommendations</strong><br>${escapeHTML(action)}</div>
+      <div class="wissely-premium-footer">WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</div>
+    </div>`;
+}
+
 function exportPDF() {
-  const targetSummary = document.querySelector('.invoice-summary');
-  const content = targetSummary ? targetSummary.outerHTML : `<div class="invoice-summary">${document.getElementById('outputText').innerHTML}</div>`;
-  const mainStyles = Array.from(document.querySelectorAll('style')).map(s => s.innerHTML).join('\n');
+  let content = "";
+  if (currentTool === 0) {
+    content = buildPremiumPDFReport(outputText);
+  } else {
+    content = `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+  }
+
   const w = window.open('', '_blank');
+  if (!w) { 
+    alert('Export blocked. Please allow popups to export financial PDF documents.'); 
+    return; 
+  }
 
   w.document.write(`
   <!DOCTYPE html>
@@ -693,27 +880,46 @@ function exportPDF() {
   <title>Wissely Premium Financial Document Report</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-  ${mainStyles}
+  ${staticPrintStyles}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  @page{size:A4;margin:10mm}
-  body{margin:0!important;background:#f8f6f0!important;font-family:'DM Sans',sans-serif!important;padding:20px}
-  .pdf-page-wrapper{width:100%!important;padding:0!important;margin:0!important;background:#f8f6f0!important}
-  .invoice-summary{width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important;page-break-inside:avoid!important}
+  @page{size:A4;margin:20mm}
+  body{margin:0!important;background:#fff!important;font-family:'DM Sans',sans-serif!important;padding:0}
+  .invoice-summary{width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important;border:none!important;background:none!important;padding:0!important;page-break-inside:avoid!important}
+  .wissely-premium-header{border-bottom:2px solid #0c0c0a!important}
   </style>
   </head>
-  <body>
-    <div class="pdf-page-wrapper">${content}</div>
-    <script>
-      document.fonts.ready.then(()=>{
-        setTimeout(()=> { self.print(); }, 500);
-      });
-    <\/script>
-  </body>
+  <body></body>
   </html>`);
+  
+  const cleanContainer = w.document.createElement('div');
+  cleanContainer.style.padding = '10px';
+  cleanContainer.innerHTML = content;
+  w.document.body.appendChild(cleanContainer);
+  
+  const printScript = w.document.createElement('script');
+  printScript.textContent = `
+    if (document.fonts && document.fonts.ready) { 
+      document.fonts.ready.then(function() { 
+        setTimeout(function() { window.print(); }, 500); 
+      }); 
+    } else { 
+      setTimeout(function() { window.print(); }, 500); 
+    }
+  `;
+  w.document.body.appendChild(printScript);
+  
   w.document.close();
 }
 
-window.addEventListener('DOMContentLoaded', checkAuthSession);
+window.addEventListener('DOMContentLoaded', () => {
+  toolButtonsCollection = document.getElementsByClassName('tool-btn');
+  
+  for (let idx = 0; idx < toolButtonsCollection.length; idx++) {
+    toolButtonsCollection[idx].addEventListener('click', () => selectTool(idx));
+  }
+  
+  checkAuthSession();
+});
 </script>
 </body>
-  </html>
+      </html>
