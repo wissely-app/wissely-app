@@ -1,0 +1,185 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wissely Pricing</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"><style>
+:root{
+  --ink:#0c0c0a;
+  --sage:#2d4a3e;
+  --gold:#c9a84c;
+  --gold2:#e8c97a;
+  --cream:#f8f6f0;
+  --cream3:#dedad0;
+  --white:#ffffff;
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  background:var(--cream);
+  font-family:'DM Sans',sans-serif;
+  color:#2a2a20;
+}
+
+nav{
+  height:70px;
+  background:var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 40px;
+}
+
+.logo{
+  color:white;
+  text-decoration:none;
+  font-family:'Cormorant Garamond',serif;
+  font-size:28px;
+  font-weight:700;
+}
+
+.back-btn{
+  color:white;
+  text-decoration:none;
+}
+
+.hero{
+  text-align:center;
+  padding:80px 20px;
+}
+
+.hero h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:64px;
+  margin-bottom:16px;
+}
+
+.hero p{
+  color:#666;
+}
+
+.pricing-grid{
+  max-width:1100px;
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:24px;
+  padding:0 20px 80px;
+}
+
+.card{
+  background:white;
+  border:1px solid var(--cream3);
+  border-radius:18px;
+  padding:32px;
+}
+
+.card.popular{
+  background:var(--sage);
+  color:white;
+}
+
+.price{
+  font-size:54px;
+  font-family:'Cormorant Garamond',serif;
+}
+
+.features{
+  margin:24px 0;
+}
+
+.features div{
+  margin-bottom:10px;
+}
+
+.upgrade-btn{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:999px;
+  cursor:pointer;
+  background:var(--gold);
+  font-weight:600;
+}
+
+.badge{
+  background:var(--gold);
+  color:black;
+  display:inline-block;
+  padding:4px 12px;
+  border-radius:999px;
+  font-size:12px;
+  margin-bottom:16px;
+}
+
+@media(max-width:900px){
+  .pricing-grid{
+    grid-template-columns:1fr;
+  }
+
+  .hero h1{
+    font-size:42px;
+  }
+}
+</style></head><body><nav>
+  <a href="https://wissely.com" class="logo">Wissely</a>
+  <a href="app.html" class="back-btn">← Back to App</a>
+</nav><section class="hero">
+  <h1>Choose Your Plan</h1>
+  <p>Upgrade anytime. Cancel anytime.</p>
+</section><section class="pricing-grid">  <div class="card">
+    <h2>Starter</h2>
+    <div class="price">$12</div>
+    <p>per month</p><div class="features">
+  <div>✓ 50 analyses</div>
+  <div>✓ All 6 AI tools</div>
+  <div>✓ PDF Export</div>
+  <div>✓ Email support</div>
+</div>
+
+<button class="upgrade-btn" data-plan="starter">
+  Upgrade to Starter
+</button>
+
+  </div>  <div class="card popular">
+    <div class="badge">MOST POPULAR</div><h2>Growth</h2>
+<div class="price">$29</div>
+<p>per month</p>
+
+<div class="features">
+  <div>✓ 250 analyses</div>
+  <div>✓ All 6 AI tools</div>
+  <div>✓ CSV Export</div>
+  <div>✓ Priority support</div>
+</div>
+
+<button class="upgrade-btn" data-plan="growth">
+  Upgrade to Growth
+</button>
+
+  </div>  <div class="card">
+    <h2>Pro</h2>
+    <div class="price">$79</div>
+    <p>per month</p><div class="features">
+  <div>✓ 1000 analyses</div>
+  <div>✓ Team access</div>
+  <div>✓ API access</div>
+  <div>✓ Dedicated support</div>
+</div>
+
+<button class="upgrade-btn" data-plan="pro">
+  Upgrade to Pro
+</button>
+
+  </div></section><script>
+document.querySelectorAll('.upgrade-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    alert('Paddle checkout coming soon');
+  });
+});
+</script></body>
+  </html>
