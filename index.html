@@ -82,7 +82,7 @@ nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0
 .tool-header-left{display:flex;align-items:center;gap:10px}
 .tool-header-icon{font-size:20px}
 .tool-header-title{font-size:14px;font-weight:600;color:#fff}
-.tool-header-desc覆蓋{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
+.tool-header-desc{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
 .clear-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.7);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
 .clear-btn:hover{background:rgba(255,255,255,0.2);color:#fff}
 .textarea-wrap{background:#fff}
@@ -114,6 +114,17 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 
 .app-footer{text-align:center;padding-top:8px}
 .app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px;white-space:nowrap}
+
+.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px;word-wrap:break-word;overflow-wrap:break-word}
+.decision-status{display:inline-block;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px;background:#e8f5e9;color:#2d4a3e}
+.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0;word-wrap:break-word;overflow-wrap:break-word}
+.wissely-premium-header{display:flex!important;align-items:center!important;justify-content:space-between!important;border-bottom:1px solid #dedad0!important;padding-bottom:16px!important;margin-bottom:24px!important;gap:12px!important;flex-wrap:wrap!important}
+.wissely-premium-footer{display:block!important;text-align:center!important;border-top:1px solid #dedad0!important;padding-top:16px!important;margin-top:24px!important}
+.completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
+.completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
+.premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
+.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px;word-wrap:break-word;overflow-wrap:break-word}
+.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px;word-wrap:break-word;overflow-wrap:break-word}
 
 @media(max-width:700px){
   body{overflow-x:hidden!important}
@@ -167,22 +178,8 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   .nav-logo-text{font-size:18px}
   .ai-ready{padding:5px 10px}
   .output-card,.input-card,.invoice-summary{width:100%}
-}
-
-.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px;word-wrap:break-word;overflow-wrap:break-word}
-.decision-status{display:inline-block;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px;background:#e8f5e9;color:#2d4a3e}
-.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0;word-wrap:break-word;overflow-wrap:break-word}
-.wissely-premium-header{display:flex!important;align-items:center!important;justify-content:space-between!important;border-bottom:1px solid #dedad0!important;padding-bottom:16px!important;margin-bottom:24px!important;gap:12px!important;flex-wrap:wrap!important}
-.wissely-premium-footer{display:block!important;text-align:center!important;border-top:1px solid #dedad0!important;padding-top:16px!important;margin-top:24px!important}
-.completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
-.completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
-.premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
-.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px;word-wrap:break-word;overflow-wrap:break-word}
-.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px;word-wrap:break-word;overflow-wrap:break-word}
-
-@media(max-width:700px){
-  .premium-data-grid{grid-template-columns:1fr}
-  .big-amount{font-size:48px!important;line-height:1.05}
+  .premium-data-grid{grid-template-columns:1fr!important}
+  .premium-info-card{grid-column:auto!important}
 }
 </style>
 </head>
@@ -198,7 +195,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
     <div class="nav-logo-text">Wissely</div>
   </a>
   <div class="nav-right-zone">
-    <button class="logout-btn" onclick="triggerLogout()">Logout</button>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
     <div class="ai-ready">
       <div class="ai-ready-dot"></div>
       <span class="ai-ready-text">AI Ready</span>
@@ -256,17 +253,17 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
             <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
           </div>
         </div>
-        <button class="clear-btn" onclick="clearAll()">Clear</button>
+        <button class="clear-btn" id="clearBtn">Clear</button>
       </div>
       <div class="textarea-wrap">
-        <textarea id="inputText" onkeydown="handleKey(event)" oninput="updateChar()" maxlength="100000"
+        <textarea id="inputText" maxlength="100000"
           placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
         <div class="input-footer">
           <span class="char-count" id="charCount">0 chars</span>
           <span class="error-text" id="errorText"></span>
         </div>
       </div>
-      <button class="generate-btn" id="generateBtn" onclick="generate()">
+      <button class="generate-btn" id="generateBtn">
         🔍 Run Invoice Analyzer
       </button>
     </div>
@@ -279,9 +276,9 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
           <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
         </div>
         <div class="output-actions">
-          <button class="copy-btn" id="copyBtn" onclick="copyOutput()" aria-live="polite">Copy</button>
-          <button class="copy-btn" id="csvBtn" onclick="exportCSV()">CSV</button>
-          <button class="copy-btn" onclick="exportPDF()">PDF</button>
+          <button class="copy-btn" id="copyBtn" aria-live="polite">Copy</button>
+          <button class="copy-btn" id="csvBtn">CSV</button>
+          <button class="copy-btn" id="pdfBtn">PDF</button>
         </div>
       </div>
       <div class="output-text" id="outputText"></div>
@@ -346,22 +343,8 @@ let isProcessing = false;
 let currentAnalysisId = "";
 let currentAnalysisDate = "";
 let currentUserPlan = "";
-
 let toolButtonsCollection;
-const staticPrintStyles = `
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{background:#fff;font-family:'DM Sans',sans-serif;color:#2a2a20;font-size:14px;line-height:1.6}
-  .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:24px;width:100%;max-width:100%;box-shadow:none}
-  .wissely-premium-header{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c0c0a;padding-bottom:16px;margin-bottom:24px}
-  .decision-status{display:inline-block;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;background:#e8f5e9;color:#2d4a3e;text-transform:uppercase}
-  .big-amount{font-size:38px;font-weight:700;color:#2d4a3e;margin:16px 0}
-  .completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
-  .completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
-  .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0}
-  .premium-info-card{background:#fff;border:1px solid #dedad0;border-radius:12px;padding:14px}
-  .finding-box{margin-top:14px;padding:14px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
-  .wissely-premium-footer{text-align:center;border-top:1px solid #dedad0;padding-top:16px;margin-top:32px;font-size:10px;color:#7a7a66;font-family:'DM Mono',monospace}
-`;
+let lastAuthCheckTimestamp = 0;
 
 function escapeHTML(str) {
   if (!str) return '';
@@ -372,37 +355,36 @@ function escapeHTML(str) {
 
 function initLocalStorageHistory() {
   try {
-    let unparsedPayload = localStorage.getItem('wissely_history_v2');
-    
-    if (!unparsedPayload && localStorage.getItem('wissely_history_v1')) {
-      unparsedPayload = localStorage.getItem('wissely_history_v1');
-      if (unparsedPayload) {
-        localStorage.setItem('wissely_history_v2', unparsedPayload);
-      }
-      localStorage.removeItem('wissely_history_v1');
-    }
-
+    let unparsedPayload = localStorage.getItem('wissely_history_v2') || localStorage.getItem('wissely_history_v1');
     if (unparsedPayload) {
       const parsed = JSON.parse(unparsedPayload);
       analysisHistory = Array.isArray(parsed) ? parsed : [];
-      
       analysisHistory = analysisHistory.map(item => {
-        if (item && item.tool && typeof item.toolIndex === 'undefined') {
+        if (!item) return null;
+        let tIndex = 0;
+        if (typeof item.toolIndex === 'number') {
+          tIndex = item.toolIndex;
+        } else if (item.tool) {
           const indexMatch = TOOLS.findIndex(t => t.label === item.tool);
-          item.toolIndex = indexMatch !== -1 ? indexMatch : 0;
+          tIndex = indexMatch !== -1 ? indexMatch : 0;
         }
-        if (item && typeof item.timestamp === 'undefined') {
-          item.timestamp = '';
-        }
-        return item;
-      });
+        return {
+          toolIndex: Math.max(0, Math.min(TOOLS.length - 1, parseInt(tIndex) || 0)),
+          icon: String(item.icon || ''),
+          preview: String(item.preview || ''),
+          output: String(item.output || ''),
+          analysisId: String(item.analysisId || ''),
+          timestamp: String(item.timestamp || '')
+        };
+      }).filter(Boolean);
+      localStorage.setItem('wissely_history_v2', JSON.stringify(analysisHistory));
+      localStorage.removeItem('wissely_history_v1');
       renderHistory();
     } else {
       analysisHistory = [];
       renderHistory();
     }
   } catch (e) {
-    console.warn('LocalStorage structure recovery profile initialized:', e);
     analysisHistory = [];
     renderHistory();
   }
@@ -410,38 +392,31 @@ function initLocalStorageHistory() {
 
 function syncHistoryToStorage() {
   try {
-    localStorage.setItem('wissely_history_v2', JSON.stringify(analysisHistory));
-  } catch (e) {
-    console.error('History validation trace write failure:', e);
-  }
+    const safeExport = analysisHistory.map(item => ({
+      toolIndex: parseInt(item.toolIndex) || 0,
+      icon: String(item.icon || ''),
+      preview: String(item.preview || ''),
+      output: String(item.output || ''),
+      analysisId: String(item.analysisId || ''),
+      timestamp: String(item.timestamp || '')
+    }));
+    localStorage.setItem('wissely_history_v2', JSON.stringify(safeExport));
+  } catch (e) {}
 }
 
 async function checkAuthSession() {
   const shield = document.getElementById('auth-gate-shield');
   try {
     const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    
     if (res.status === 401 || res.status === 403) {
       window.location.href = 'auth.html';
       return;
     }
-    
     if (!res.ok) {
-      if (shield) {
-        shield.style.opacity = '0';
-        setTimeout(() => shield.remove(), 250);
-      }
-      initLocalStorageHistory();
+      window.location.href = 'auth.html';
       return;
     }
-    
-    let data;
-    try {
-      data = await res.json();
-    } catch(parseErr) {
-      throw new Error("Invalid format layout execution parameters.");
-    }
-
+    const data = await res.json();
     if (data && data.authenticated && data.user) {
       updateQuotaUI(data.user);
       initLocalStorageHistory();
@@ -453,37 +428,24 @@ async function checkAuthSession() {
       window.location.href = 'auth.html'; 
     }
   } catch (err) { 
-    console.error('Session authentication validation tracing scope:', err);
-    initLocalStorageHistory();
-    if (shield) {
-      shield.style.opacity = '0';
-      setTimeout(() => shield.remove(), 250);
-    }
+    window.location.href = 'auth.html';
   }
 }
 
 function updateQuotaUI(user) {
   if(!user) return;
-  
   const rawPlan = user.plan ? String(user.plan).toLowerCase() : 'trial';
   currentUserPlan = rawPlan;
   const VALID_TIERS = { 'trial': 20, 'starter': 50, 'growth': 250, 'pro': 1000 };
-
-  const limit = parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20;
-  const used = parseInt(user.analyses_used || 0);
+  const limit = Math.max(0, parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20);
+  const used = Math.max(0, parseInt(user.analyses_used || 0));
   const remaining = Math.max(0, limit - used);
   
   document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
   document.getElementById('quota-used-display').textContent = `${remaining}`;
   
   const csvBtn = document.getElementById('csvBtn');
-  if (csvBtn) {
-    if (currentUserPlan === 'starter') {
-      csvBtn.style.display = 'none';
-    } else {
-      csvBtn.style.display = 'inline-block';
-    }
-  }
+  if (csvBtn) csvBtn.style.display = (currentUserPlan === 'trial' || currentUserPlan === 'starter') ? 'none' : 'inline-block';
 
   const btn = document.getElementById('generateBtn');
   if (used >= limit) {
@@ -504,13 +466,10 @@ async function triggerLogout() {
   try {
     await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
   } catch (e) {}
-  
   analysisHistory = [];
   try {
     localStorage.removeItem('wissely_history_v2');
-    localStorage.removeItem('wissely_history_v1');
   } catch (e) {}
-  
   window.location.href = 'auth.html';
 }
 
@@ -521,11 +480,9 @@ function selectTool(index) {
   }
   currentTool = index;
   const t = TOOLS[index];
-  
   for(let i=0; i < toolButtonsCollection.length; i++){ 
     toolButtonsCollection[i].classList.toggle('active', i === index); 
   }
-  
   document.getElementById('activeIcon').textContent = t.icon;
   document.getElementById('activeTitle').textContent = t.label;
   document.getElementById('activeDesc').textContent = t.desc;
@@ -581,15 +538,15 @@ function cleanOutput(text) {
 function extractFlexible(text, labels) {
   const list = labels.split('|');
   for(let j=0; j<list.length; j++){
-    const r = new RegExp('(?:\\*\\*)?' + list[j] + '(?:\\*\\*)?\\s*[:\\-]?\\s*([^\\n\\*]+)', 'i');
+    const r = new RegExp('(?:\\*\\*)?' + list[j] + '(?:\\*\\*)?\\s*[:\\-]?\\s*([^\\n]+)', 'i');
     const m = text.match(r);
-    if(m && m[1]) return m[1].trim();
+    if(m && m[1]) return m[1].replace(/[\*\#]/g, '').trim();
   }
   return '—';
 }
 
 function exportCSV() {
-  if (currentUserPlan === 'starter') {
+  if (currentUserPlan === 'trial' || currentUserPlan === 'starter') {
     alert('Structured CSV export is only available on higher tiers.');
     return;
   }
@@ -597,13 +554,8 @@ function exportCSV() {
   
   let toolLabel = TOOLS[currentTool].label;
   let cleanLabel = toolLabel.replace(/\s+/g, '_');
-  
   let d = new Date();
-  let year = d.getFullYear();
-  let month = String(d.getMonth() + 1).padStart(2, '0');
-  let day = String(d.getDate()).padStart(2, '0');
-  let formattedDate = `${year}-${month}-${day}`;
-  
+  let formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   let filename = `${cleanLabel}_Report_${formattedDate}.csv`;
   let csvContent = "";
   
@@ -611,6 +563,7 @@ function exportCSV() {
     const vendor = extractFlexible(outputText, 'Vendor Name|Vendor|From');
     const customer = extractFlexible(outputText, 'Customer Name|Customer|To');
     const invoice = extractFlexible(outputText, 'Invoice Number|Invoice #');
+    const invDate = extractFlexible(outputText, 'Invoice Date|Date');
     const due = extractFlexible(outputText, 'Due Date|Due');
     const amount = extractFlexible(outputText, 'Total Amount|TOTAL|Total');
     const issues = extractFlexible(outputText, 'Issues Found|Issues');
@@ -618,13 +571,9 @@ function exportCSV() {
     
     let headers = ["Field", "Value"];
     let rows = [
-      ["Vendor Name", vendor],
-      ["Customer Name", customer],
-      ["Invoice Number", invoice],
-      ["Due Date", due],
-      ["Total Amount", amount],
-      ["Issues Found", issues],
-      ["Recommended Action", action]
+      ["Vendor Name", vendor], ["Customer Name", customer], ["Invoice Number", invoice],
+      ["Invoice Date", invDate], ["Due Date", due], ["Total Amount", amount],
+      ["Issues Found", issues], ["Recommended Action", action]
     ];
     
     csvContent += headers.map(h => `"${h.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`).join(",") + "\n";
@@ -632,9 +581,7 @@ function exportCSV() {
       csvContent += r.map(v => `"${String(v).replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`).join(",") + "\n";
     });
   } else {
-    let headers = ["Analysis Output"];
-    csvContent += headers.map(h => `"${h.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`).join(",") + "\n";
-    csvContent += `"${outputText.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"\n`;
+    csvContent += `"Analysis Output"\n"${outputText.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"\n`;
   }
   
   let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -647,6 +594,7 @@ function exportCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -674,23 +622,16 @@ async function generate() {
       signal: controller.signal,
       body: JSON.stringify({messages:[{role:'user',content:TOOLS[currentTool].prompt(input)}]})
     });
-    
     clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      throw new Error(`Server returned status code: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Server returned status code: ${res.status}`);
     const contentType = res.headers.get("content-type");
-    if (!contentType || !contentType.includes("application/json")) {
-      throw new Error("Server did not return valid JSON data payload.");
-    }
+    if (!contentType || !contentType.includes("application/json")) throw new Error("Server did not return valid JSON data payload.");
 
     const data = await res.json();
-
     if(data.error) throw new Error(data.error.message || 'API processing failure');
     
     outputText = data.data?.content[0]?.text || data.content?.[0]?.text || (data.content ? data.content.map(b => b.text || '').join('\n') : "No output available.");
-    
     currentAnalysisDate = new Date().toLocaleDateString();
     document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
     currentAnalysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
@@ -700,7 +641,6 @@ async function generate() {
     } else {
       document.getElementById('outputText').innerHTML = cleanOutput(outputText);
     }
-    
     document.getElementById('outputCard').style.display = 'block';
     
     if (data.user) {
@@ -729,7 +669,6 @@ async function generate() {
         let parsed = JSON.parse(latestRaw);
         currentHistoryArray = Array.isArray(parsed) ? parsed : [];
       }
-      
       const safeString = String(input || '');
       const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
       
@@ -741,22 +680,14 @@ async function generate() {
         analysisId: currentAnalysisId,
         timestamp: currentAnalysisDate
       };
-
       analysisHistory = [newHistoryItem].concat(currentHistoryArray).slice(0, 5);
       renderHistory();
       syncHistoryToStorage();
-    } catch (storageErr) {
-      console.error('History array synchronization failed:', storageErr);
-    }
+    } catch (storageErr) {}
   } catch(e) {
     clearTimeout(timeoutId);
     document.getElementById('outputText').innerHTML = '';
-    
-    if (e.name === 'AbortError') {
-      document.getElementById('errorText').textContent = 'Analysis connection timed out (30 seconds). Please try again.';
-    } else {
-      document.getElementById('errorText').textContent = e.message || 'Error executing processing operations.';
-    }
+    document.getElementById('errorText').textContent = (e.name === 'AbortError') ? 'Analysis connection timed out (30 seconds). Please try again.' : (e.message || 'Error executing processing operations.');
     document.getElementById('emptyState').style.display = 'block';
   } finally {
     isProcessing = false;
@@ -773,54 +704,48 @@ async function generate() {
 function renderHistory() {
   const section = document.getElementById('historySection');
   const listEl = document.getElementById('historyList');
-  
   if (!Array.isArray(analysisHistory) || analysisHistory.length === 0) {
     if (section) section.style.display = 'none';
     if (listEl) listEl.innerHTML = '';
     return;
   }
-  
   if (section) section.style.display = 'block';
-  let html = '';
-  for(let i=0; i<analysisHistory.length; i++){
-    if (!analysisHistory[i]) continue;
-    const idx = analysisHistory[i].toolIndex;
-    
-    if (typeof idx !== 'number' || idx < 0 || idx >= TOOLS.length) continue;
-    
-    const toolLabel = TOOLS[idx].label;
-    html += '<div class="hist-item" onclick="showHistory('+i+')"><div class="hist-tool">'+escapeHTML(analysisHistory[i].icon)+' '+escapeHTML(toolLabel)+'</div><div class="hist-preview">'+escapeHTML(analysisHistory[i].preview)+'</div></div>';
+  
+  if (listEl) {
+    listEl.innerHTML = '';
+    analysisHistory.forEach((item, index) => {
+      if (!item) return;
+      const idx = item.toolIndex;
+      if (typeof idx !== 'number' || idx < 0 || idx >= TOOLS.length) return;
+      
+      const itemEl = document.createElement('div');
+      itemEl.className = 'hist-item';
+      
+      const toolEl = document.createElement('div');
+      toolEl.className = 'hist-tool';
+      toolEl.textContent = `${item.icon} ${TOOLS[idx].label}`;
+      
+      const previewEl = document.createElement('div');
+      previewEl.className = 'hist-preview';
+      previewEl.textContent = item.preview;
+      
+      itemEl.appendChild(toolEl);
+      itemEl.appendChild(previewEl);
+      itemEl.addEventListener('click', () => showHistory(index));
+      listEl.appendChild(itemEl);
+    });
   }
-  if (listEl) listEl.innerHTML = html;
 }
 
-async function showHistory(i) {
+function showHistory(i) {
   if (isProcessing) return;
   if (!Array.isArray(analysisHistory) || i < 0 || i >= analysisHistory.length || !analysisHistory[i]) return;
   
-  try {
-    const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    if (!res.ok || res.status === 401 || res.status === 403) {
-      window.location.href = 'auth.html';
-      return;
-    }
-    const data = await res.json();
-    if (!data || !data.authenticated || !data.user) {
-      window.location.href = 'auth.html';
-      return;
-    }
-    updateQuotaUI(data.user);
-  } catch (e) {
-    console.error('Security verification check dropped execution context:', e);
-    return;
-  }
-
   const targetToolIndex = analysisHistory[i].toolIndex;
   if (typeof targetToolIndex !== 'number' || targetToolIndex < 0 || targetToolIndex >= TOOLS.length) return;
   
   outputText = analysisHistory[i].output;
   currentTool = targetToolIndex;
-  
   for(let b = 0; b < toolButtonsCollection.length; b++) { 
     toolButtonsCollection[b].classList.toggle('active', b === targetToolIndex); 
   }
@@ -830,8 +755,7 @@ async function showHistory(i) {
   document.getElementById('activeTitle').textContent = t.label;
   document.getElementById('activeDesc').textContent = t.desc;
   document.getElementById('inputText').placeholder = t.placeholder;
-
-  document.getElementById('outputLabel').textContent = escapeHTML(t.label) + ' · Wissely · AI';
+  document.getElementById('outputLabel').textContent = `${t.label} · Wissely · AI`;
   currentAnalysisId = analysisHistory[i].analysisId;
   currentAnalysisDate = analysisHistory[i].timestamp || '';
 
@@ -861,21 +785,13 @@ function fallbackCopyMechanism(text, btnElement) {
     textArea.value = text;
     textArea.style.position = "fixed";
     textArea.style.opacity = "0";
-    textArea.style.pointerEvents = "none";
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
     const success = document.execCommand('copy');
     document.body.removeChild(textArea);
-    if (success) {
-      triggerCopyFeedback(btnElement);
-    } else {
-      alert("Please highlight and copy the text manually.");
-    }
-  } catch (err) {
-    console.error("Text manipulation tracking context failure:", err);
-    alert("Please highlight and copy the text manually.");
-  }
+    if (success) triggerCopyFeedback(btnElement);
+  } catch (err) {}
 }
 
 function triggerCopyFeedback(btn) {
@@ -888,6 +804,7 @@ function renderInvoiceCards(text){
  const vendor = extractFlexible(text, 'Vendor Name|Vendor|From');
  const customer = extractFlexible(text, 'Customer Name|Customer|To');
  const invoice = extractFlexible(text, 'Invoice Number|Invoice #');
+ const invDate = extractFlexible(text, 'Invoice Date|Date');
  const due = extractFlexible(text, 'Due Date|Due');
  const amount = extractFlexible(text, 'Total Amount|TOTAL|Total');
  const issues = extractFlexible(text, 'Issues Found|Issues');
@@ -903,12 +820,13 @@ function renderInvoiceCards(text){
  if(isValidField(vendor)) fields++;
  if(isValidField(customer)) fields++;
  if(isValidField(invoice)) fields++;
+ if(isValidField(invDate)) fields++;
  if(isValidField(due)) fields++;
  if(isValidField(amount)) fields++;
  if(isValidField(issues)) fields++;
  if(isValidField(action)) fields++;
  
- const structuralCompleteness = {7:100, 6:85, 5:70, 4:55, 3:40, 2:25, 1:10, 0:0}[fields];
+ const fieldCoverage = Math.round((fields / 8) * 100);
  const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
 
  document.getElementById('outputText').innerHTML = `
@@ -920,14 +838,15 @@ function renderInvoiceCards(text){
    <div class="decision-status">✓ ANALYZED</div>
    <div class="big-amount">${escapeHTML(amount)}</div>
    <div class="completeness-score-card">
-      <div class="completeness-score-value">${structuralCompleteness}%</div>
-      <div><strong>Document Completeness Score</strong><br><small>Based on key property values cleanly resolved from target structure</small></div>
+      <div class="completeness-score-value">${fieldCoverage}%</div>
+      <div><strong>Field Coverage</strong><br><small>${fields} of 8 key invoice fields detected</small></div>
    </div>
    <div class="premium-data-grid">
       <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(vendor)}</div>
-      <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(due)}</div>
+      <div class="premium-info-card"><strong>Invoice Date</strong><br>${escapeHTML(invDate)}</div>
       <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(invoice)}</div>
-      <div class="premium-info-card"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
+      <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(due)}</div>
+      <div class="premium-info-card" style="grid-column: span 2;"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
    </div>
    <div class="finding-box"><strong>Issues Found</strong><br>${escapeHTML(issues)}</div>
    <div class="finding-box" style="border-left-color: var(--gold)"><strong>Recommended Action</strong><br>${escapeHTML(action)}</div>
@@ -939,6 +858,7 @@ function buildPremiumPDFReport(text) {
   const vendor = extractFlexible(text, 'Vendor Name|Vendor|From');
   const customer = extractFlexible(text, 'Customer Name|Customer|To');
   const invoice = extractFlexible(text, 'Invoice Number|Invoice #');
+  const invDate = extractFlexible(text, 'Invoice Date|Date');
   const due = extractFlexible(text, 'Due Date|Due');
   const amount = extractFlexible(text, 'Total Amount|TOTAL|Total');
   const issues = extractFlexible(text, 'Issues Found|Issues');
@@ -957,9 +877,10 @@ function buildPremiumPDFReport(text) {
       </div>
       <div class="premium-data-grid">
          <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(vendor)}</div>
+         <div class="premium-info-card"><strong>Invoice Date</strong><br>${escapeHTML(invDate)}</div>
          <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(invoice)}</div>
-         <div class="premium-info-card"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
          <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(due)}</div>
+         <div class="premium-info-card" style="grid-column: span 2;"><strong>Customer</strong><br>${escapeHTML(customer)}</div>
       </div>
       <div class="finding-box" style="margin-bottom: 20px;"><strong>Key Findings</strong><br>${escapeHTML(issues)}</div>
       <div class="finding-box" style="border-left-color: #c9a84c;"><strong>Recommendations</strong><br>${escapeHTML(action)}</div>
@@ -969,17 +890,11 @@ function buildPremiumPDFReport(text) {
 
 function exportPDF() {
   if (!outputText || !outputText.trim()) { alert('No analysis available to export.'); return; }
-  
-  let content = "";
-  if (currentTool === 0) {
-    content = buildPremiumPDFReport(outputText);
-  } else {
-    content = `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
-  }
+  let content = (currentTool === 0) ? buildPremiumPDFReport(outputText) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
 
   const w = window.open('', '_blank');
   if (!w) { 
-    alert('Export blocked. Please allow popups to export financial PDF documents.'); 
+    alert('Export blocked. Please allow popups or check mobile browser permissions to generate and print PDF reports.'); 
     return; 
   }
   w.opener = null;
@@ -991,7 +906,18 @@ function exportPDF() {
   <title>Wissely Premium Financial Document Report</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-  ${staticPrintStyles}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;font-family:'DM Sans',sans-serif;color:#2a2a20;font-size:14px;line-height:1.6}
+  .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:24px;width:100%;max-width:100%;box-shadow:none}
+  .wissely-premium-header{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c0c0a;padding-bottom:16px;margin-bottom:24px}
+  .decision-status{display:inline-block;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;background:#e8f5e9;color:#2d4a3e;text-transform:uppercase}
+  .big-amount{font-size:38px;font-weight:700;color:#2d4a3e;margin:16px 0}
+  .completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
+  .completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
+  .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0}
+  .premium-info-card{background:#fff;border:1px solid #dedad0;border-radius:12px;padding:14px}
+  .finding-box{margin-top:14px;padding:14px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
+  .wissely-premium-footer{text-align:center;border-top:1px solid #dedad0;padding-top:16px;margin-top:32px;font-size:10px;color:#7a7a66;font-family:'DM Mono',monospace}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   @page{size:A4;margin:20mm}
   body{margin:0!important;background:#fff!important;font-family:'DM Sans',sans-serif!important;padding:0}
@@ -1022,24 +948,34 @@ function exportPDF() {
 }
 
 window.addEventListener('storage', (e) => {
-  if (e.key === 'wissely_history_v2') {
-    initLocalStorageHistory();
-  }
+  if (e.key === 'wissely_history_v2') initLocalStorageHistory();
 });
 
 window.addEventListener('focus', () => {
-  if (!isProcessing) {
+  const absoluteNow = Date.now();
+  if (!isProcessing && (absoluteNow - lastAuthCheckTimestamp > 60000)) {
+    lastAuthCheckTimestamp = absoluteNow;
     checkAuthSession();
   }
 });
 
 window.addEventListener('DOMContentLoaded', () => {
   toolButtonsCollection = document.getElementsByClassName('tool-btn');
-  
   for (let idx = 0; idx < toolButtonsCollection.length; idx++) {
     toolButtonsCollection[idx].addEventListener('click', () => selectTool(idx));
   }
+
+  document.getElementById('logoutBtn').addEventListener('click', triggerLogout);
+  document.getElementById('clearBtn').addEventListener('click', clearAll);
+  document.getElementById('generateBtn').addEventListener('click', generate);
+  document.getElementById('copyBtn').addEventListener('click', copyOutput);
+  document.getElementById('csvBtn').addEventListener('click', exportCSV);
+  document.getElementById('pdfBtn').addEventListener('click', exportPDF);
   
+  const textInput = document.getElementById('inputText');
+  textInput.addEventListener('keydown', handleKey);
+  textInput.addEventListener('input', updateChar);
+
   checkAuthSession();
 });
 </script>
