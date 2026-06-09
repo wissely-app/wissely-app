@@ -112,7 +112,18 @@ font-size:11px;
 color:#999;
 letter-spacing:1px;
 }
-</style></head><body><div class="card"><div class="logo">Wissely</div><div class="icon">✅</div><h1>Payment Successful</h1><p class="subtitle">
+
+@media(max-width:768px){
+.card{
+padding:28px;
+}
+
+h1{
+font-size:34px;
+}
+}
+</style></head>
+<body><div class="card"><div class="logo">Wissely</div><div class="icon">✅</div><h1>Payment Successful</h1><p class="subtitle">
 Your subscription has been activated successfully.
 You can now access your upgraded workspace.
 </p><div class="info-box"><div class="info-row">
@@ -120,10 +131,22 @@ You can now access your upgraded workspace.
 <span class="status">Active</span>
 </div><div class="info-row">
 <span>Plan</span>
-<span class="plan">Premium</span>
+<span class="plan" id="planName">Loading...</span>
 </div></div><a href="index.html" class="btn">
 Go To Dashboard
 </a><div class="footer">
 WISSELY.COM · YOUR FINANCES, FINALLY CLEAR
-</div></div></body>
+</div></div><script>
+const params = new URLSearchParams(window.location.search);
+const plan = (params.get('plan') || 'starter').toLowerCase();
+
+const plans = {
+  starter: 'Starter',
+  growth: 'Growth',
+  pro: 'Pro'
+};
+
+document.getElementById('planName').textContent =
+  plans[plan] || 'Starter';
+</script></body>
 </html>
