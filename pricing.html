@@ -2,7 +2,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wissely Pricing</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"><style>
+<title>Wissely Pricing</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
 :root{
   --ink:#0c0c0a;
   --sage:#2d4a3e;
@@ -17,6 +19,10 @@
   margin:0;
   padding:0;
   box-sizing:border-box;
+}
+
+html{ 
+  scroll-behavior:smooth; 
 }
 
 body{
@@ -76,11 +82,27 @@ nav{
   border:1px solid var(--cream3);
   border-radius:18px;
   padding:32px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .card.popular{
   background:var(--sage);
   color:white;
+}
+
+.card:hover{ 
+  transform:translateY(-4px); 
+  box-shadow:0 10px 25px rgba(0,0,0,.08); 
+}
+
+.card.selected-plan { 
+  border: 2px solid var(--gold) !important; 
+  box-shadow: 0 0 30px rgba(201,168,76,.45); 
+  transform: translateY(-6px); 
+} 
+
+.card.selected-plan:hover{ 
+  transform:translateY(-6px); 
 }
 
 .price{
@@ -104,6 +126,20 @@ nav{
   cursor:pointer;
   background:var(--gold);
   font-weight:600;
+  transition: background 0.15s ease;
+}
+
+.upgrade-btn:hover {
+  background: var(--gold2);
+}
+
+.card.popular .upgrade-btn {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.card.popular .upgrade-btn:hover {
+  background: var(--gold2);
 }
 
 .badge{
@@ -116,7 +152,21 @@ nav{
   margin-bottom:16px;
 }
 
+.current-plan{ 
+  background:#22c55e; 
+  color:#fff; 
+  display:inline-block; 
+  padding:4px 12px; 
+  border-radius:999px; 
+  font-size:12px; 
+  margin-bottom:16px; 
+}
+
 @media(max-width:900px){
+  nav{ 
+    padding:0 20px; 
+  }
+  
   .pricing-grid{
     grid-template-columns:1fr;
   }
@@ -125,61 +175,98 @@ nav{
     font-size:42px;
   }
 }
-</style></head><body><nav>
-  <a href="https://wissely.com" class="logo">Wissely</a>
-  <a href="app.html" class="back-btn">← Back to App</a>
-</nav><section class="hero">
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">Wissely</a>
+  <a href="app.html" class="back-btn">← Back to Dashboard</a>
+</nav>
+
+<section class="hero">
   <h1>Choose Your Plan</h1>
   <p>Upgrade anytime. Cancel anytime.</p>
-</section><section class="pricing-grid">  <div class="card">
+</section>
+
+<section class="pricing-grid">
+  
+  <div class="card" id="starter-plan">
     <h2>Starter</h2>
     <div class="price">$12</div>
-    <p>per month</p><div class="features">
-  <div>✓ 50 analyses</div>
-  <div>✓ All 6 AI tools</div>
-  <div>✓ PDF Export</div>
-  <div>✓ Email support</div>
-</div>
+    <p>per month</p>
+    <div class="features">
+      <div>✓ 50 analyses</div>
+      <div>✓ All 6 AI tools</div>
+      <div>✓ PDF Export</div>
+      <div>✓ Email support</div>
+    </div>
+    <button class="upgrade-btn" data-plan="starter">
+      Upgrade to Starter
+    </button>
+  </div>
 
-<button class="upgrade-btn" data-plan="starter">
-  Upgrade to Starter
-</button>
+  <div class="card popular" id="growth-plan">
+    <div class="badge">MOST POPULAR</div>
+    <h2>Growth</h2>
+    <div class="price">$29</div>
+    <p>per month</p>
+    <div class="features">
+      <div>✓ 250 analyses</div>
+      <div>✓ All 6 AI tools</div>
+      <div>✓ CSV Export</div>
+      <div>✓ Priority support</div>
+    </div>
+    <button class="upgrade-btn" data-plan="growth">
+      Upgrade to Growth
+    </button>
+  </div>
 
-  </div>  <div class="card popular">
-    <div class="badge">MOST POPULAR</div><h2>Growth</h2>
-<div class="price">$29</div>
-<p>per month</p>
-
-<div class="features">
-  <div>✓ 250 analyses</div>
-  <div>✓ All 6 AI tools</div>
-  <div>✓ CSV Export</div>
-  <div>✓ Priority support</div>
-</div>
-
-<button class="upgrade-btn" data-plan="growth">
-  Upgrade to Growth
-</button>
-
-  </div>  <div class="card">
+  <div class="card" id="pro-plan">
     <h2>Pro</h2>
     <div class="price">$79</div>
-    <p>per month</p><div class="features">
-  <div>✓ 1000 analyses</div>
-  <div>✓ Team access</div>
-  <div>✓ API access</div>
-  <div>✓ Dedicated support</div>
-</div>
+    <p>per month</p>
+    <div class="features">
+      <div>✓ 1000 analyses</div>
+      <div>✓ Team access</div>
+      <div>✓ API access</div>
+      <div>✓ Dedicated support</div>
+    </div>
+    <button class="upgrade-btn" data-plan="pro">
+      Upgrade to Pro
+    </button>
+  </div>
 
-<button class="upgrade-btn" data-plan="pro">
-  Upgrade to Pro
-</button>
+</section>
 
-  </div></section><script>
-document.querySelectorAll('.upgrade-btn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    alert('Paddle checkout coming soon');
+<script>
+document.querySelectorAll('.upgrade-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    window.location.href = `checkout.html?plan=${btn.dataset.plan}`;
   });
 });
-</script></body>
-  </html>
+
+window.addEventListener('DOMContentLoaded', () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetPlan = urlParams.get('plan');
+
+  if (targetPlan) {
+    const cleanPlanId = `${targetPlan.toLowerCase()}-plan`;
+    const targetCard = document.getElementById(cleanPlanId);
+
+    if (targetCard) {
+      targetCard.classList.add('selected-plan');
+
+      requestAnimationFrame(() => { 
+        targetCard.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        }); 
+      });
+    }
+  }
+});
+</script>
+
+</body>
+</html>
