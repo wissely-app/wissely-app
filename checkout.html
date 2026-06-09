@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout - Wissely</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#0c0c0a;
+  --sage:#2d4a3e;
+  --gold:#c9a84c;
+  --gold2:#e8c97a;
+  --cream:#f8f6f0;
+  --cream3:#dedad0;
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  background:var(--cream);
+  font-family:'DM Sans',sans-serif;
+  color:#2a2a20;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+nav{
+  height:70px;
+  background:var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 40px;
+}
+
+.logo{
+  color:#fff;
+  text-decoration:none;
+  font-family:'Cormorant Garamond',serif;
+  font-size:28px;
+  font-weight:700;
+}
+
+.back-btn{
+  color:#fff;
+  text-decoration:none;
+}
+
+main{
+  flex:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:40px 20px;
+}
+
+.checkout-card{
+  width:100%;
+  max-width:650px;
+  background:#fff;
+  border:1px solid var(--cream3);
+  border-radius:22px;
+  padding:40px;
+  box-shadow:0 10px 30px rgba(0,0,0,.05);
+}
+
+.title{
+  font-family:'Cormorant Garamond',serif;
+  font-size:54px;
+  text-align:center;
+  margin-bottom:12px;
+}
+
+.subtitle{
+  text-align:center;
+  color:#777;
+  margin-bottom:30px;
+}
+
+.summary{
+  background:var(--cream);
+  border:1px solid var(--cream3);
+  border-radius:16px;
+  padding:24px;
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+
+.row:last-child{
+  margin-bottom:0;
+}
+
+.label{
+  color:#777;
+}
+
+.value{
+  font-weight:600;
+}
+
+.total{
+  margin-top:20px;
+  padding-top:20px;
+  border-top:1px solid var(--cream3);
+  font-size:24px;
+}
+
+.pay-btn{
+  width:100%;
+  margin-top:30px;
+  border:none;
+  border-radius:999px;
+  padding:16px;
+  background:var(--gold);
+  color:#000;
+  font-size:16px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.pay-btn:hover{
+  background:var(--gold2);
+}
+
+.note{
+  margin-top:16px;
+  text-align:center;
+  font-size:12px;
+  color:#888;
+  font-family:'DM Mono',monospace;
+}
+
+footer{
+  text-align:center;
+  padding:30px;
+  font-size:12px;
+  color:#888;
+  font-family:'DM Mono',monospace;
+}
+
+@media(max-width:768px){
+
+  nav{
+    padding:0 20px;
+  }
+
+  .title{
+    font-size:42px;
+  }
+
+  .checkout-card{
+    padding:24px;
+  }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">Wissely</a>
+  <a href="pricing.html" class="back-btn">← Back</a>
+</nav>
+
+<main>
+
+<div class="checkout-card">
+
+  <h1 class="title">Checkout</h1>
+
+  <p class="subtitle">
+    Review your selected plan before payment.
+  </p>
+
+  <div class="summary">
+
+    <div class="row">
+      <span class="label">Selected Plan</span>
+      <span class="value" id="planName">Growth</span>
+    </div>
+
+    <div class="row">
+      <span class="label">Billing Cycle</span>
+      <span class="value">Monthly</span>
+    </div>
+
+    <div class="row total">
+      <span>Total</span>
+      <span id="planPrice">$29/month</span>
+    </div>
+
+  </div>
+
+  <button class="pay-btn" id="payBtn">
+    Continue to Payment
+  </button>
+
+  <div class="note">
+    Paddle integration will be connected here.
+  </div>
+
+</div>
+
+</main>
+
+<footer>
+WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer>
+
+<script>
+
+const plans = {
+  starter:{
+    name:"Starter",
+    price:"$12/month"
+  },
+  growth:{
+    name:"Growth",
+    price:"$29/month"
+  },
+  pro:{
+    name:"Pro",
+    price:"$79/month"
+  }
+};
+
+const params = new URLSearchParams(window.location.search);
+const selectedPlan = params.get("plan") || "growth";
+
+if(plans[selectedPlan]){
+  document.getElementById("planName").textContent =
+    plans[selectedPlan].name;
+
+  document.getElementById("planPrice").textContent =
+    plans[selectedPlan].price;
+}
+
+document.getElementById("payBtn").addEventListener("click",()=>{
+
+  /* Paddle goes here later */
+
+  window.location.href =
+    `success.html?plan=${selectedPlan}`;
+
+});
+
+</script>
+
+</body>
+    </html>
