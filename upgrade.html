@@ -1,265 +1,266 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upgrade Workspace | Wissely</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-
+<title>Upgrade Your Workspace - Wissely</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
+:root{
+  --ink:#0c0c0a;
+  --sage:#2d4a3e;
+  --gold:#c9a84c;
+  --gold2:#e8c97a;
+  --cream:#f8f6f0;
+  --cream3:#dedad0;
+  --white:#ffffff;
 }
 
-:root{
---sage:#2d4a3e;
---gold:#c9a84c;
---cream:#f8f6f0;
---cream2:#ede9df;
---cream3:#dedad0;
---ink:#0c0c0a;
---text:#2a2a20;
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
 }
 
 body{
-background:var(--cream);
-font-family:'DM Sans',sans-serif;
-color:var(--text);
+  background:var(--cream);
+  font-family:'DM Sans',sans-serif;
+  color:#2a2a20;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
 }
 
-.container{
-max-width:1000px;
-margin:auto;
-padding:30px 20px 60px;
+nav{
+  height:70px;
+  background:var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 40px;
 }
 
 .logo{
-text-align:center;
-font-family:'Cormorant Garamond',serif;
-font-size:64px;
-font-weight:700;
-color:var(--sage);
-margin-bottom:10px;
+  color:white;
+  text-decoration:none;
+  font-family:'Cormorant Garamond',serif;
+  font-size:28px;
+  font-weight:700;
+  transition: opacity 0.2s ease;
 }
 
-.icon{
-font-size:70px;
-text-align:center;
-margin-bottom:15px;
-}
-
-.heading{
-text-align:center;
-font-family:'Cormorant Garamond',serif;
-font-size:54px;
-color:var(--sage);
-margin-bottom:12px;
-}
-
-.sub{
-text-align:center;
-color:#666;
-max-width:700px;
-margin:auto;
-line-height:1.7;
-margin-bottom:40px;
-}
-
-.current-plan{
-background:#fff;
-border:1px solid var(--cream3);
-border-radius:16px;
-padding:20px;
-margin-bottom:30px;
-text-align:center;
-}
-
-.current-plan small{
-display:block;
-font-family:'DM Mono',monospace;
-letter-spacing:2px;
-color:#888;
-margin-bottom:8px;
-}
-
-.current-plan h2{
-color:var(--sage);
-}
-
-.plans{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-gap:20px;
-}
-
-.plan-card{
-background:#fff;
-border:1px solid var(--cream3);
-border-radius:18px;
-padding:25px;
-}
-
-.plan-name{
-font-family:'Cormorant Garamond',serif;
-font-size:38px;
-color:var(--sage);
-margin-bottom:10px;
-}
-
-.plan-price{
-font-size:24px;
-font-weight:700;
-margin-bottom:20px;
-}
-
-.plan-features{
-list-style:none;
-margin-bottom:25px;
-}
-
-.plan-features li{
-padding:7px 0;
-font-size:14px;
-}
-
-.btn{
-display:block;
-width:100%;
-padding:14px;
-text-align:center;
-text-decoration:none;
-border-radius:12px;
-font-weight:600;
-transition:.2s;
-}
-
-.btn-primary{
-background:linear-gradient(135deg,#c9a84c,#a8873c);
-color:#111;
-}
-
-.btn-primary:hover{
-transform:translateY(-2px);
+.logo:hover{
+  opacity: 0.85;
 }
 
 .back-btn{
-display:block;
-max-width:300px;
-margin:40px auto 0;
-padding:14px;
-text-align:center;
-text-decoration:none;
-background:#fff;
-border:1px solid var(--cream3);
-border-radius:12px;
-color:var(--text);
-font-weight:600;
+  color:white;
+  text-decoration:none;
+  transition: color 0.2s ease;
 }
 
-.footer{
-text-align:center;
-margin-top:40px;
-font-size:11px;
-letter-spacing:2px;
-font-family:'DM Mono',monospace;
-color:#888;
+.back-btn:hover{
+  color:var(--gold);
 }
 
-@media(max-width:700px){
-.logo{
-font-size:48px;
+main{
+  flex-grow:1;
 }
 
-.heading{
-font-size:42px;
+.hero{
+  text-align:center;
+  padding:80px 20px 60px;
 }
+
+.hero h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:64px;
+  margin-bottom:16px;
+}
+
+.hero p{
+  color:#666;
+  max-width:600px;
+  margin:0 auto;
+  font-size:18px;
+  line-height:1.5;
+}
+
+.pricing-grid{
+  max-width:1100px;
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:24px;
+  padding:0 20px 80px;
+}
+
+.card{
+  background:white;
+  border:1px solid var(--cream3);
+  border-radius:18px;
+  padding:32px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card.popular{
+  background:var(--sage);
+  color:white;
+}
+
+.card:hover{ 
+  transform:translateY(-4px); 
+  box-shadow:0 10px 25px rgba(0,0,0,.08); 
+}
+
+.card h2{
+  font-family:'Cormorant Garamond',serif;
+  font-size:32px;
+  margin-bottom:20px;
+}
+
+.features{
+  margin-bottom:32px;
+}
+
+.features div{
+  margin-bottom:14px;
+  font-size:15px;
+  display:flex;
+  align-items:center;
+}
+
+.select-btn{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:999px;
+  cursor:pointer;
+  background:var(--gold);
+  color:var(--ink);
+  font-weight:600;
+  font-size:15px;
+  text-align:center;
+  text-decoration:none;
+  transition: background 0.15s ease;
+  display:inline-block;
+}
+
+.select-btn:hover {
+  background: var(--gold2);
+}
+
+.badge{
+  background:var(--gold);
+  color:black;
+  display:inline-block;
+  padding:4px 12px;
+  border-radius:999px;
+  font-size:12px;
+  margin-bottom:16px;
+  font-weight:600;
+}
+
+footer{
+  text-align:center;
+  padding:40px 20px;
+  font-family:'DM Mono',monospace;
+  font-size:12px;
+  color:#8a8a80;
+  letter-spacing:1px;
+  border-top:1px solid var(--cream3);
+  background:var(--white);
+}
+
+@media(max-width:900px){
+  nav{ 
+    padding:0 20px; 
+  }
+  
+  .pricing-grid{
+    grid-template-columns:1fr;
+  }
+
+  .hero h1{
+    font-size:42px;
+  }
+  
+  .hero p{
+    font-size:16px;
+  }
 }
 </style>
 </head>
 <body>
 
-<div class="container">
+<nav>
+  <a href="index.html" class="logo">Wissely</a>
+  <a href="app.html" class="back-btn">← Back to Dashboard</a>
+</nav>
 
-<div class="logo">Wissely</div>
+<main>
+  <section class="hero">
+    <h1>Upgrade Your Workspace</h1>
+    <p>Unlock more analyses, exports, and advanced financial intelligence.</p>
+  </section>
 
-<div class="icon">⭐</div>
+  <section class="pricing-grid">
+    
+    <div class="card">
+      <div>
+        <h2>Starter</h2>
+        <div class="features">
+          <div>✓ 50 analyses/month</div>
+          <div>✓ All 6 AI Tools</div>
+          <div>✓ PDF Export</div>
+          <div>✓ Email Support</div>
+        </div>
+      </div>
+      <a href="pricing.html?plan=starter" class="select-btn" aria-label="Select Starter Plan">
+        Select Starter
+      </a>
+    </div>
 
-<h1 class="heading">Upgrade Your Workspace</h1>
+    <div class="card popular">
+      <div>
+        <div class="badge">MOST POPULAR</div>
+        <h2>Growth</h2>
+        <div class="features">
+          <div>✓ 250 analyses/month</div>
+          <div>✓ All 6 AI Tools</div>
+          <div>✓ CSV Export</div>
+          <div>✓ Priority Support</div>
+        </div>
+      </div>
+      <a href="pricing.html?plan=growth" class="select-btn" aria-label="Select Growth Plan">
+        Select Growth
+      </a>
+    </div>
 
-<p class="sub">
-Unlock higher analysis limits, advanced exports, forecasting tools and premium processing.
-</p>
+    <div class="card">
+      <div>
+        <h2>Pro</h2>
+        <div class="features">
+          <div>✓ 1000 analyses/month</div>
+          <div>✓ All 6 AI Tools</div>
+          <div>✓ Team Access</div>
+          <div>✓ API Access</div>
+          <div>✓ Dedicated Support</div>
+        </div>
+      </div>
+      <a href="pricing.html?plan=pro" class="select-btn" aria-label="Select Pro Plan">
+        Select Pro
+      </a>
+    </div>
 
-<div class="current-plan">
-<small>CURRENT PLAN</small>
-<h2>TRIAL</h2>
-<p>20 Analyses / Month</p>
-</div>
+  </section>
+</main>
 
-<div class="plans">
-
-<div class="plan-card">
-<div class="plan-name">Starter</div>
-<div class="plan-price">50 Analyses</div>
-
-<ul class="plan-features">
-<li>✓ Invoice Analyzer</li>
-<li>✓ Expense Clarity</li>
-<li>✓ Finance Report</li>
-<li>✓ Payment Requests</li>
-</ul>
-
-<a href="pricing.html" class="btn btn-primary">
-Upgrade to Starter
-</a>
-</div>
-
-<div class="plan-card">
-<div class="plan-name">Growth</div>
-<div class="plan-price">250 Analyses</div>
-
-<ul class="plan-features">
-<li>✓ Everything in Starter</li>
-<li>✓ Advanced CSV Exports</li>
-<li>✓ Cash Flow Forecasts</li>
-<li>✓ Faster Processing</li>
-</ul>
-
-<a href="pricing.html" class="btn btn-primary">
-Upgrade to Growth
-</a>
-</div>
-
-<div class="plan-card">
-<div class="plan-name">Pro</div>
-<div class="plan-price">1000 Analyses</div>
-
-<ul class="plan-features">
-<li>✓ Everything in Growth</li>
-<li>✓ Priority Processing</li>
-<li>✓ Premium Tool Access</li>
-<li>✓ Highest Usage Limits</li>
-</ul>
-
-<a href="pricing.html" class="btn btn-primary">
-Upgrade to Pro
-</a>
-</div>
-
-</div>
-
-<a href="index.html" class="back-btn">
-← Back To Dashboard
-</a>
-
-<div class="footer">
-WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
-</div>
-
-</div>
+<footer>
+  WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer>
 
 </body>
 </html>
