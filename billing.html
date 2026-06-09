@@ -1,0 +1,244 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Billing Settings - Wissely</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"><style>
+:root{
+  --ink:#0c0c0a;
+  --sage:#2d4a3e;
+  --gold:#c9a84c;
+  --gold2:#e8c97a;
+  --cream:#f8f6f0;
+  --cream3:#dedad0;
+  --white:#ffffff;
+}
+
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  background:var(--cream);
+  font-family:'DM Sans',sans-serif;
+  color:#2a2a20;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+nav{
+  height:70px;
+  background:var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 40px;
+}
+
+.logo{
+  color:white;
+  text-decoration:none;
+  font-family:'Cormorant Garamond',serif;
+  font-size:28px;
+  font-weight:700;
+}
+
+.logo:hover{
+  opacity:.85;
+}
+
+.back-btn{
+  color:white;
+  text-decoration:none;
+  transition:.2s;
+}
+
+.back-btn:hover{
+  color:var(--gold);
+}
+
+main{
+  flex:1;
+  max-width:900px;
+  width:100%;
+  margin:auto;
+  padding:60px 20px;
+}
+
+.hero{
+  text-align:center;
+  margin-bottom:40px;
+}
+
+.hero h1{
+  font-family:'Cormorant Garamond',serif;
+  font-size:58px;
+  margin-bottom:12px;
+}
+
+.hero p{
+  color:#666;
+}
+
+.billing-card{
+  background:white;
+  border:1px solid var(--cream3);
+  border-radius:20px;
+  padding:32px;
+  box-shadow:0 8px 30px rgba(0,0,0,.04);
+}
+
+.info-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:18px;
+}
+
+.info-box{
+  background:var(--cream);
+  border:1px solid var(--cream3);
+  border-radius:14px;
+  padding:18px;
+}
+
+.label{
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  letter-spacing:1px;
+  color:#888;
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.value{
+  font-size:22px;
+  font-weight:600;
+}
+
+.status-active{
+  color:#16a34a;
+}
+
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-top:30px;
+}
+
+.btn{
+  text-decoration:none;
+  text-align:center;
+  padding:14px;
+  border-radius:999px;
+  font-weight:600;
+  transition:.2s;
+}
+
+.btn-upgrade{
+  background:var(--gold);
+  color:#000;
+}
+
+.btn-upgrade:hover{
+  background:var(--gold2);
+}
+
+.btn-cancel{
+  background:#fff;
+  color:#dc2626;
+  border:1px solid #fecaca;
+}
+
+.btn-cancel:hover{
+  background:#fef2f2;
+}
+
+.usage-bar{
+  width:100%;
+  height:10px;
+  background:#ece8df;
+  border-radius:999px;
+  overflow:hidden;
+  margin-top:12px;
+}
+
+.usage-fill{
+  width:17%;
+  height:100%;
+  background:linear-gradient(90deg,var(--sage),#3f6d5a);
+}
+
+.footer{
+  text-align:center;
+  padding:40px 20px;
+  font-family:'DM Mono',monospace;
+  font-size:12px;
+  color:#888;
+  border-top:1px solid var(--cream3);
+  background:white;
+}
+
+@media(max-width:768px){
+
+  nav{
+    padding:0 20px;
+  }
+
+  .hero h1{
+    font-size:42px;
+  }
+
+  .info-grid{
+    grid-template-columns:1fr;
+  }
+
+  .actions{
+    grid-template-columns:1fr;
+  }
+}
+</style></head>
+<body><nav>
+  <a href="index.html" class="logo">Wissely</a>
+  <a href="app.html" class="back-btn">← Back to Dashboard</a>
+</nav><main><div class="hero">
+  <h1>Billing Settings</h1>
+  <p>Manage your Wissely subscription and workspace usage.</p>
+</div><div class="billing-card">  <div class="info-grid"><div class="info-box">
+  <div class="label">Current Plan</div>
+  <div class="value">Growth</div>
+</div>
+
+<div class="info-box">
+  <div class="label">Billing Status</div>
+  <div class="value status-active">Active</div>
+</div>
+
+<div class="info-box">
+  <div class="label">Usage This Month</div>
+  <div class="value">42 / 250</div>
+
+  <div class="usage-bar">
+    <div class="usage-fill"></div>
+  </div>
+</div>
+
+<div class="info-box">
+  <div class="label">Next Renewal</div>
+  <div class="value">July 4, 2026</div>
+</div>
+
+  </div>  <div class="actions"><a href="upgrade.html" class="btn btn-upgrade">
+  Upgrade Plan
+</a>
+
+<a href="cancel.html" class="btn btn-cancel">
+  Cancel Subscription
+</a>
+
+  </div></div></main><footer class="footer">
+WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer></body>
+                                             </html>
