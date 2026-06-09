@@ -39,6 +39,44 @@ textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
   animation: spin 0.8s linear infinite;
 }
 
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.wissely-toast {
+  background: var(--ink);
+  color: #fff;
+  border: 1px solid rgba(201,168,76,0.2);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  pointer-events: auto;
+  animation: fadeUp 0.25s ease forwards;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 400px;
+}
+.wissely-toast.error {
+  border-color: #f87171;
+  background: #1a0f0f;
+  color: #fca5a5;
+}
+.wissely-toast.success {
+  border-color: #4ade80;
+  background: #0f1a14;
+  color: #86efac;
+}
+
 nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;max-width:1060px;margin:0 auto}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
 .nav-logo-mark{width:30px;height:30px;background:var(--sage);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:var(--gold)}
@@ -126,6 +164,42 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 .premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px;word-wrap:break-word;overflow-wrap:break-word}
 .finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px;word-wrap:break-word;overflow-wrap:break-word}
 
+.nav-dropdown-container { position: relative; display: inline-block; }
+.nav-avatar-btn { background: var(--sage); border: 1px solid var(--gold); color: #fff; width: 32px; height: 32px; border-radius: 50%; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+.nav-avatar-btn:hover { background: var(--sage2); box-shadow: 0 0 8px rgba(201,168,76,0.3); }
+.nav-dropdown-menu { display: none; position: absolute; right: 0; top: 40px; background: #fff; border: 1px solid var(--cream3); border-radius: 12px; width: 220px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); padding: 12px; z-index: 200; animation: fadeUp 0.2s ease; }
+.nav-dropdown-menu.show { display: block; }
+.dropdown-header { border-bottom: 1px solid var(--cream2); padding-bottom: 8px; margin-bottom: 8px; }
+.dropdown-plan-badge { display: inline-block; background: var(--sage); color: var(--gold3); font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; margin-top: 4px; }
+.dropdown-usage-text { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin: 4px 0 2px; }
+.dropdown-link { display: flex; align-items: center; gap: 8px; padding: 8px; color: var(--text); font-size: 13px; text-decoration: none; border-radius: 8px; transition: background 0.15s; }
+.dropdown-link:hover { background: var(--cream2); }
+.dropdown-link.upgrade-highlight { color: #a8873c; font-weight: 600; background: rgba(201,168,76,0.08); }
+.dropdown-link.upgrade-highlight:hover { background: rgba(201,168,76,0.15); }
+.dropdown-divider { height: 1px; background: var(--cream2); margin: 6px 0; }
+.dropdown-logout-btn { width: 100%; background: transparent; border: none; text-align: left; padding: 8px; color: #ef4444; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 8px; }
+.dropdown-logout-btn:hover { background: rgba(239,68,68,0.05); }
+
+.sidebar-premium-widget { background: #fff; border: 1px solid var(--cream3); border-radius: 14px; padding: 14px; margin-top: auto; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+.progress-bar-container { background: var(--cream2); height: 6px; border-radius: 3px; width: 100%; overflow: hidden; margin: 4px 0; }
+.progress-bar-fill { background: linear-gradient(90deg, var(--sage), var(--sage2)); height: 100%; width: 0%; transition: width 0.4s ease; }
+.progress-bar-fill.warning { background: linear-gradient(90deg, #e67e22, #d35400); }
+.progress-bar-fill.critical { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+.premium-feat-list { list-style: none; margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
+.premium-feat-item { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.widget-upgrade-btn { background: linear-gradient(135deg, var(--sage), #1a3027); color: var(--gold3); border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; transition: all 0.2s; }
+.widget-upgrade-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,74,62,0.2); }
+
+.warning-banner { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 16px; border-radius: 12px; margin-bottom: 14px; display: none; align-items: center; justify-content: space-between; font-size: 13px; animation: fadeUp 0.3s ease; }
+.warning-banner-btn { background: #856404; color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; text-decoration: none; }
+
+.exhausted-card { background: #fff; border: 1px solid var(--cream3); border-radius: 16px; padding: 40px 24px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.05); display: none; max-width: 540px; margin: 40px auto; animation: fadeUp 0.4s ease; }
+.exhausted-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; color: var(--sage); margin-bottom: 8px; }
+.exhausted-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.exhausted-stat { background: var(--cream); padding: 12px; border-radius: 10px; border: 1px solid var(--cream2); }
+
+#wissely-print-frame { display: none !important; position: absolute; width: 0; height: 0; border: none; }
+
 @media(max-width:700px){
   body{overflow-x:hidden!important}
   .app-body,.main{width:100%!important;max-width:100%!important}
@@ -157,7 +231,7 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
     align-items:center!important;
   }
   .stat-icon{font-size:16px!important;margin-bottom:4px!important}
-  .stat-val{font-size:18px!important;white-space:nowrap!important}
+  .stat-val{font-size:16px!important;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
   .stat-label{
     font-size:7.5px!important;
     letter-spacing:0.5px!important;
@@ -180,6 +254,8 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   .output-card,.input-card,.invoice-summary{width:100%}
   .premium-data-grid{grid-template-columns:1fr!important}
   .premium-info-card{grid-column:auto!important}
+  .sidebar-premium-widget { margin-top: 14px; }
+  .nav-dropdown-menu { right: -16px; top: 44px; }
 }
 </style>
 </head>
@@ -189,16 +265,33 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
   <div class="gate-spinner"></div>
 </div>
 
+<div id="toast-container"></div>
+<iframe id="wissely-print-frame"></iframe>
+
 <nav>
   <a href="https://wissely.com" class="nav-logo">
     <div class="nav-logo-mark">W</div>
     <div class="nav-logo-text">Wissely</div>
   </a>
   <div class="nav-right-zone">
-    <button class="logout-btn" id="logoutBtn">Logout</button>
     <div class="ai-ready">
       <div class="ai-ready-dot"></div>
       <span class="ai-ready-text">AI Ready</span>
+    </div>
+    
+    <div class="nav-dropdown-container">
+      <button class="nav-avatar-btn" id="navAvatarBtn" aria-label="Account Settings">U</button>
+      <div class="nav-dropdown-menu" id="navDropdownMenu">
+        <div class="dropdown-header">
+          <strong id="dropdownUserEmail" style="font-size:13px; word-break:break-all;">Account</strong>
+          <div><span class="dropdown-plan-badge" id="dropdownPlanBadge">TRIAL</span></div>
+          <div class="dropdown-usage-text" id="dropdownUsageText">Usage: - / -</div>
+        </div>
+        <a href="https://wissely.com/billing" class="dropdown-link">💳 Billing Settings</a>
+        <a href="https://wissely.com/upgrade" class="dropdown-link upgrade-highlight" id="dropdownUpgradeLink">⭐ Upgrade Plan</a>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-logout-btn" id="dropdownLogoutBtn">🚪 Logout</button>
+      </div>
     </div>
   </div>
 </nav>
@@ -235,62 +328,109 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
       <div class="sidebar-label">Recent</div>
       <div id="historyList"></div>
     </div>
+
+    <div class="sidebar-premium-widget" id="sidebarPremiumWidget">
+      <div class="sidebar-label" style="margin-bottom:2px; padding:0;">Usage Target</div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:500;">
+        <span id="widgetRemainingText">- left</span>
+        <span id="widgetPercentText">0%</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="widgetProgressBar"></div>
+      </div>
+      <ul class="premium-feat-list" id="widgetFeatures">
+        <li class="premium-feat-item">✓ Core Data Analysis Engine</li>
+        <li class="premium-feat-item" id="featCsvItem">✕ Advanced CSV Framework</li>
+        <li class="premium-feat-item" id="featPredictiveItem">✕ 90-Day Predictions</li>
+      </ul>
+      <a href="https://wissely.com/upgrade" class="widget-upgrade-btn" id="widgetUpgradeBtn">Upgrade Workspace</a>
+    </div>
   </div>
 
   <div class="main">
-    <div class="stats-row">
-      <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">-</span><span class="stat-label">Analyses Remaining</span></div>
-      <div class="stat-card"><span class="stat-icon">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
-      <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
+    <div class="warning-banner" id="lowQuotaBanner">
+      <div>⚠️ <strong>Running low on quota!</strong> You have used <span id="bannerPercentText">0%</span> of your allocation. Upgrade now to preserve workflows.</div>
+      <a href="https://wissely.com/upgrade" class="warning-banner-btn">Upgrade</a>
     </div>
 
-    <div class="input-card">
-      <div class="tool-header">
-        <div class="tool-header-left">
-          <span class="tool-header-icon" id="activeIcon">🔍</span>
-          <div>
-            <div class="tool-header-title" id="activeTitle">Invoice Analyzer</div>
-            <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
+    <div id="mainWorkspaceContainer" style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
+      <div class="stats-row">
+        <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">-</span><span class="stat-label">Analyses Remaining</span></div>
+        <div class="stat-card"><span class="stat-icon">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
+        <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
+      </div>
+
+      <div class="input-card">
+        <div class="tool-header">
+          <div class="tool-header-left">
+            <span class="tool-header-icon" id="activeIcon">🔍</span>
+            <div>
+              <div class="tool-header-title" id="activeTitle">Invoice Analyzer</div>
+              <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
+            </div>
+          </div>
+          <button class="clear-btn" id="clearBtn">Clear</button>
+        </div>
+        <div class="textarea-wrap">
+          <textarea id="inputText" maxlength="100000"
+            placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
+          <div class="input-footer">
+            <span class="char-count" id="charCount">0 chars</span>
+            <span class="error-text" id="errorText"></span>
           </div>
         </div>
-        <button class="clear-btn" id="clearBtn">Clear</button>
+        <button class="generate-btn" id="generateBtn">
+          🔍 Run Invoice Analyzer
+        </button>
       </div>
-      <div class="textarea-wrap">
-        <textarea id="inputText" maxlength="100000"
-          placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
-        <div class="input-footer">
-          <span class="char-count" id="charCount">0 chars</span>
-          <span class="error-text" id="errorText"></span>
+
+      <div style="height:18px" id="resultSpacer"></div>
+      <div class="output-card" id="outputCard" style="display:none">
+        <div class="output-header">
+          <div class="output-meta">
+            <div class="output-dot"></div>
+            <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
+          </div>
+          <div class="output-actions">
+            <button class="copy-btn" id="copyBtn" aria-live="polite">Copy</button>
+            <button class="copy-btn" id="csvBtn">CSV</button>
+            <button class="copy-btn" id="pdfBtn">PDF</button>
+          </div>
+        </div>
+        <div class="output-text" id="outputText"></div>
+      </div>
+
+      <div class="empty-state" id="emptyState">
+        <div class="sample-label">Wissely AI Ready</div>
+        <div style="text-align:center;padding:24px">
+          <div style="font-size:42px;margin-bottom:10px">📊</div>
+          <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
+          <div class="empty-sub">Paste invoice or financial data and click Run</div>
         </div>
       </div>
-      <button class="generate-btn" id="generateBtn">
-        🔍 Run Invoice Analyzer
-      </button>
     </div>
 
-    <div style="height:18px" id="resultSpacer"></div>
-    <div class="output-card" id="outputCard" style="display:none">
-      <div class="output-header">
-        <div class="output-meta">
-          <div class="output-dot"></div>
-          <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
-        </div>
-        <div class="output-actions">
-          <button class="copy-btn" id="copyBtn" aria-live="polite">Copy</button>
-          <button class="copy-btn" id="csvBtn">CSV</button>
-          <button class="copy-btn" id="pdfBtn">PDF</button>
-        </div>
+    <div class="exhausted-card" id="quotaExhaustedCard">
+      <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+      <h2 class="exhausted-title">Quota Limit Reached</h2>
+      <p style="color: var(--muted); font-size: 14px; line-height: 1.5;">Your billing subscription tier has exhausted its computational limits for the billing cycle. Upgrade your engine workspace to proceed with active processing pipelines.</p>
+      
+      <div class="exhausted-grid">
+        <div class="exhausted-stat"><span class="sidebar-label" style="font-size:8px;">Plan</span><div style="font-weight:600; font-size:14px;" id="exhPlan">-</div></div>
+        <div class="exhausted-stat"><span class="sidebar-label" style="font-size:8px;">Analyzed</span><div style="font-weight:600; font-size:14px; color:#ef4444;" id="exhUsed">-</div></div>
+        <div class="exhausted-stat"><span class="sidebar-label" style="font-size:8px;">Remaining</span><div style="font-weight:600; font-size:14px; color:var(--muted);">0</div></div>
       </div>
-      <div class="output-text" id="outputText"></div>
-    </div>
 
-    <div class="empty-state" id="emptyState">
-      <div class="sample-label">Wissely AI Ready</div>
-      <div style="text-align:center;padding:24px">
-        <div style="font-size:42px;margin-bottom:10px">📊</div>
-        <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
-        <div class="empty-sub">Paste invoice or financial data and click Run</div>
+      <div style="text-align: left; background: var(--cream); border:1px solid var(--cream3); padding: 16px; border-radius: 12px; margin-bottom: 24px;">
+        <div class="sidebar-label" style="margin-bottom:8px;">Unlocked with Professional Tier</div>
+        <div style="font-size: 12px; display:grid; grid-template-columns: 1fr 1fr; gap: 8px; color: var(--text);">
+          <div>✨ Unlimited Invoice Pipelines</div>
+          <div>📊 Advanced CSV Outputs</div>
+          <div>📈 Predictive Forecasts</div>
+          <div>⚡ Accelerated Priority Processing</div>
+        </div>
       </div>
+      <a href="https://wissely.com/upgrade" class="generate-btn" style="text-decoration:none;">⭐ Unlock Professional Access</a>
     </div>
 
     <div class="app-footer">
@@ -346,6 +486,19 @@ let currentUserPlan = "";
 let toolButtonsCollection;
 let lastAuthCheckTimestamp = 0;
 
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `wissely-toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 function escapeHTML(str) {
   if (!str) return '';
   return String(str).replace(/[&<>"']/g, function(m) {
@@ -355,7 +508,10 @@ function escapeHTML(str) {
 
 function initLocalStorageHistory() {
   try {
-    let unparsedPayload = localStorage.getItem('wissely_history_v2') || localStorage.getItem('wissely_history_v1');
+    let unparsedPayload = localStorage.getItem('wissely_history_v2');
+    if (!unparsedPayload) {
+      unparsedPayload = localStorage.getItem('wissely_history_v1');
+    }
     if (unparsedPayload) {
       const parsed = JSON.parse(unparsedPayload);
       analysisHistory = Array.isArray(parsed) ? parsed : [];
@@ -371,14 +527,13 @@ function initLocalStorageHistory() {
         return {
           toolIndex: Math.max(0, Math.min(TOOLS.length - 1, parseInt(tIndex) || 0)),
           icon: String(item.icon || ''),
-          preview: String(item.preview || ''),
-          output: String(item.output || ''),
+          preview: String(item.preview || '').slice(0, 100),
+          output: String(item.output || '').slice(0, 5000),
           analysisId: String(item.analysisId || ''),
           timestamp: String(item.timestamp || '')
         };
       }).filter(Boolean);
       localStorage.setItem('wissely_history_v2', JSON.stringify(analysisHistory));
-      localStorage.removeItem('wissely_history_v1');
       renderHistory();
     } else {
       analysisHistory = [];
@@ -395,8 +550,8 @@ function syncHistoryToStorage() {
     const safeExport = analysisHistory.map(item => ({
       toolIndex: parseInt(item.toolIndex) || 0,
       icon: String(item.icon || ''),
-      preview: String(item.preview || ''),
-      output: String(item.output || ''),
+      preview: String(item.preview || '').slice(0, 100),
+      output: String(item.output || '').slice(0, 5000),
       analysisId: String(item.analysisId || ''),
       timestamp: String(item.timestamp || '')
     }));
@@ -405,14 +560,11 @@ function syncHistoryToStorage() {
 }
 
 async function checkAuthSession() {
+  if (isProcessing) return;
   const shield = document.getElementById('auth-gate-shield');
   try {
     const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    if (res.status === 401 || res.status === 403) {
-      window.location.href = 'auth.html';
-      return;
-    }
-    if (!res.ok) {
+    if (res.status === 401 || res.status === 403 || !res.ok) {
       window.location.href = 'auth.html';
       return;
     }
@@ -440,6 +592,7 @@ function updateQuotaUI(user) {
   const limit = Math.max(0, parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20);
   const used = Math.max(0, parseInt(user.analyses_used || 0));
   const remaining = Math.max(0, limit - used);
+  const usagePercentage = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   
   document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
   document.getElementById('quota-used-display').textContent = `${remaining}`;
@@ -447,15 +600,77 @@ function updateQuotaUI(user) {
   const csvBtn = document.getElementById('csvBtn');
   if (csvBtn) csvBtn.style.display = (currentUserPlan === 'starter') ? 'none' : 'inline-block';
 
+  const emailDisplayStr = user.email ? String(user.email) : 'User Session';
+  document.getElementById('dropdownUserEmail').textContent = emailDisplayStr;
+  document.getElementById('navAvatarBtn').textContent = emailDisplayStr.charAt(0).toUpperCase();
+  document.getElementById('dropdownPlanBadge').textContent = rawPlan.toUpperCase();
+  document.getElementById('dropdownUsageText').textContent = `Usage: ${used} / ${limit}`;
+  
+  document.getElementById('widgetRemainingText').textContent = `${remaining} remaining`;
+  document.getElementById('widgetPercentText').textContent = `${usagePercentage}%`;
+  
+  const progressBar = document.getElementById('widgetProgressBar');
+  if (progressBar) {
+    progressBar.style.width = `${usagePercentage}%`;
+    progressBar.classList.toggle('warning', usagePercentage >= 80 && usagePercentage < 95);
+    progressBar.classList.toggle('critical', usagePercentage >= 95);
+  }
+  
+  const hasPremiumTier = (rawPlan !== 'trial' && rawPlan !== 'starter');
+  document.getElementById('featCsvItem').textContent = hasPremiumTier ? '✓ Advanced CSV Framework' : '✕ Advanced CSV Framework';
+  document.getElementById('featPredictiveItem').textContent = (rawPlan === 'growth' || rawPlan === 'pro') ? '✓ 90-Day Predictions' : '✕ 90-Day Predictions';
+  
+  const dropdownUpgradeLink = document.getElementById('dropdownUpgradeLink');
+  const widgetUpgradeBtn = document.getElementById('widgetUpgradeBtn');
+  const sidebarPremiumWidget = document.getElementById('sidebarPremiumWidget');
+  
+  if (rawPlan === 'pro') {
+    if (dropdownUpgradeLink) dropdownUpgradeLink.style.display = 'none';
+    if (widgetUpgradeBtn) widgetUpgradeBtn.style.display = 'none';
+    if (sidebarPremiumWidget) sidebarPremiumWidget.style.border = '1px solid var(--gold)';
+  } else {
+    if (dropdownUpgradeLink) dropdownUpgradeLink.style.display = 'flex';
+    if (widgetUpgradeBtn) widgetUpgradeBtn.style.display = 'block';
+  }
+
+  const lowQuotaBanner = document.getElementById('lowQuotaBanner');
+  if (lowQuotaBanner) {
+    if (usagePercentage >= 80 && remaining > 0 && rawPlan !== 'pro') {
+      lowQuotaBanner.style.display = 'flex';
+      document.getElementById('bannerPercentText').textContent = `${usagePercentage}%`;
+    } else {
+      lowQuotaBanner.style.display = 'none';
+    }
+  }
+
+  const mainWorkspace = document.getElementById('mainWorkspaceContainer');
+  const exhaustedCard = document.getElementById('quotaExhaustedCard');
   const btn = document.getElementById('generateBtn');
-  if (used >= limit) {
+  
+  if (used >= limit || remaining === 0) {
     isQuotaExhausted = true;
-    btn.disabled = true;
-    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+    }
     document.getElementById('errorText').textContent = 'Your analysis quota is exhausted. Upgrade your tier to process further records.';
+    
+    if (!outputText) {
+      if (mainWorkspace) mainWorkspace.style.display = 'none';
+      if (exhaustedCard) {
+        exhaustedCard.style.display = 'block';
+        document.getElementById('exhPlan').textContent = rawPlan.toUpperCase();
+        document.getElementById('exhUsed').textContent = `${used} / ${limit}`;
+      }
+    } else {
+      showToast('Quota limits met. Current session data remains accessible.', 'error');
+    }
   } else {
     isQuotaExhausted = false;
-    if (!isProcessing) {
+    if (mainWorkspace) mainWorkspace.style.display = 'flex';
+    if (exhaustedCard) exhaustedCard.style.display = 'none';
+    
+    if (!isProcessing && btn) {
       btn.disabled = false;
       btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
     }
@@ -475,7 +690,7 @@ async function triggerLogout() {
 
 function selectTool(index) {
   if (isProcessing) {
-    alert('Please wait until the current analysis operation completes.');
+    showToast('Please wait until the current analysis operation completes.', 'error');
     return;
   }
   currentTool = index;
@@ -523,6 +738,7 @@ function clearAll() {
   if (!isQuotaExhausted) document.getElementById('errorText').textContent = '';
   document.getElementById('outputCard').style.display = 'none';
   document.getElementById('emptyState').style.display = 'block';
+  outputText = "";
 }
 
 function cleanOutput(text) {
@@ -547,10 +763,10 @@ function extractFlexible(text, labels) {
 
 function exportCSV() {
   if (currentUserPlan === 'starter') {
-    alert('Structured CSV export is only available on higher tiers.');
+    showToast('Structured CSV export is only available on higher tiers.', 'error');
     return;
   }
-  if (!outputText || !outputText.trim()) { alert('No analysis available to export.'); return; }
+  if (!outputText || !outputText.trim()) { showToast('No analysis available to export.', 'error'); return; }
   
   let toolLabel = TOOLS[currentTool].label;
   let cleanLabel = toolLabel.replace(/\s+/g, '_');
@@ -595,6 +811,7 @@ function exportCSV() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    showToast('CSV compilation exported successfully.', 'success');
   }
 }
 
@@ -631,10 +848,10 @@ async function generate() {
     const data = await res.json();
     if(data.error) throw new Error(data.error.message || 'API processing failure');
     
-    outputText = data.data?.content[0]?.text || data.content?.[0]?.text || (data.content ? data.content.map(b => b.text || '').join('\n') : "No output available.");
+    outputText = data.data?.content?.[0]?.text || data.content?.[0]?.text || (Array.isArray(data.content) ? data.content.map(b => b.text || '').join('\n') : "No output available.");
     currentAnalysisDate = new Date().toLocaleDateString();
     document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
-    currentAnalysisId = "WLY-" + Math.floor(100000 + Math.random() * 900000);
+    currentAnalysisId = "WLY-" + Date.now().toString().slice(-4) + Math.floor(10 + Math.random() * 90);
 
     if(currentTool === 0) {
       renderInvoiceCards(outputText);
@@ -692,11 +909,15 @@ async function generate() {
   } finally {
     isProcessing = false;
     if (isQuotaExhausted) {
-      btn.disabled = true;
-      btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+      }
     } else {
-      btn.disabled = false;
-      btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+      }
     }
   }
 }
@@ -731,7 +952,10 @@ function renderHistory() {
       
       itemEl.appendChild(toolEl);
       itemEl.appendChild(previewEl);
-      itemEl.addEventListener('click', () => showHistory(index));
+      itemEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showHistory(index);
+      });
       listEl.appendChild(itemEl);
     });
   }
@@ -797,6 +1021,7 @@ function fallbackCopyMechanism(text, btnElement) {
 function triggerCopyFeedback(btn) {
   btn.textContent = 'Copied';
   btn.classList.add('copied');
+  showToast('Analysis data copied to dashboard clipboard.', 'success');
   setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
 }
 
@@ -889,17 +1114,18 @@ function buildPremiumPDFReport(text) {
 }
 
 function exportPDF() {
-  if (!outputText || !outputText.trim()) { alert('No analysis available to export.'); return; }
+  if (!outputText || !outputText.trim()) { showToast('No active data profile to print.', 'error'); return; }
   let content = (currentTool === 0) ? buildPremiumPDFReport(outputText) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
 
-  const w = window.open('', '_blank');
-  if (!w) { 
-    alert('Export blocked. Please allow popups or check mobile browser permissions to generate and print PDF reports.'); 
-    return; 
+  const frame = document.getElementById('wissely-print-frame');
+  if (!frame) {
+    showToast('Export engine failed to mount print view context.', 'error');
+    return;
   }
-  w.opener = null;
 
-  w.document.write(`
+  const frameDoc = frame.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`
   <!DOCTYPE html>
   <html>
   <head>
@@ -907,44 +1133,30 @@ function exportPDF() {
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{background:#fff;font-family:'DM Sans',sans-serif;color:#2a2a20;font-size:14px;line-height:1.6}
-  .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:24px;width:100%;max-width:100%;box-shadow:none}
+  body{background:#fff;font-family:'DM Sans',sans-serif;color:#2a2a20;font-size:14px;line-height:1.6;padding:20px}
+  .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:24px;width:100%;max-width:100%}
   .wissely-premium-header{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c0c0a;padding-bottom:16px;margin-bottom:24px}
   .decision-status{display:inline-block;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;background:#e8f5e9;color:#2d4a3e;text-transform:uppercase}
   .big-amount{font-size:38px;font-weight:700;color:#2d4a3e;margin:16px 0}
-  .completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center}
-  .completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif}
   .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0}
   .premium-info-card{background:#fff;border:1px solid #dedad0;border-radius:12px;padding:14px}
   .finding-box{margin-top:14px;padding:14px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
   .wissely-premium-footer{text-align:center;border-top:1px solid #dedad0;padding-top:16px;margin-top:32px;font-size:10px;color:#7a7a66;font-family:'DM Mono',monospace}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   @page{size:A4;margin:20mm}
-  body{margin:0!important;background:#fff!important;font-family:'DM Sans',sans-serif!important;padding:0}
-  .invoice-summary{width:100%!important;max-width:100%!important;margin:0!important;box-shadow:none!important;border:none!important;background:none!important;padding:0!important;page-break-inside:avoid!important}
-  .wissely-premium-header{border-bottom:2px solid #0c0c0a!important}
   </style>
   </head>
-  <body></body>
+  <body>
+    <div>${content}</div>
+    <script>
+      window.onload = function() {
+        setTimeout(function() { window.print(); }, 300);
+      };
+    <\/script>
+  </body>
   </html>`);
-  
-  const cleanContainer = w.document.createElement('div');
-  cleanContainer.style.padding = '10px';
-  cleanContainer.innerHTML = content;
-  w.document.body.appendChild(cleanContainer);
-  
-  const printScript = w.document.createElement('script');
-  printScript.textContent = `
-    if (document.fonts && document.fonts.ready) { 
-      document.fonts.ready.then(function() { 
-        setTimeout(function() { window.print(); }, 500); 
-      }); 
-    } else { 
-      setTimeout(function() { window.print(); }, 500); 
-    }
-  `;
-  w.document.body.appendChild(printScript);
-  w.document.close();
+  frameDoc.close();
+  showToast('Forwarding report interface to system printer...', 'success');
 }
 
 window.addEventListener('storage', (e) => {
@@ -965,7 +1177,6 @@ window.addEventListener('DOMContentLoaded', () => {
     toolButtonsCollection[idx].addEventListener('click', () => selectTool(idx));
   }
 
-  document.getElementById('logoutBtn').addEventListener('click', triggerLogout);
   document.getElementById('clearBtn').addEventListener('click', clearAll);
   document.getElementById('generateBtn').addEventListener('click', generate);
   document.getElementById('copyBtn').addEventListener('click', copyOutput);
@@ -973,8 +1184,24 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pdfBtn').addEventListener('click', exportPDF);
   
   const textInput = document.getElementById('inputText');
-  textInput.addEventListener('keydown', handleKey);
-  textInput.addEventListener('input', updateChar);
+  if (textInput) {
+    textInput.addEventListener('keydown', handleKey);
+    textInput.addEventListener('input', updateChar);
+  }
+
+  const navAvatarBtn = document.getElementById('navAvatarBtn');
+  const navDropdownMenu = document.getElementById('navDropdownMenu');
+  
+  if (navAvatarBtn && navDropdownMenu) {
+    navAvatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navDropdownMenu.classList.toggle('show');
+    });
+    document.addEventListener('click', () => navDropdownMenu.classList.remove('show'));
+  }
+  
+  const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+  if (dropdownLogoutBtn) dropdownLogoutBtn.addEventListener('click', triggerLogout);
 
   checkAuthSession();
 });
