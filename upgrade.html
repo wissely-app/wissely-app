@@ -1,39 +1,265 @@
-------------------------------------------------
-Wissely
-Upgrade Your Workspace
-------------------------------------------------
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upgrade Workspace | Wissely</title>
 
-Current Plan
-TRIAL
-7 / 20 Analyses Used
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-------------------------------------------------
-Starter
-50 analyses/month
-✓ Invoice Analyzer
-✓ Expense Clarity
-✓ Finance Report
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
 
-[Upgrade to Starter]
+:root{
+--sage:#2d4a3e;
+--gold:#c9a84c;
+--cream:#f8f6f0;
+--cream2:#ede9df;
+--cream3:#dedad0;
+--ink:#0c0c0a;
+--text:#2a2a20;
+}
 
-------------------------------------------------
-Growth
-250 analyses/month
-✓ Everything in Starter
-✓ Advanced CSV Exports
-✓ Cash Flow Forecasts
+body{
+background:var(--cream);
+font-family:'DM Sans',sans-serif;
+color:var(--text);
+}
 
-[Upgrade to Growth]
+.container{
+max-width:1000px;
+margin:auto;
+padding:30px 20px 60px;
+}
 
-------------------------------------------------
-Pro
-1000 analyses/month
-✓ Everything in Growth
-✓ Priority Processing
-✓ Full Premium Toolkit
+.logo{
+text-align:center;
+font-family:'Cormorant Garamond',serif;
+font-size:64px;
+font-weight:700;
+color:var(--sage);
+margin-bottom:10px;
+}
 
-[Upgrade to Pro]
+.icon{
+font-size:70px;
+text-align:center;
+margin-bottom:15px;
+}
 
-------------------------------------------------
-Back To Dashboard
-------------------------------------------------
+.heading{
+text-align:center;
+font-family:'Cormorant Garamond',serif;
+font-size:54px;
+color:var(--sage);
+margin-bottom:12px;
+}
+
+.sub{
+text-align:center;
+color:#666;
+max-width:700px;
+margin:auto;
+line-height:1.7;
+margin-bottom:40px;
+}
+
+.current-plan{
+background:#fff;
+border:1px solid var(--cream3);
+border-radius:16px;
+padding:20px;
+margin-bottom:30px;
+text-align:center;
+}
+
+.current-plan small{
+display:block;
+font-family:'DM Mono',monospace;
+letter-spacing:2px;
+color:#888;
+margin-bottom:8px;
+}
+
+.current-plan h2{
+color:var(--sage);
+}
+
+.plans{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+gap:20px;
+}
+
+.plan-card{
+background:#fff;
+border:1px solid var(--cream3);
+border-radius:18px;
+padding:25px;
+}
+
+.plan-name{
+font-family:'Cormorant Garamond',serif;
+font-size:38px;
+color:var(--sage);
+margin-bottom:10px;
+}
+
+.plan-price{
+font-size:24px;
+font-weight:700;
+margin-bottom:20px;
+}
+
+.plan-features{
+list-style:none;
+margin-bottom:25px;
+}
+
+.plan-features li{
+padding:7px 0;
+font-size:14px;
+}
+
+.btn{
+display:block;
+width:100%;
+padding:14px;
+text-align:center;
+text-decoration:none;
+border-radius:12px;
+font-weight:600;
+transition:.2s;
+}
+
+.btn-primary{
+background:linear-gradient(135deg,#c9a84c,#a8873c);
+color:#111;
+}
+
+.btn-primary:hover{
+transform:translateY(-2px);
+}
+
+.back-btn{
+display:block;
+max-width:300px;
+margin:40px auto 0;
+padding:14px;
+text-align:center;
+text-decoration:none;
+background:#fff;
+border:1px solid var(--cream3);
+border-radius:12px;
+color:var(--text);
+font-weight:600;
+}
+
+.footer{
+text-align:center;
+margin-top:40px;
+font-size:11px;
+letter-spacing:2px;
+font-family:'DM Mono',monospace;
+color:#888;
+}
+
+@media(max-width:700px){
+.logo{
+font-size:48px;
+}
+
+.heading{
+font-size:42px;
+}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="logo">Wissely</div>
+
+<div class="icon">⭐</div>
+
+<h1 class="heading">Upgrade Your Workspace</h1>
+
+<p class="sub">
+Unlock higher analysis limits, advanced exports, forecasting tools and premium processing.
+</p>
+
+<div class="current-plan">
+<small>CURRENT PLAN</small>
+<h2>TRIAL</h2>
+<p>20 Analyses / Month</p>
+</div>
+
+<div class="plans">
+
+<div class="plan-card">
+<div class="plan-name">Starter</div>
+<div class="plan-price">50 Analyses</div>
+
+<ul class="plan-features">
+<li>✓ Invoice Analyzer</li>
+<li>✓ Expense Clarity</li>
+<li>✓ Finance Report</li>
+<li>✓ Payment Requests</li>
+</ul>
+
+<a href="pricing.html" class="btn btn-primary">
+Upgrade to Starter
+</a>
+</div>
+
+<div class="plan-card">
+<div class="plan-name">Growth</div>
+<div class="plan-price">250 Analyses</div>
+
+<ul class="plan-features">
+<li>✓ Everything in Starter</li>
+<li>✓ Advanced CSV Exports</li>
+<li>✓ Cash Flow Forecasts</li>
+<li>✓ Faster Processing</li>
+</ul>
+
+<a href="pricing.html" class="btn btn-primary">
+Upgrade to Growth
+</a>
+</div>
+
+<div class="plan-card">
+<div class="plan-name">Pro</div>
+<div class="plan-price">1000 Analyses</div>
+
+<ul class="plan-features">
+<li>✓ Everything in Growth</li>
+<li>✓ Priority Processing</li>
+<li>✓ Premium Tool Access</li>
+<li>✓ Highest Usage Limits</li>
+</ul>
+
+<a href="pricing.html" class="btn btn-primary">
+Upgrade to Pro
+</a>
+</div>
+
+</div>
+
+<a href="index.html" class="back-btn">
+← Back To Dashboard
+</a>
+
+<div class="footer">
+WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</div>
+
+</div>
+
+</body>
+  </html>
