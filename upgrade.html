@@ -1,194 +1,336 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Upgrade Your Workspace - Wissely</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --ink:#0c0c0a;
-  --sage:#2d4a3e;
-  --gold:#c9a84c;
-  --gold2:#e8c97a;
-  --cream:#f8f6f0;
-  --cream3:#dedad0;
-  --white:#ffffff;
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold-dark: #b0913b;
+  --gold-light: #f4ebd0;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-body{
-  background:var(--cream);
-  font-family:'DM Sans',sans-serif;
-  color:#2a2a20;
-  display:flex;
-  flex-direction:column;
-  min-height:100vh;
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-nav{
-  height:70px;
-  background:var(--ink);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 40px;
+nav {
+  height: 70px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
 }
 
-.logo{
-  color:white;
-  text-decoration:none;
-  font-family:'Cormorant Garamond',serif;
-  font-size:28px;
-  font-weight:700;
-  transition: opacity 0.2s ease;
+.logo {
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  transition: var(--transition);
 }
 
-.logo:hover{
+.logo:hover {
   opacity: 0.85;
 }
 
-.back-btn{
-  color:white;
-  text-decoration:none;
-  transition: color 0.2s ease;
+.back-btn {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
 }
 
-.back-btn:hover{
-  color:var(--gold);
+.back-btn:hover {
+  color: var(--gold);
 }
 
-main{
-  flex-grow:1;
+main {
+  flex-grow: 1;
 }
 
-.hero{
-  text-align:center;
-  padding:80px 20px 60px;
+.hero {
+  text-align: center;
+  padding: 80px 20px 50px;
 }
 
-.hero h1{
-  font-family:'Cormorant Garamond',serif;
-  font-size:64px;
-  margin-bottom:16px;
+.hero h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 58px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 16px;
 }
 
-.hero p{
-  color:#666;
-  max-width:600px;
-  margin:0 auto;
-  font-size:18px;
-  line-height:1.5;
+.hero p {
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+  font-size: 18px;
+  line-height: 1.6;
 }
 
-.pricing-grid{
-  max-width:1100px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:24px;
-  padding:0 20px 80px;
+.pricing-grid {
+  max-width: 1100px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding: 0 20px 80px;
+  align-items: stretch;
 }
 
-.card{
-  background:white;
-  border:1px solid var(--cream3);
-  border-radius:18px;
-  padding:32px;
-  display:flex;
-  flex-direction:column;
-  justify-content:space-between;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+.card {
+  background: var(--cream-card);
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px 32px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+  position: relative;
 }
 
-.card.popular{
-  background:var(--sage);
-  color:white;
+.card:hover { 
+  transform: translateY(-4px); 
+  box-shadow: 0 30px 50px -20px rgba(45, 74, 62, 0.12);
+  border-color: var(--gold);
 }
 
-.card:hover{ 
-  transform:translateY(-4px); 
-  box-shadow:0 10px 25px rgba(0,0,0,.08); 
+.card.popular {
+  background: var(--sage);
+  color: #ffffff;
+  border-color: var(--sage);
 }
 
-.card h2{
-  font-family:'Cormorant Garamond',serif;
-  font-size:32px;
-  margin-bottom:20px;
+.card.popular:hover {
+  border-color: var(--gold);
 }
 
-.features{
-  margin-bottom:32px;
+.card-header {
+  margin-bottom: 24px;
 }
 
-.features div{
-  margin-bottom:14px;
-  font-size:15px;
-  display:flex;
-  align-items:center;
+.badge {
+  background: var(--gold);
+  color: var(--ink);
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-.select-btn{
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:999px;
-  cursor:pointer;
-  background:var(--gold);
-  color:var(--ink);
-  font-weight:600;
-  font-size:15px;
-  text-align:center;
-  text-decoration:none;
-  transition: background 0.15s ease;
-  display:inline-block;
+.card h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 8px;
 }
 
-.select-btn:hover {
-  background: var(--gold2);
+.card.popular h2 {
+  color: #ffffff;
 }
 
-.badge{
-  background:var(--gold);
-  color:black;
-  display:inline-block;
-  padding:4px 12px;
-  border-radius:999px;
-  font-size:12px;
-  margin-bottom:16px;
-  font-weight:600;
+.price-container {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 24px;
 }
 
-footer{
-  text-align:center;
-  padding:40px 20px;
-  font-family:'DM Mono',monospace;
-  font-size:12px;
-  color:#8a8a80;
-  letter-spacing:1px;
-  border-top:1px solid var(--cream3);
-  background:var(--white);
+.price-amount {
+  font-size: 36px;
+  font-weight: 700;
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.price-period {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.card.popular .price-period {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.features {
+  margin-bottom: 36px;
+  border-top: 1px solid var(--cream3);
+  padding-top: 24px;
+}
+
+.card.popular .features {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.features div {
+  margin-bottom: 14px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+}
+
+.card.popular .features div {
+  color: #ffffff;
+}
+
+.features div:last-child {
+  margin-bottom: 0;
+}
+
+.checkmark {
+  color: var(--gold-dark);
+  margin-right: 10px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.card.popular .checkmark {
+  color: var(--gold);
+}
+
+.select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  text-align: center;
+  text-decoration: none;
+  transition: var(--transition);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* Default & Secondary State Button */
+.card .select-btn {
+  background: linear-gradient(135deg, #c9a84c, #a8873c);
+  color: #0c0c0a;
+  border: 1px solid #b0913b;
+}
+
+.card .select-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
+  opacity: 0.95;
+}
+
+/* Popular Premium State Button */
+.card.popular .select-btn {
+  background: #ffffff;
+  color: var(--sage);
+  border: 1px solid #ffffff;
+}
+
+.card.popular .select-btn:hover {
+  background: var(--gold-light);
+  border-color: var(--gold);
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Current Active State Design Variant */
+.card.current-tier {
+  border-color: var(--cream3);
+  opacity: 0.85;
+}
+
+.card.current-tier:hover {
+  transform: none;
+  box-shadow: var(--shadow);
+  border-color: var(--cream3);
+}
+
+.card .select-btn.disabled-state {
+  background: var(--cream3) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--cream3) !important;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  font-weight: 500;
+  border-top: 1px solid var(--cream3);
+  background: var(--cream-card);
 }
 
 @media(max-width:900px){
-  nav{ 
-    padding:0 20px; 
+  nav { 
+    padding: 0 20px; 
   }
   
-  .pricing-grid{
-    grid-template-columns:1fr;
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-bottom: 60px;
   }
 
-  .hero h1{
-    font-size:42px;
+  .hero h1 {
+    font-size: 42px;
   }
   
-  .hero p{
-    font-size:16px;
+  .hero p {
+    font-size: 16px;
+  }
+
+  .card {
+    padding: 32px 24px;
+    border-radius: 20px;
   }
 }
 </style>
@@ -197,7 +339,7 @@ footer{
 
 <nav>
   <a href="index.html" class="logo">Wissely</a>
-  <a href="app.html" class="back-btn">← Back to Dashboard</a>
+  <a href="index.html" class="back-btn">← Back to Dashboard</a>
 </nav>
 
 <main>
@@ -209,48 +351,60 @@ footer{
   <section class="pricing-grid">
     
     <div class="card">
-      <div>
+      <div class="card-header">
         <h2>Starter</h2>
+        <div class="price-container">
+          <span class="price-amount">$0</span>
+          <span class="price-period">/ month</span>
+        </div>
         <div class="features">
-          <div>✓ 50 analyses/month</div>
-          <div>✓ All 6 AI Tools</div>
-          <div>✓ PDF Export</div>
-          <div>✓ Email Support</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> 50 analyses / month</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> All 6 AI Tools</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> PDF Export</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Email Support</div>
         </div>
       </div>
-      <a href="pricing.html?plan=starter" class="select-btn" aria-label="Select Starter Plan">
+      <a href="checkout.html?plan=starter" class="select-btn" aria-label="Select Starter Plan">
         Select Starter
       </a>
     </div>
 
     <div class="card popular">
-      <div>
-        <div class="badge">MOST POPULAR</div>
+      <div class="card-header">
+        <div class="badge">Most Popular</div>
         <h2>Growth</h2>
+        <div class="price-container">
+          <span class="price-amount">$49</span>
+          <span class="price-period">/ month</span>
+        </div>
         <div class="features">
-          <div>✓ 250 analyses/month</div>
-          <div>✓ All 6 AI Tools</div>
-          <div>✓ CSV Export</div>
-          <div>✓ Priority Support</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> 250 analyses / month</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> All 6 AI Tools</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> CSV Export</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Priority Support</div>
         </div>
       </div>
-      <a href="pricing.html?plan=growth" class="select-btn" aria-label="Select Growth Plan">
+      <a href="checkout.html?plan=growth" class="select-btn" aria-label="Select Growth Plan">
         Select Growth
       </a>
     </div>
 
     <div class="card">
-      <div>
+      <div class="card-header">
         <h2>Pro</h2>
+        <div class="price-container">
+          <span class="price-amount">$149</span>
+          <span class="price-period">/ month</span>
+        </div>
         <div class="features">
-          <div>✓ 1000 analyses/month</div>
-          <div>✓ All 6 AI Tools</div>
-          <div>✓ Team Access</div>
-          <div>✓ API Access</div>
-          <div>✓ Dedicated Support</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> 1,000 analyses / month</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> All 6 AI Tools</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Team Access</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> API Access</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Dedicated Support</div>
         </div>
       </div>
-      <a href="pricing.html?plan=pro" class="select-btn" aria-label="Select Pro Plan">
+      <a href="checkout.html?plan=pro" class="select-btn" aria-label="Select Pro Plan">
         Select Pro
       </a>
     </div>
@@ -263,4 +417,4 @@ footer{
 </footer>
 
 </body>
-</html>
+                 </html>
