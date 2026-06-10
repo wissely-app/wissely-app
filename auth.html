@@ -183,6 +183,12 @@ body::before {
 .form-group {
   margin-bottom: 24px;
 }
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
 .form-group label {
   display: block;
   font-size: 11px;
@@ -190,8 +196,16 @@ body::before {
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--sage);
-  margin-bottom: 10px;
   font-weight: 500;
+}
+.forgot-password-link {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.forgot-password-link:hover {
+  color: var(--sage);
 }
 .form-input {
   width: 100%;
@@ -428,7 +442,7 @@ body::before {
         </div>
         <div class="form-group">
           <label for="registerPassword">Password</label>
-          <input type="password" id="registerPassword" class="form-input" required placeholder="Create a secure password"/>
+          <input type="password" id="registerPassword" class="form-input" required minlength="8" placeholder="Create a secure password (min. 8 characters)"/>
         </div>
         <button type="submit" class="auth-btn">
           <div class="spinner"></div>
@@ -448,7 +462,10 @@ body::before {
           <input type="email" id="loginEmail" class="form-input" required placeholder="name@company.com"/>
         </div>
         <div class="form-group">
-          <label for="loginPassword">Password</label>
+          <div class="form-label-row">
+            <label for="loginPassword">Password</label>
+            <a href="forgot-password.html" class="forgot-password-link">Forgot password?</a>
+          </div>
           <input type="password" id="loginPassword" class="form-input" required placeholder="••••••••"/>
         </div>
         <button type="submit" class="auth-btn">
@@ -642,4 +659,4 @@ async function handleAuth(event, type) {
 </script>
 
 </body>
-  </html>
+</html>
