@@ -1,244 +1,472 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Billing Settings - Wissely</title><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"><style>
-:root{
-  --ink:#0c0c0a;
-  --sage:#2d4a3e;
-  --gold:#c9a84c;
-  --gold2:#e8c97a;
-  --cream:#f8f6f0;
-  --cream3:#dedad0;
-  --white:#ffffff;
+<title>Billing Settings - Wissely</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold2: #b0913b;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --success-bg: #f0fdf4;
+  --success-border: #dcfce7;
+  --success-text: #16a34a;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-body{
-  background:var(--cream);
-  font-family:'DM Sans',sans-serif;
-  color:#2a2a20;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-nav{
-  height:70px;
-  background:var(--ink);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 40px;
+nav {
+  height: 70px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
 }
 
-.logo{
-  color:white;
-  text-decoration:none;
-  font-family:'Cormorant Garamond',serif;
-  font-size:28px;
-  font-weight:700;
+.logo {
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  transition: var(--transition);
 }
 
-.logo:hover{
-  opacity:.85;
+.logo:hover {
+  opacity: .85;
 }
 
-.back-btn{
-  color:white;
-  text-decoration:none;
-  transition:.2s;
+.back-btn {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
 }
 
-.back-btn:hover{
-  color:var(--gold);
+.back-btn:hover {
+  color: var(--gold);
 }
 
-main{
-  flex:1;
-  max-width:900px;
-  width:100%;
-  margin:auto;
-  padding:60px 20px;
+main {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: auto;
+  padding: 60px 20px;
 }
 
-.hero{
-  text-align:center;
-  margin-bottom:40px;
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
 }
 
-.hero h1{
-  font-family:'Cormorant Garamond',serif;
-  font-size:58px;
-  margin-bottom:12px;
+.hero h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 58px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 12px;
 }
 
-.hero p{
-  color:#666;
+.hero p {
+  color: var(--text-muted);
+  font-size: 16px;
 }
 
-.billing-card{
-  background:white;
-  border:1px solid var(--cream3);
-  border-radius:20px;
-  padding:32px;
-  box-shadow:0 8px 30px rgba(0,0,0,.04);
+.billing-card {
+  background: #ffffff;
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: var(--shadow);
+  margin-bottom: 32px;
 }
 
-.info-grid{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:18px;
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
 }
 
-.info-box{
-  background:var(--cream);
-  border:1px solid var(--cream3);
-  border-radius:14px;
-  padding:18px;
+.info-box {
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 16px;
+  padding: 24px;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
-.label{
-  font-family:'DM Mono',monospace;
-  font-size:11px;
-  letter-spacing:1px;
-  color:#888;
-  text-transform:uppercase;
-  margin-bottom:8px;
+.info-box:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold);
+  box-shadow: 0 10px 20px -10px rgba(201, 168, 76, 0.15);
 }
 
-.value{
-  font-size:22px;
-  font-weight:600;
+.label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  font-weight: 500;
 }
 
-.status-active{
-  color:#16a34a;
+.value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--sage);
+  line-height: 1.2;
 }
 
-.actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:16px;
-  margin-top:30px;
+.status-active {
+  color: var(--success-text);
+  background: var(--success-bg);
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid var(--success-border);
+  font-weight: 600;
+  margin-top: 4px;
 }
 
-.btn{
-  text-decoration:none;
-  text-align:center;
-  padding:14px;
-  border-radius:999px;
-  font-weight:600;
-  transition:.2s;
+.features-list {
+  list-style: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cream3);
 }
 
-.btn-upgrade{
-  background:var(--gold);
-  color:#000;
+.features-list li {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
 }
 
-.btn-upgrade:hover{
-  background:var(--gold2);
+.features-list li:last-child {
+  margin-bottom: 0;
 }
 
-.btn-cancel{
-  background:#fff;
-  color:#dc2626;
-  border:1px solid #fecaca;
+.features-list .checkmark {
+  color: var(--gold2);
+  margin-right: 8px;
+  font-weight: bold;
 }
 
-.btn-cancel:hover{
-  background:#fef2f2;
+.note-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cream3);
+  font-style: italic;
 }
 
-.usage-bar{
-  width:100%;
-  height:10px;
-  background:#ece8df;
-  border-radius:999px;
-  overflow:hidden;
-  margin-top:12px;
+.usage-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--cream3);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 14px;
 }
 
-.usage-fill{
-  width:17%;
-  height:100%;
-  background:linear-gradient(90deg,var(--sage),#3f6d5a);
+.usage-fill {
+  width: 16.8%; /* BACKEND_DATA: dynamic calculation logic placeholder (42/250 * 100) */
+  height: 100%;
+  background: linear-gradient(90deg, var(--sage), #3f6d5a);
+  border-radius: 999px;
 }
 
-.footer{
-  text-align:center;
-  padding:40px 20px;
-  font-family:'DM Mono',monospace;
-  font-size:12px;
-  color:#888;
-  border-top:1px solid var(--cream3);
-  background:white;
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 36px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  text-align: center;
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.btn-upgrade {
+  background: linear-gradient(135deg, #c9a84c, #a8873c);
+  color: #0c0c0a;
+  border: 1px solid #b0913b;
+}
+
+.btn-upgrade:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.2);
+  opacity: 0.95;
+}
+
+.btn-cancel {
+  background: transparent;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.btn-cancel:hover {
+  background: #fdf2f2;
+  border-color: #f87171;
+  transform: translateY(-1px);
+}
+
+/* History Section */
+.history-section {
+  background: #ffffff;
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: var(--shadow);
+}
+
+.history-section h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 24px;
+}
+
+.history-table {
+  width: 100%;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--cream);
+}
+
+.history-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.history-row:first-child {
+  padding-top: 0;
+}
+
+.invoice-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invoice-plan {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.invoice-date {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.invoice-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success-text);
+  background: var(--success-bg);
+  padding: 4px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--success-border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  border-top: 1px solid var(--cream3);
+  background: #ffffff;
+  font-weight: 500;
 }
 
 @media(max-width:768px){
-
-  nav{
-    padding:0 20px;
+  nav {
+    padding: 0 20px;
   }
 
-  .hero h1{
-    font-size:42px;
+  .hero h1 {
+    font-size: 42px;
   }
 
-  .info-grid{
-    grid-template-columns:1fr;
+  .billing-card, .history-section {
+    padding: 28px 20px;
+    border-radius: 20px;
   }
 
-  .actions{
-    grid-template-columns:1fr;
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .info-box {
+    padding: 20px;
+  }
+
+  .actions {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 28px;
+  }
+  
+  .btn {
+    padding: 14px;
   }
 }
-</style></head>
-<body><nav>
+</style>
+</head>
+<body>
+
+<nav>
   <a href="index.html" class="logo">Wissely</a>
-  <a href="app.html" class="back-btn">← Back to Dashboard</a>
-</nav><main><div class="hero">
-  <h1>Billing Settings</h1>
-  <p>Manage your Wissely subscription and workspace usage.</p>
-</div><div class="billing-card">  <div class="info-grid"><div class="info-box">
-  <div class="label">Current Plan</div>
-  <div class="value">Growth</div>
-</div>
+  <a href="index.html" class="back-btn">← Back to Dashboard</a>
+</nav>
 
-<div class="info-box">
-  <div class="label">Billing Status</div>
-  <div class="value status-active">Active</div>
-</div>
-
-<div class="info-box">
-  <div class="label">Usage This Month</div>
-  <div class="value">42 / 250</div>
-
-  <div class="usage-bar">
-    <div class="usage-fill"></div>
+<main>
+  <div class="hero">
+    <h1>Billing Settings</h1>
+    <p>Manage your Wissely subscription and workspace usage.</p>
   </div>
-</div>
 
-<div class="info-box">
-  <div class="label">Next Renewal</div>
-  <div class="value">July 4, 2026</div>
-</div>
+  <div class="billing-card">
+    <div class="info-grid">
+      
+      <div class="info-box">
+        <h2 class="label">Current Plan</h2>
+        <div class="value">Growth</div>
+        <ul class="features-list">
+          <li><span class="checkmark" aria-hidden="true">✓</span> 250 Analyses / Month</li>
+          <li><span class="checkmark" aria-hidden="true">✓</span> Advanced CSV Export</li>
+          <li><span class="checkmark" aria-hidden="true">✓</span> Cash Flow Forecasting</li>
+          <li><span class="checkmark" aria-hidden="true">✓</span> Priority Processing</li>
+        </ul>
+      </div>
 
-  </div>  <div class="actions"><a href="upgrade.html" class="btn btn-upgrade">
-  Upgrade Plan
-</a>
+      <div class="info-box">
+        <h2 class="label">Billing Status</h2>
+        <div class="status-active">Active</div>
+      </div>
 
-<a href="cancel.html" class="btn btn-cancel">
-  Cancel Subscription
-</a>
+      <div class="info-box">
+        <h2 class="label" id="usage-label">Usage This Month</h2>
+        <div class="value" aria-labelledby="usage-label">42 / 250</div>
+        <div class="usage-bar" role="progressbar" aria-valuenow="42" aria-valuemin="0" aria-valuemax="250" aria-label="Monthly analysis limit utilization">
+          <div class="usage-fill"></div>
+        </div>
+      </div>
 
-  </div></div></main><footer class="footer">
-WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
-</footer></body>
-                                             </html>
+      <div class="info-box">
+        <h2 class="label">Next Renewal</h2>
+        <div class="value">July 4, 2026</div>
+        <p class="note-text">Your subscription renews automatically unless cancelled before the renewal date.</p>
+      </div>
+
+    </div>
+
+    <div class="actions">
+      <a href="upgrade.html" class="btn btn-upgrade">Upgrade Plan</a>
+      <a href="cancel.html" class="btn btn-cancel">Cancel Subscription</a>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <h2>Billing History</h2>
+    <div class="history-table">
+      <div class="history-row">
+        <div class="invoice-meta">
+          <span class="invoice-plan">Growth Plan</span>
+          <span class="invoice-date">June 2026</span>
+        </div>
+        <span class="invoice-status">Paid</span>
+      </div>
+
+      <div class="history-row">
+        <div class="invoice-meta">
+          <span class="invoice-plan">Growth Plan</span>
+          <span class="invoice-date">May 2026</span>
+        </div>
+        <span class="invoice-status">Paid</span>
+      </div>
+
+      <div class="history-row">
+        <div class="invoice-meta">
+          <span class="invoice-plan">Growth Plan</span>
+          <span class="invoice-date">April 2026</span>
+        </div>
+        <span class="invoice-status">Paid</span>
+      </div>
+      
+      </div>
+  </div>
+</main>
+
+<footer class="footer">
+  WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer>
+
+</body>
+  </html>
