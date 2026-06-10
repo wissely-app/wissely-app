@@ -183,12 +183,6 @@ body::before {
 .form-group {
   margin-bottom: 24px;
 }
-.form-label-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
 .form-group label {
   display: block;
   font-size: 11px;
@@ -196,17 +190,31 @@ body::before {
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--sage);
+  margin-bottom: 10px;
   font-weight: 500;
 }
-.forgot-password-link {
+
+/* Flexbox utilities to support row alignment on specific forms */
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.form-label-row label {
+  margin-bottom: 0; /* Clear bottom margin to optimize vertical centering with the link */
+}
+.forgot-link {
+  font-family: 'DM Sans', sans-serif;
   font-size: 13px;
   color: var(--muted);
   text-decoration: none;
   transition: color 0.2s ease;
 }
-.forgot-password-link:hover {
+.forgot-link:hover {
   color: var(--sage);
 }
+
 .form-input {
   width: 100%;
   background: var(--cream);
@@ -442,7 +450,7 @@ body::before {
         </div>
         <div class="form-group">
           <label for="registerPassword">Password</label>
-          <input type="password" id="registerPassword" class="form-input" required minlength="8" placeholder="Create a secure password (min. 8 characters)"/>
+          <input type="password" id="registerPassword" class="form-input" required placeholder="Create a secure password"/>
         </div>
         <button type="submit" class="auth-btn">
           <div class="spinner"></div>
@@ -464,7 +472,7 @@ body::before {
         <div class="form-group">
           <div class="form-label-row">
             <label for="loginPassword">Password</label>
-            <a href="forgot-password.html" class="forgot-password-link">Forgot password?</a>
+            <a href="forgot-password.html" class="forgot-link">Forgot password?</a>
           </div>
           <input type="password" id="loginPassword" class="form-input" required placeholder="••••••••"/>
         </div>
