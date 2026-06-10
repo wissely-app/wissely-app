@@ -5,135 +5,291 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Payment Cancelled | Wissely</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-:root{
---ink:#0c0c0a;
---sage:#2d4a3e;
---gold:#c9a84c;
---cream:#f8f6f0;
---cream3:#dedad0;
---text:#2a2a20;
---warning:#d97706;
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold-dark: #b0913b;
+  --gold-light: #f4ebd0;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --warning-bg: #fffbeb;
+  --warning-border: #fef3c7;
+  --warning-text: #b45309;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-body{
-background:var(--cream);
-font-family:'DM Sans',sans-serif;
-min-height:100vh;
-display:flex;
-align-items:center;
-justify-content:center;
-padding:20px;
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.card{
-background:#fff;
-border:1px solid var(--cream3);
-border-radius:18px;
-padding:40px;
-max-width:560px;
-width:100%;
-text-align:center;
-box-shadow:0 8px 32px rgba(0,0,0,0.06);
+.card {
+  background: var(--cream-card);
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 56px 48px;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
 }
 
-.logo{
-font-family:'Cormorant Garamond',serif;
-font-size:40px;
-font-weight:700;
-color:var(--sage);
-margin-bottom:20px;
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--cream3), var(--gold), var(--cream3));
 }
 
-.icon{
-font-size:72px;
-margin-bottom:16px;
+.logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--sage);
+  letter-spacing: -0.5px;
+  margin-bottom: 40px;
+  display: inline-block;
+  text-decoration: none;
 }
 
-h1{
-font-family:'Cormorant Garamond',serif;
-font-size:42px;
-color:var(--sage);
-margin-bottom:10px;
+.icon-container {
+  width: 80px;
+  height: 80px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 28px;
 }
 
-.subtitle{
-color:#666;
-line-height:1.7;
-margin-bottom:30px;
+.icon {
+  font-size: 28px;
+  line-height: 1;
+  user-select: none;
 }
 
-.info-box{
-background:var(--cream);
-border:1px solid var(--cream3);
-border-radius:12px;
-padding:18px;
-margin-bottom:24px;
-text-align:left;
+h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--sage);
+  line-height: 1.2;
+  margin-bottom: 16px;
 }
 
-.info-row{
-display:flex;
-justify-content:space-between;
-padding:8px 0;
+.subtitle {
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 36px;
+  font-weight: 400;
 }
 
-.status{
-color:var(--warning);
-font-weight:600;
+.info-box {
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 36px;
 }
 
-.plan{
-color:#666;
-font-weight:600;
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 15px;
 }
 
-.btn{
-display:block;
-width:100%;
-padding:16px;
-border-radius:12px;
-text-decoration:none;
-font-weight:600;
-margin-bottom:12px;
-transition:.2s;
+.info-row:not(:last-child) {
+  border-bottom: 1px solid var(--cream3);
 }
 
-.btn-primary{
-background:linear-gradient(135deg,#c9a84c,#a8873c);
-color:#0c0c0a;
+.info-label {
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
-.btn-secondary{
-background:#fff;
-border:1px solid var(--cream3);
-color:var(--text);
+.status {
+  color: var(--warning-text);
+  font-weight: 600;
+  background: var(--warning-bg);
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid var(--warning-border);
 }
 
-.btn:hover{
-transform:translateY(-1px);
+.plan, .reason {
+  color: var(--sage);
+  font-weight: 600;
 }
 
-.help-text{
-margin-top:20px;
-font-size:14px;
-color:#777;
-line-height:1.6;
+.reason {
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
-.footer{
-margin-top:24px;
-font-size:11px;
-color:#999;
-letter-spacing:1px;
+.cta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 18px 24px;
+  border-radius: 14px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #c9a84c, #a8873c);
+  color: #0c0c0a;
+  border: 1px solid #b0913b;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.2);
+  opacity: 0.95;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--cream3);
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background: var(--cream);
+  border-color: var(--text);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.help-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  border-top: 1px solid var(--cream3);
+  padding-top: 28px;
+}
+
+.help-text a {
+  color: var(--gold-dark);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.help-text a:hover {
+  border-bottom-color: var(--gold-dark);
+}
+
+.footer {
+  margin-top: 40px;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+@media (max-width: 576px) {
+  body {
+    padding: 16px;
+  }
+  
+  .card {
+    padding: 40px 24px;
+    border-radius: 20px;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
+
+  .logo {
+    margin-bottom: 32px;
+  }
+
+  .icon-container {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 24px;
+  }
+
+  .icon {
+    font-size: 24px;
+  }
+
+  .subtitle {
+    font-size: 15px;
+    margin-bottom: 28px;
+  }
+
+  .info-box {
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+
+  .btn {
+    padding: 16px 20px;
+    font-size: 14px;
+  }
 }
 </style>
 </head>
@@ -142,50 +298,52 @@ letter-spacing:1px;
 
 <div class="card">
 
-<div class="logo">Wissely</div>
+  <a href="index.html" class="logo">Wissely</a>
 
-<div class="icon">❌</div>
+  <div class="icon-container" aria-hidden="true">
+    <div class="icon">✕</div>
+  </div>
 
-<h1>Payment Cancelled</h1>
+  <h1>Payment Cancelled</h1>
 
-<p class="subtitle">
-Your payment was not completed.<br>
-No charges were made to your account.<br>
-You can continue whenever you're ready.
-</p>
+  <p class="subtitle">
+    Your payment process was not completed. No charges have been made to your account, and your current status remains unchanged.
+  </p>
 
-<div class="info-box">
+  <div class="info-box">
+    <div class="info-row">
+      <span class="info-label">Status</span>
+      <span class="status">Cancelled</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Plan Status</span>
+      <span class="plan">Unchanged</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Reason</span>
+      <span class="reason">Payment Not Completed</span>
+    </div>
+  </div>
 
-<div class="info-row">
-<span>Status</span>
-<span class="status">Cancelled</span>
-</div>
+  <div class="cta-group">
+    <a href="pricing.html" class="btn btn-primary">
+      View Plans
+    </a>
+    <a href="index.html" class="btn btn-secondary">
+      Return to Workspace
+    </a>
+  </div>
 
-<div class="info-row">
-<span>Plan</span>
-<span class="plan">Unchanged</span>
-</div>
+  <div class="help-text">
+    Need help choosing the right tier? <br>
+    You can <a href="pricing.html">compare features and usage limits</a> at any time.
+  </div>
 
-</div>
-
-<a href="pricing.html" class="btn btn-primary">
-Return To Pricing
-</a>
-
-<a href="index.html" class="btn btn-secondary">
-Back To Dashboard
-</a>
-
-<div class="help-text">
-Need help choosing a plan?<br>
-Compare features and usage limits on the pricing page.
 </div>
 
 <div class="footer">
-WISSELY.COM · YOUR FINANCES, FINALLY CLEAR
-</div>
-
+  WISSELY.COM · YOUR FINANCES, FINALLY CLEAR
 </div>
 
 </body>
-  </html>
+</html>
