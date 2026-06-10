@@ -5,163 +5,206 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Checkout - Wissely</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-:root{
-  --ink:#0c0c0a;
-  --sage:#2d4a3e;
-  --gold:#c9a84c;
-  --gold2:#e8c97a;
-  --cream:#f8f6f0;
-  --cream3:#dedad0;
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold2: #e8c97a;
+  --gold-dark: #b0913b;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-body{
-  background:var(--cream);
-  font-family:'DM Sans',sans-serif;
-  color:#2a2a20;
-  min-height:100vh;
-  display:flex;
-  flex-direction:column;
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-nav{
-  height:70px;
-  background:var(--ink);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 40px;
+nav {
+  height: 70px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
 }
 
-.logo{
-  color:#fff;
-  text-decoration:none;
-  font-family:'Cormorant Garamond',serif;
-  font-size:28px;
-  font-weight:700;
+.logo {
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  transition: var(--transition);
 }
 
-.back-btn{
-  color:#fff;
-  text-decoration:none;
+.logo:hover {
+  opacity: 0.85;
 }
 
-main{
-  flex:1;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:40px 20px;
+.back-btn {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
 }
 
-.checkout-card{
-  width:100%;
-  max-width:650px;
-  background:#fff;
-  border:1px solid var(--cream3);
-  border-radius:22px;
-  padding:40px;
-  box-shadow:0 10px 30px rgba(0,0,0,.05);
+.back-btn:hover {
+  color: var(--gold);
 }
 
-.title{
-  font-family:'Cormorant Garamond',serif;
-  font-size:54px;
-  text-align:center;
-  margin-bottom:12px;
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 20px;
 }
 
-.subtitle{
-  text-align:center;
-  color:#777;
-  margin-bottom:30px;
+.checkout-card {
+  width: 100%;
+  max-width: 550px;
+  background: var(--cream-card);
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: var(--shadow);
 }
 
-.summary{
-  background:var(--cream);
-  border:1px solid var(--cream3);
-  border-radius:16px;
-  padding:24px;
+.title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--sage);
+  text-align: center;
+  margin-bottom: 12px;
+  line-height: 1.1;
 }
 
-.row{
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:14px;
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 32px;
+  line-height: 1.5;
 }
 
-.row:last-child{
-  margin-bottom:0;
+.summary {
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 16px;
+  padding: 24px;
 }
 
-.label{
-  color:#777;
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-size: 15px;
 }
 
-.value{
-  font-weight:600;
+.row:last-child {
+  margin-bottom: 0;
 }
 
-.total{
-  margin-top:20px;
-  padding-top:20px;
-  border-top:1px solid var(--cream3);
-  font-size:24px;
+.label {
+  color: var(--text-muted);
 }
 
-.pay-btn{
-  width:100%;
-  margin-top:30px;
-  border:none;
-  border-radius:999px;
-  padding:16px;
-  background:var(--gold);
-  color:#000;
-  font-size:16px;
-  font-weight:600;
-  cursor:pointer;
+.value {
+  font-weight: 600;
+  color: var(--text);
 }
 
-.pay-btn:hover{
-  background:var(--gold2);
+.total {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--cream3);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sage);
 }
 
-.note{
-  margin-top:16px;
-  text-align:center;
-  font-size:12px;
-  color:#888;
-  font-family:'DM Mono',monospace;
+.pay-btn {
+  width: 100%;
+  margin-top: 32px;
+  border: 1px solid var(--gold-dark);
+  border-radius: 14px;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--gold), #a8873c);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  box-sizing: border-box;
 }
 
-footer{
-  text-align:center;
-  padding:30px;
-  font-size:12px;
-  color:#888;
-  font-family:'DM Mono',monospace;
+.pay-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
+  opacity: 0.95;
+}
+
+.note {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  border-top: 1px solid var(--cream3);
+  background: var(--cream-card);
+  font-weight: 500;
 }
 
 @media(max-width:768px){
-
-  nav{
-    padding:0 20px;
+  nav {
+    padding: 0 20px;
   }
 
-  .title{
-    font-size:42px;
+  .title {
+    font-size: 38px;
   }
 
-  .checkout-card{
-    padding:24px;
+  .checkout-card {
+    padding: 32px 20px;
+    border-radius: 20px;
   }
 }
 </style>
@@ -170,7 +213,7 @@ footer{
 
 <nav>
   <a href="index.html" class="logo">Wissely</a>
-  <a href="pricing.html" class="back-btn">← Back</a>
+  <a href="upgrade.html" class="back-btn">← Back</a>
 </nav>
 
 <main>
@@ -258,4 +301,4 @@ document.getElementById("payBtn").addEventListener("click",()=>{
 </script>
 
 </body>
-    </html>
+</html>
