@@ -165,6 +165,73 @@ export default {
         }, 200, { 'Set-Cookie': cookieStr });
       }
 
+      if (path === '/forgot-password' && request.method === 'POST') {
+        const { email } = await request.json();
+        if (!email) return createResponse(request, { error: 'Email required' }, 400);
+
+        const user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+        
+        // Prevent email enumeration: return standard success payload even if user does not exist
+        if (user) {
+          const token = crypto.randomUUID() + '-' + crypto.randomUUID();
+          const expiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(); // 1 hour expiry
+          const createdAt = new Date().toISOString();
+
+          // Delete any previously outstanding tokens for this specific user
+          await env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(user.id).run();
+
+          // Save the fresh verification state token parameters
+          await env.DB.prepare(
+            "INSERT INTO password_resets (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)"
+          ).bind(token, user.id, expiresAt, createdAt).run();
+
+          console.log(`[PASSWORD RESET SYSTEM] Reset token generated for ${email}: ${token}`);
+        }
+
+        return createResponse(request, { 
+          success: true, 
+          message: 'If the provided account exists, a secure verification link has been successfully issued.' 
+        }, 200);
+      }
+
+      if (path === '/reset-password' && request.method === 'POST') {
+        const { token, password } = await request.json();
+        if (!token || !password) return createResponse(request, { error: 'Token and password parameters are required' }, 400);
+
+        // Enforce password length constraints
+        if (password.length < 8) {
+          return createResponse(request, { error: 'Password must be at least 8 characters long' }, 400);
+        }
+
+        const resetRecord = await env.DB.prepare(
+          "SELECT token, user_id, expires_at FROM password_resets WHERE token = ?"
+        ).bind(token).first();
+
+        if (!resetRecord) {
+          return createResponse(request, { error: 'Invalid or spent password modification voucher key' }, 400);
+        }
+
+        if (new Date().getTime() > new Date(resetRecord.expires_at).getTime()) {
+          await env.DB.prepare("DELETE FROM password_resets WHERE token = ?").bind(token).run();
+          return createResponse(request, { error: 'Action required: Verification context expired. Reissuance needed' }, 400);
+        }
+
+        // Hash using the current production-validated hash function
+        const { hash, salt } = await hashPassword(password);
+
+        // Transactionally execute structural adjustments across tables
+        await env.DB.batch([
+          env.DB.prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?").bind(hash, salt, resetRecord.user_id),
+          env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(resetRecord.user_id),
+          env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(resetRecord.user_id)
+        ]);
+
+        return createResponse(request, { 
+          success: true, 
+          message: 'Workspace configurations updated. Account authentication profiles adjusted successfully' 
+        }, 200);
+      }
+
       if (path === '/me' && request.method === 'GET') {
         const session = await authenticateSession(request, env);
         if (!session) return createResponse(request, { error: 'Unauthenticated' }, 401);
@@ -210,7 +277,6 @@ export default {
           console.log("[Analyze] Initializing Anthropic system outbound dispatch.");
           console.log(`[Analyze] Integration Check -> ANTHROPIC_API_KEY Present: ${!!env.ANTHROPIC_API_KEY}`);
 
-          // Updated target string using current production-validated, dateless naming architecture
           const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
