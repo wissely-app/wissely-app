@@ -186,6 +186,34 @@ export default {
           ).bind(token, user.id, expiresAt, createdAt).run();
 
           console.log(`[PASSWORD RESET SYSTEM] Reset token generated for ${email}: ${token}`);
+
+          // Send notification email with Resend API Integration
+          try {
+            const resetLink = `https://app.wissely.com/reset-password.html?token=${token}`;
+            const emailBody = `Hello,\n\nWe received a request to reset your Wissely password.\n\nClick the link below to create a new password:\n\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you did not request a password reset, you can safely ignore this email.\n\n— Wissely Team`;
+
+            const resendRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                from: 'Wissely <noreply@wissely.com>',
+                to: [email],
+                subject: 'Reset your Wissely password',
+                text: emailBody
+              })
+            });
+
+            if (!resendRes.ok) {
+              const errorText = await resendRes.text();
+              console.error(`[PASSWORD RESET SYSTEM] Resend upstream error: ${resendRes.status} - ${errorText}`);
+            }
+          } catch (emailError) {
+            // Log core error variables inside worker runtime sandbox contexts cleanly
+            console.error('[PASSWORD RESET SYSTEM] Runtime exception during Resend dispatch:', emailError);
+          }
         }
 
         return createResponse(request, { 
