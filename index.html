@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Wissely — Your Finances, Finally Clear</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--ink:#0c0c0a;--sage:#2d4a3e;--sage2:#3d6b58;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#f5e0a0;--cream:#f8f6f0;--cream2:#ede9df;--cream3:#dedad0;--text:#2a2a20;--muted:#7a7a66}
@@ -128,6 +130,42 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
 .input-footer{padding:10px 20px;border-top:1px solid var(--cream3);display:flex;justify-content:space-between;align-items:center;background:#fff}
 .char-count{font-size:11px;color:#aaa;font-family:'DM Mono',monospace}
 .error-text{font-size:12px;color:#f87171;font-family:'DM Mono',monospace}
+
+.input-method-row{display:flex;gap:8px;padding:14px 18px;background:#fff;border-bottom:1px solid var(--cream3)}
+.method-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--cream);border:1px solid var(--cream3);border-radius:10px;padding:10px 8px;cursor:pointer;transition:all 0.15s;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--muted)}
+.method-btn:hover{background:var(--cream2);border-color:var(--sage)}
+.method-btn.active{background:var(--sage);border-color:var(--sage);color:var(--gold3);box-shadow:0 2px 10px rgba(45,74,62,0.25)}
+.method-icon{font-size:14px;line-height:1}
+
+.upload-zone{background:#fff;padding:18px 20px;min-height:190px;display:flex;align-items:center;justify-content:center}
+.upload-card{width:100%;border:1.5px dashed var(--cream3);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.18s;background:var(--cream)}
+.upload-card:hover{border-color:var(--sage);background:rgba(45,74,62,0.04)}
+.upload-card.has-file{border-style:solid;border-color:var(--sage);background:rgba(45,74,62,0.04)}
+.upload-card-icon{font-size:30px;margin-bottom:10px;display:block}
+.upload-card-title{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:4px}
+.upload-card-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace}
+.upload-filename{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--sage);border-radius:8px;padding:7px 14px;font-size:12px;color:var(--sage2);font-family:'DM Mono',monospace;max-width:100%}
+.upload-filename span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.camera-card{width:100%;text-align:center}
+.camera-trigger-btn{background:linear-gradient(135deg,#2d4a3e,#1a3027);color:var(--gold3);border:none;border-radius:12px;padding:16px 24px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:all 0.18s;box-shadow:0 4px 16px rgba(45,74,62,0.25)}
+.camera-trigger-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(45,74,62,0.32)}
+.camera-card-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:12px}
+
+.extract-overlay{display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:36px 24px;background:#fff}
+.extract-spinner{width:34px;height:34px;border:3px solid var(--cream3);border-top-color:var(--sage);border-radius:50%;animation:spin 0.8s linear infinite}
+.extract-label{font-size:13.5px;font-weight:600;color:var(--text)}
+.extract-progress-track{width:200px;height:6px;background:var(--cream2);border-radius:3px;overflow:hidden}
+.extract-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--sage),var(--sage2));transition:width 0.25s ease}
+.extract-percent{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.5px}
+.extract-error{font-size:12px;color:#f87171;font-family:'DM Mono',monospace;text-align:center;max-width:320px}
+
+@media(max-width:700px){
+  .input-method-row{flex-direction:row;padding:10px 12px;gap:6px}
+  .method-btn{flex-direction:column;padding:9px 4px;gap:4px;font-size:9.5px;line-height:1.2}
+  .method-icon{font-size:16px}
+  .upload-card{padding:24px 14px}
+}
 
 .generate-btn{width:100%;border:none;border-radius:0 0 14px 14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:0.3px;background:linear-gradient(135deg,#c9a84c,#a8873c);color:#0c0c0a;box-shadow:0 4px 24px rgba(201,168,76,0.3)}
 .generate-btn:hover{background:linear-gradient(135deg,#e8c97a,#c9a84c);transform:translateY(-1px);box-shadow:0 8px 32px rgba(201,168,76,0.4)}
@@ -371,7 +409,55 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
           </div>
           <button class="clear-btn" id="clearBtn">Clear</button>
         </div>
-        <div class="textarea-wrap">
+
+        <div class="input-method-row">
+          <button class="method-btn" id="methodUploadBtn" type="button">
+            <span class="method-icon">📄</span><span>Upload PDF/Image</span>
+          </button>
+          <button class="method-btn" id="methodCameraBtn" type="button">
+            <span class="method-icon">📷</span><span>Camera Scan</span>
+          </button>
+          <button class="method-btn active" id="methodPasteBtn" type="button">
+            <span class="method-icon">📋</span><span>Paste Text</span>
+          </button>
+        </div>
+
+        <div class="upload-zone" id="uploadZone" style="display:none">
+          <div class="upload-card" id="uploadCard">
+            <span class="upload-card-icon">📄</span>
+            <div class="upload-card-title">Click to choose a file</div>
+            <div class="upload-card-sub">PDF, JPG, JPEG or PNG</div>
+            <div class="upload-filename" id="uploadFilenameWrap" style="display:none">
+              <span>📎</span><span id="uploadFilenameText"></span>
+            </div>
+          </div>
+          <input type="file" id="fileInputUpload" accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf" style="display:none"/>
+        </div>
+
+        <div class="upload-zone" id="cameraZone" style="display:none">
+          <div class="camera-card">
+            <button class="camera-trigger-btn" id="cameraTriggerBtn" type="button">
+              <span>📷</span><span>Open Camera</span>
+            </button>
+            <div class="camera-card-sub">Takes a photo using your device camera</div>
+            <div class="upload-filename" id="cameraFilenameWrap" style="display:none">
+              <span>📎</span><span id="cameraFilenameText"></span>
+            </div>
+          </div>
+          <input type="file" id="fileInputCamera" accept="image/*" capture="environment" style="display:none"/>
+        </div>
+
+        <div class="extract-overlay" id="extractOverlay">
+          <div class="extract-spinner"></div>
+          <div class="extract-label" id="extractLabel">Extracting document...</div>
+          <div class="extract-progress-track">
+            <div class="extract-progress-fill" id="extractProgressFill"></div>
+          </div>
+          <div class="extract-percent" id="extractPercent">0%</div>
+          <div class="extract-error" id="extractError" style="display:none"></div>
+        </div>
+
+        <div class="textarea-wrap" id="textareaWrap">
           <textarea id="inputText" maxlength="100000"
             placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
           <div class="input-footer">
@@ -1187,7 +1273,213 @@ window.addEventListener('focus', () => {
   }
 });
 
+let currentInputMethod = 'paste';
+
+function selectInputMethod(method) {
+  if (isProcessing || isExtracting) return;
+  currentInputMethod = method;
+
+  document.getElementById('methodPasteBtn').classList.toggle('active', method === 'paste');
+  document.getElementById('methodUploadBtn').classList.toggle('active', method === 'upload');
+  document.getElementById('methodCameraBtn').classList.toggle('active', method === 'camera');
+
+  document.getElementById('textareaWrap').style.display = (method === 'paste') ? 'block' : 'none';
+  document.getElementById('uploadZone').style.display = (method === 'upload') ? 'flex' : 'none';
+  document.getElementById('cameraZone').style.display = (method === 'camera') ? 'flex' : 'none';
+}
+
+function handleFileSelected(file, filenameTextEl, filenameWrapEl, cardEl) {
+  if (!file) return;
+  filenameTextEl.textContent = file.name;
+  filenameWrapEl.style.display = 'inline-flex';
+  if (cardEl) cardEl.classList.add('has-file');
+}
+
+let isExtracting = false;
+
+function setExtractButtonState(disabled) {
+  const btn = document.getElementById('generateBtn');
+  if (!btn) return;
+  btn.disabled = disabled;
+  if (disabled) {
+    btn.dataset.prevLabel = btn.textContent;
+  } else if (!isQuotaExhausted) {
+    btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+  }
+}
+
+function showExtractOverlay() {
+  const overlay = document.getElementById('extractOverlay');
+  const errEl = document.getElementById('extractError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  updateExtractProgress(0, 'Extracting document...');
+  if (overlay) overlay.style.display = 'flex';
+  document.getElementById('textareaWrap').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('cameraZone').style.display = 'none';
+}
+
+function hideExtractOverlay() {
+  const overlay = document.getElementById('extractOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function updateExtractProgress(percent, label) {
+  const fill = document.getElementById('extractProgressFill');
+  const pct = document.getElementById('extractPercent');
+  const lbl = document.getElementById('extractLabel');
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  if (fill) fill.style.width = clamped + '%';
+  if (pct) pct.textContent = clamped + '%';
+  if (lbl && label) lbl.textContent = label;
+}
+
+function showExtractError(message) {
+  const errEl = document.getElementById('extractError');
+  if (errEl) {
+    errEl.textContent = message;
+    errEl.style.display = 'block';
+  }
+  showToast(message, 'error');
+}
+
+function finishExtraction(extractedText) {
+  isExtracting = false;
+  hideExtractOverlay();
+  setExtractButtonState(false);
+
+  const cleaned = (extractedText || '').trim();
+  document.getElementById('inputText').value = cleaned;
+  updateChar();
+
+  selectInputMethod('paste');
+
+  if (!cleaned) {
+    document.getElementById('errorText').textContent = 'No readable text was found in that file. You can type or paste it manually.';
+  } else {
+    document.getElementById('errorText').textContent = '';
+    showToast('Document text extracted. Review and edit before analyzing.', 'success');
+  }
+}
+
+async function extractTextFromPDF(file) {
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('PDF engine failed to load. Check your connection and try again.');
+  }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  updateExtractProgress(5, 'Reading PDF...');
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdf = await loadingTask.promise;
+
+  let fullText = '';
+  const numPages = pdf.numPages || 1;
+
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n\n';
+
+    const pct = 5 + Math.round((pageNum / numPages) * 90);
+    updateExtractProgress(pct, `Extracting page ${pageNum} of ${numPages}...`);
+  }
+
+  updateExtractProgress(100, 'Extraction complete');
+  return fullText;
+}
+
+async function extractTextFromImage(file) {
+  if (typeof Tesseract === 'undefined') {
+    throw new Error('OCR engine failed to load. Check your connection and try again.');
+  }
+
+  updateExtractProgress(2, 'Preparing image...');
+
+  const result = await Tesseract.recognize(file, 'eng', {
+    logger: (m) => {
+      if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+        const pct = Math.round(m.progress * 100);
+        updateExtractProgress(pct, 'Running OCR...');
+      } else if (m.status) {
+        const label = m.status.charAt(0).toUpperCase() + m.status.slice(1);
+        updateExtractProgress(0, label + '...');
+      }
+    }
+  });
+
+  updateExtractProgress(100, 'Extraction complete');
+  return (result && result.data && result.data.text) ? result.data.text : '';
+}
+
+async function runExtraction(file, kind) {
+  if (!file || isExtracting || isProcessing) return;
+  isExtracting = true;
+  setExtractButtonState(true);
+  showExtractOverlay();
+
+  try {
+    let text = '';
+    if (kind === 'pdf') {
+      text = await extractTextFromPDF(file);
+    } else {
+      text = await extractTextFromImage(file);
+    }
+    finishExtraction(text);
+  } catch (err) {
+    isExtracting = false;
+    hideExtractOverlay();
+    setExtractButtonState(false);
+    showExtractError(err && err.message ? err.message : 'Could not extract text from that file. Please try again or paste the text manually.');
+    selectInputMethod(kind === 'pdf' ? 'upload' : (kind === 'camera' ? 'camera' : 'upload'));
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+  const methodPasteBtn = document.getElementById('methodPasteBtn');
+  const methodUploadBtn = document.getElementById('methodUploadBtn');
+  const methodCameraBtn = document.getElementById('methodCameraBtn');
+  if (methodPasteBtn) methodPasteBtn.addEventListener('click', () => selectInputMethod('paste'));
+  if (methodUploadBtn) methodUploadBtn.addEventListener('click', () => selectInputMethod('upload'));
+  if (methodCameraBtn) methodCameraBtn.addEventListener('click', () => selectInputMethod('camera'));
+
+  const uploadCard = document.getElementById('uploadCard');
+  const fileInputUpload = document.getElementById('fileInputUpload');
+  if (uploadCard && fileInputUpload) {
+    uploadCard.addEventListener('click', () => fileInputUpload.click());
+    fileInputUpload.addEventListener('change', () => {
+      const file = fileInputUpload.files && fileInputUpload.files[0];
+      if (!file) return;
+      handleFileSelected(file, document.getElementById('uploadFilenameText'), document.getElementById('uploadFilenameWrap'), uploadCard);
+
+      const isPDF = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      const isImage = /^image\//.test(file.type) || /\.(jpe?g|png)$/i.test(file.name);
+
+      if (isPDF) {
+        runExtraction(file, 'pdf');
+      } else if (isImage) {
+        runExtraction(file, 'image');
+      } else {
+        showExtractError('Unsupported file type. Please upload a PDF, JPG, JPEG or PNG.');
+      }
+      fileInputUpload.value = '';
+    });
+  }
+
+  const cameraTriggerBtn = document.getElementById('cameraTriggerBtn');
+  const fileInputCamera = document.getElementById('fileInputCamera');
+  if (cameraTriggerBtn && fileInputCamera) {
+    cameraTriggerBtn.addEventListener('click', () => fileInputCamera.click());
+    fileInputCamera.addEventListener('change', () => {
+      const file = fileInputCamera.files && fileInputCamera.files[0];
+      if (!file) return;
+      handleFileSelected(file, document.getElementById('cameraFilenameText'), document.getElementById('cameraFilenameWrap'), null);
+      runExtraction(file, 'camera');
+      fileInputCamera.value = '';
+    });
+  }
+
   toolButtonsCollection = document.getElementsByClassName('tool-btn');
   for (let idx = 0; idx < toolButtonsCollection.length; idx++) {
     toolButtonsCollection[idx].addEventListener('click', () => selectTool(idx));
