@@ -564,21 +564,37 @@ async function checkAuthSession() {
   const shield = document.getElementById('auth-gate-shield');
   try {
     const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    if (res.status === 401 || res.status === 403 || !res.ok) {
+    
+    if (res.status === 401) {
       window.location.href = 'auth.html';
       return;
     }
-    const data = await res.json();
-    if (data && data.authenticated && data.user) {
-      updateQuotaUI(data.user);
-      initLocalStorageHistory();
-      if (shield) { 
-        shield.style.opacity = '0'; 
-        setTimeout(() => shield.remove(), 250); 
+
+    if (res.status === 200 || res.status === 403) {
+      const data = await res.json();
+      
+      if (res.status === 403 && data && data.authenticated && data.trialExpired && data.user) {
+        updateQuotaUI(data.user);
+        initLocalStorageHistory();
+        if (shield) { 
+          shield.style.opacity = '0'; 
+          setTimeout(() => shield.remove(), 250); 
+        }
+        return;
       }
-    } else { 
-      window.location.href = 'auth.html'; 
+      
+      if (res.status === 200 && data && data.authenticated && data.user) {
+        updateQuotaUI(data.user);
+        initLocalStorageHistory();
+        if (shield) { 
+          shield.style.opacity = '0'; 
+          setTimeout(() => shield.remove(), 250); 
+        }
+        return;
+      }
     }
+    
+    window.location.href = 'auth.html';
   } catch (err) { 
     window.location.href = 'auth.html';
   }
