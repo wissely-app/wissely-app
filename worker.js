@@ -1,7 +1,7 @@
 /**
  * Wissely Core API Worker - Production Ready Delivery Module
  * Features: PBKDF2 Hashing, Secure HttpOnly Sessions, Subscription Limits,
- *           CORS Verification, and Hardened Security Response Headers
+ * CORS Verification, and Hardened Security Response Headers
  */
 
 // Explicit allowed origin whitelist for secure CORS isolation
@@ -343,13 +343,10 @@ export default {
   <title>Reset your Wissely password</title>
 </head>
 <body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
-
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-
-          <!-- HEADER / LOGO -->
           <tr>
             <td style="padding-bottom:28px;" align="center">
               <table cellpadding="0" cellspacing="0">
@@ -364,37 +361,23 @@ export default {
               </table>
             </td>
           </tr>
-
-          <!-- MAIN CARD -->
           <tr>
             <td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
-
-              <!-- Gold top accent bar -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td>
                 </tr>
               </table>
-
-              <!-- Body content -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="padding:40px 40px 36px;">
-
-                    <!-- Eyebrow label -->
                     <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Password Reset</p>
-
-                    <!-- Headline -->
                     <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:32px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.1;">
                       Reset your<br/><em style="font-style:italic;color:#e8c97a;">password.</em>
                     </h1>
-
-                    <!-- Body copy -->
                     <p style="margin:0 0 32px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;">
                       We received a request to reset the password for your Wissely account. Click the button below to choose a new one.
                     </p>
-
-                    <!-- CTA Button -->
                     <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
                       <tr>
                         <td style="background-color:#c9a84c;border-radius:100px;">
@@ -405,8 +388,6 @@ export default {
                         </td>
                       </tr>
                     </table>
-
-                    <!-- Expiry notice -->
                     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
                       <tr>
                         <td style="background-color:rgba(45,74,62,0.25);border:1px solid rgba(45,74,62,0.45);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;">
@@ -417,18 +398,13 @@ export default {
                         </td>
                       </tr>
                     </table>
-
-                    <!-- Fallback link -->
                     <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;">
                       Button not working? Copy and paste this link:<br/>
                       <a href="${resetLink}" style="color:#c9a84c;text-decoration:none;word-break:break-all;">${resetLink}</a>
                     </p>
-
                   </td>
                 </tr>
               </table>
-
-              <!-- Support section -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="border-top:1px solid rgba(255,255,255,0.05);padding:24px 40px;">
@@ -439,8 +415,6 @@ export default {
                   </td>
                 </tr>
               </table>
-
-              <!-- Footer strip -->
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
@@ -451,15 +425,12 @@ export default {
                   </td>
                 </tr>
               </table>
-
             </td>
           </tr>
-
         </table>
       </td>
     </tr>
   </table>
-
 </body>
 </html>`;
 
@@ -564,11 +535,32 @@ export default {
       if (path === '/me' && request.method === 'GET') {
         const session = await authenticateSession(request, env);
         if (!session) return createResponse(request, { error: 'Unauthenticated' }, 401);
-        if (session.isExpiredTrial) return createResponse(request, { error: 'Trial expired', user: session }, 403);
+        
+        if (session.isExpiredTrial) {
+          return createResponse(request, {
+            authenticated: true,
+            trialExpired: true,
+            user: {
+              id: session.user_id,
+              email: session.email,
+              plan: session.plan,
+              analyses_used: session.analyses_used,
+              analyses_limit: session.analyses_limit,
+              trial_end: session.trial_end
+            }
+          }, 403);
+        }
 
         return createResponse(request, {
           authenticated: true,
-          user: { id: session.user_id, email: session.email, plan: session.plan, analyses_used: session.analyses_used, analyses_limit: session.analyses_limit }
+          user: { 
+            id: session.user_id, 
+            email: session.email, 
+            plan: session.plan, 
+            analyses_used: session.analyses_used, 
+            analyses_limit: session.analyses_limit,
+            trial_end: session.trial_end
+          }
         });
       }
 
@@ -630,7 +622,23 @@ export default {
           }
 
           if (anthropicRes.ok) {
-            return createResponse(request, { success: true, data });
+            const updatedUser = await env.DB.prepare(`
+              SELECT
+                id,
+                email,
+                plan,
+                analyses_used,
+                analyses_limit,
+                trial_end
+              FROM users
+              WHERE id = ?
+            `).bind(session.user_id).first();
+
+            return createResponse(request, {
+              success: true,
+              data,
+              user: updatedUser
+            });
           } else {
             await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
             return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
