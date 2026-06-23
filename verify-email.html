@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Verify Email — Wissely</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:       #0c0c0a;
+      --bg-card:       #1a1a14;
+      --bg-card-inner: #1f1f18;
+      --gold-primary:  #c9a84c;
+      --gold-light:    #e8c97a;
+      --gold-dim:      rgba(201,168,76,0.15);
+      --green-deep:    #2d4a3e;
+      --green-dim:     rgba(45,74,62,0.25);
+      --green-border:  rgba(45,74,62,0.45);
+      --white-full:    #fefefc;
+      --white-60:      rgba(255,255,255,0.60);
+      --white-35:      rgba(255,255,255,0.35);
+      --white-12:      rgba(255,255,255,0.12);
+      --white-07:      rgba(255,255,255,0.07);
+      --white-05:      rgba(255,255,255,0.05);
+      --border-card:   rgba(255,255,255,0.07);
+      --red-dim:       rgba(220,60,60,0.18);
+      --red-border:    rgba(220,60,60,0.35);
+      --red-text:      #f87171;
+      --font-serif:    Georgia, 'Times New Roman', serif;
+      --font-sans:     'Segoe UI', Arial, sans-serif;
+      --font-mono:     'Courier New', Courier, monospace;
+      --radius-card:   20px;
+      --radius-btn:    100px;
+    }
+
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--white-full);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px 64px;
+    }
+
+    /* ── Animated background grain ─────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(45,74,62,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(201,168,76,0.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout wrapper ─────────────────────────────────────────────────────── */
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    /* ── Logo ───────────────────────────────────────────────────────────────── */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      background-color: var(--green-deep);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 1px rgba(201,168,76,0.2);
+    }
+
+    .logo-mark span {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gold-light);
+      line-height: 1;
+    }
+
+    .logo-name {
+      font-family: var(--font-serif);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--white-full);
+      letter-spacing: -0.5px;
+    }
+
+    /* ── Card ───────────────────────────────────────────────────────────────── */
+    .card {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.55),
+        0 1px 0 rgba(255,255,255,0.04) inset;
+      animation: cardIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Gold accent bar at top of card */
+    .card-accent {
+      height: 3px;
+      background: linear-gradient(90deg, var(--green-deep), var(--gold-primary), var(--green-deep));
+    }
+
+    .card-body {
+      padding: 44px 40px 40px;
+    }
+
+    /* ── Eyebrow label ──────────────────────────────────────────────────────── */
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--gold-primary);
+      margin-bottom: 16px;
+    }
+
+    /* ── Heading ────────────────────────────────────────────────────────────── */
+    .card-heading {
+      font-family: var(--font-serif);
+      font-size: 30px;
+      font-weight: 600;
+      color: var(--white-full);
+      letter-spacing: -0.8px;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+
+    .card-heading em {
+      font-style: italic;
+      color: var(--gold-light);
+    }
+
+    /* ── Body copy ──────────────────────────────────────────────────────────── */
+    .card-copy {
+      font-size: 14px;
+      color: var(--white-60);
+      line-height: 1.85;
+      margin-bottom: 32px;
+    }
+
+    /* ── State panels ───────────────────────────────────────────────────────── */
+    .state { display: none; }
+    .state.active { display: block; }
+
+    /* ── Loading spinner ────────────────────────────────────────────────────── */
+    .spinner-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+      padding: 12px 0 8px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2.5px solid var(--white-07);
+      border-top-color: var(--gold-primary);
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--white-35);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50%       { opacity: 1; }
+    }
+
+    /* ── Icon circle ────────────────────────────────────────────────────────── */
+    .icon-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      flex-shrink: 0;
+    }
+
+    .icon-circle.success {
+      background: var(--green-dim);
+      border: 1px solid var(--green-border);
+      box-shadow: 0 0 32px rgba(45,74,62,0.35);
+    }
+
+    .icon-circle.error {
+      background: var(--red-dim);
+      border: 1px solid var(--red-border);
+    }
+
+    .icon-circle svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    /* ── Notice box (expiry/info) ───────────────────────────────────────────── */
+    .notice {
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 28px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.65;
+      color: var(--white-60);
+    }
+
+    .notice.success {
+      background: var(--green-dim);
+      border: 1px solid var(--green-border);
+      border-left: 3px solid var(--gold-primary);
+    }
+
+    .notice.error {
+      background: var(--red-dim);
+      border: 1px solid var(--red-border);
+      border-left: 3px solid var(--red-text);
+    }
+
+    .notice-dot {
+      font-weight: 700;
+      margin-right: 4px;
+    }
+
+    .notice.success .notice-dot { color: var(--gold-light); }
+    .notice.error   .notice-dot { color: var(--red-text); }
+
+    /* ── Redirect countdown ─────────────────────────────────────────────────── */
+    .countdown-text {
+      font-size: 12px;
+      color: var(--white-35);
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+      margin-bottom: 28px;
+    }
+
+    .countdown-text strong {
+      color: var(--gold-primary);
+    }
+
+    /* ── Progress bar ───────────────────────────────────────────────────────── */
+    .progress-track {
+      height: 2px;
+      background: var(--white-07);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green-deep), var(--gold-primary));
+      border-radius: 99px;
+      width: 100%;
+      transform-origin: left;
+      animation: drain 3s linear forwards;
+    }
+
+    @keyframes drain {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 32px;
+      border-radius: var(--radius-btn);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: opacity 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+      user-select: none;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--gold-primary);
+      color: var(--bg-base);
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(201,168,76,0.25);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 6px 28px rgba(201,168,76,0.35);
+    }
+
+    .btn-ghost {
+      background: var(--white-07);
+      color: var(--white-60);
+      width: 100%;
+      border: 1px solid var(--white-12);
+    }
+
+    .btn-ghost:hover {
+      background: var(--white-12);
+      color: var(--white-full);
+    }
+
+    /* ── Card footer (support strip) ────────────────────────────────────────── */
+    .card-footer {
+      border-top: 1px solid var(--white-05);
+      padding: 22px 40px;
+    }
+
+    .card-footer-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--gold-primary);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card-footer p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.7;
+    }
+
+    .card-footer a {
+      color: var(--gold-primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .card-footer a:hover { text-decoration: underline; }
+
+    /* ── Page footer ────────────────────────────────────────────────────────── */
+    .page-footer {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      line-height: 1.7;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────────────── */
+    @media (max-width: 520px) {
+      .card-body  { padding: 36px 24px 32px; }
+      .card-footer { padding: 20px 24px; }
+      .card-heading { font-size: 26px; }
+    }
+
+    @media (max-width: 360px) {
+      .card-body  { padding: 28px 18px 26px; }
+      .card-footer { padding: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-wrap">
+
+    <!-- Logo -->
+    <a href="auth.html" class="logo" aria-label="Wissely home">
+      <div class="logo-mark"><span>W</span></div>
+      <span class="logo-name">Wissely</span>
+    </a>
+
+    <!-- Card -->
+    <div class="card" role="main">
+      <div class="card-accent"></div>
+
+      <div class="card-body">
+
+        <!-- ── LOADING STATE ─────────────────────────────────────────────── -->
+        <div class="state active" id="state-loading" aria-live="polite" aria-label="Verifying your email">
+          <p class="eyebrow">Email Verification</p>
+          <h1 class="card-heading">Verifying your<br /><em>email address.</em></h1>
+          <p class="card-copy">Please wait while we confirm your verification link. This takes just a moment.</p>
+          <div class="spinner-wrap">
+            <div class="spinner" role="status"></div>
+            <span class="spinner-label">Verifying&nbsp;&nbsp;&#8230;</span>
+          </div>
+        </div>
+
+        <!-- ── SUCCESS STATE ─────────────────────────────────────────────── -->
+        <div class="state" id="state-success" aria-live="polite">
+          <p class="eyebrow">Email Verified</p>
+          <div class="icon-circle success" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#e8c97a" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <h1 class="card-heading">You're all<br /><em>verified.</em></h1>
+          <p class="card-copy">
+            Your email address has been confirmed and your Wissely account is now active.
+            You can sign in and start using your financial intelligence tools right away.
+          </p>
+          <div class="notice success">
+            <span class="notice-dot">&#9679;</span>ACCOUNT ACTIVE<br />
+            Redirecting you to the login page automatically.
+          </div>
+          <p class="countdown-text">Redirecting in <strong id="countdown">3</strong> seconds&hellip;</p>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <a href="auth.html" class="btn btn-primary" id="btn-login">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            Go to Login
+          </a>
+        </div>
+
+        <!-- ── ERROR STATE ───────────────────────────────────────────────── -->
+        <div class="state" id="state-error" aria-live="polite">
+          <p class="eyebrow">Verification Failed</p>
+          <div class="icon-circle error" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h1 class="card-heading">Link invalid<br />or <em>expired.</em></h1>
+          <p class="card-copy" id="error-message">
+            This verification link is no longer valid. Links expire after 24&nbsp;hours and
+            can only be used once. Please register again or contact support if the problem persists.
+          </p>
+          <div class="notice error">
+            <span class="notice-dot">&#9679;</span>LINK EXPIRED OR ALREADY USED<br />
+            Request a new verification link by registering with the same email address.
+          </div>
+          <a href="auth.html" class="btn btn-primary" style="margin-bottom:12px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            Go to Login
+          </a>
+          <!-- TODO: connect href to /resend-verification endpoint when implemented -->
+          <a href="auth.html" class="btn btn-ghost" title="Return to login to request a new verification email">
+            Request New Verification Email
+          </a>
+        </div>
+
+        <!-- ── NO TOKEN STATE ────────────────────────────────────────────── -->
+        <div class="state" id="state-notoken" aria-live="polite">
+          <p class="eyebrow">Invalid Link</p>
+          <div class="icon-circle error" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </div>
+          <h1 class="card-heading">Nothing to<br /><em>verify.</em></h1>
+          <p class="card-copy">
+            No verification token was found in this link. Please use the exact link
+            sent to your email address, or return to the login page.
+          </p>
+          <a href="auth.html" class="btn btn-primary">
+            Return to Login
+          </a>
+        </div>
+
+      </div><!-- /.card-body -->
+
+      <!-- Card footer -->
+      <div class="card-footer">
+        <p class="card-footer-label">Need help?</p>
+        <p>
+          Contact us at&nbsp;<a href="mailto:support@wissely.com">support@wissely.com</a>
+        </p>
+      </div>
+    </div><!-- /.card -->
+
+    <!-- Page footer -->
+    <p class="page-footer">
+      &copy; <span id="footer-year"></span> Wissely. All rights reserved.<br />
+      Secure financial intelligence platform.
+    </p>
+
+  </div><!-- /.page-wrap -->
+
+  <script>
+    'use strict';
+
+    // ── Config ──────────────────────────────────────────────────────────────
+    const API_BASE        = ''; // Same-origin — works on production domain and Worker without modification
+    const REDIRECT_URL    = 'auth.html';
+    const REDIRECT_DELAY  = 3000; // ms
+
+    // ── Utilities ───────────────────────────────────────────────────────────
+    document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+    function showState(id) {
+      document.querySelectorAll('.state').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(id);
+      if (target) target.classList.add('active');
+    }
+
+    // ── Read token from URL ──────────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get('token');
+
+    if (!token || token.trim() === '') {
+      showState('state-notoken');
+    } else {
+      verify(token.trim());
+    }
+
+    // ── Verification request ─────────────────────────────────────────────────
+    async function verify(token) {
+      showState('state-loading');
+
+      try {
+        const res = await fetch(`${API_BASE}/verify-email`, {
+          method:      'POST',
+          credentials: 'include',
+          headers:     { 'Content-Type': 'application/json' },
+          body:        JSON.stringify({ token })
+        });
+
+        let data = {};
+        try { data = await res.json(); } catch { /* non-JSON body — treat as error */ }
+
+        if (res.ok && data.success) {
+          onSuccess();
+        } else {
+          const msg = data.error || 'This verification link is invalid or has expired.';
+          onError(msg);
+        }
+
+      } catch (networkErr) {
+        onError('Unable to reach the verification service. Please check your connection and try again.');
+      }
+    }
+
+    // ── Success handler ──────────────────────────────────────────────────────
+    function onSuccess() {
+      showState('state-success');
+
+      // Countdown text
+      let remaining = Math.round(REDIRECT_DELAY / 1000);
+      const countEl = document.getElementById('countdown');
+
+      const tick = setInterval(() => {
+        remaining -= 1;
+        if (countEl) countEl.textContent = remaining;
+        if (remaining <= 0) clearInterval(tick);
+      }, 1000);
+
+      // Redirect
+      setTimeout(() => {
+        window.location.href = REDIRECT_URL;
+      }, REDIRECT_DELAY);
+    }
+
+    // ── Error handler ────────────────────────────────────────────────────────
+    function onError(message) {
+      const msgEl = document.getElementById('error-message');
+      if (msgEl) msgEl.textContent = message;
+      showState('state-error');
+    }
+  </script>
+</body>
+</html>
