@@ -2,7 +2,35 @@ name = "wissely-worker"
 main = "worker.js"
 compatibility_date = "2026-06-02"
 
+# ── Cron Triggers ─────────────────────────────────────────────────────────────
+# Fires at 00:00 UTC on the 1st of every month.
+[triggers]
+crons = ["0 0 1 * *"]
+
+# ── D1 Database ───────────────────────────────────────────────────────────────
 [[d1_databases]]
 binding = "DB"
 database_name = "wissely-db"
 database_id = "b2ffe2c9-0ddf-4053-88fa-8377d837e962"
+
+# ── KV Namespace — Rate Limiting ──────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "3b8bd68d09a64a9baaf52b64c76c9318"
+
+# ── Application Variables ─────────────────────────────────────────────────────
+[vars]
+APP_URL = "https://app.wissely.com"
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# Do NOT put secret values here.
+# Set them using:
+#
+# wrangler secret put ANTHROPIC_API_KEY
+# wrangler secret put RESEND_API_KEY
+# wrangler secret put PADDLE_WEBHOOK_SECRET
+#
+# They will be available as:
+# env.ANTHROPIC_API_KEY
+# env.RESEND_API_KEY
+# env.PADDLE_WEBHOOK_SECRET
