@@ -407,6 +407,58 @@ body::before {
   margin-top: 40px;
 }
 
+/* ── Resend verification section ─────────────────────────────────────────── */
+/* Hidden by default; revealed only when login fails due to unverified email. */
+.resend-section {
+  display: none;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cream2);
+  animation: fadeIn 0.35s ease forwards;
+}
+.resend-section.visible {
+  display: block;
+}
+.resend-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--sage);
+  border: 1.5px solid rgba(45, 74, 62, 0.4);
+  border-radius: 100px;
+  padding: 14px 28px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.resend-btn:hover {
+  background: rgba(45, 74, 62, 0.06);
+  border-color: var(--sage);
+}
+.resend-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.resend-spinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(45, 74, 62, 0.2);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+  flex-shrink: 0;
+}
+.resend-btn.sending .resend-spinner {
+  display: inline-block;
+}
+
 /* Animation Specifications */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
@@ -481,6 +533,14 @@ body::before {
           <span class="btn-text">Sign In </span>
         </button>
       </form>
+
+      <!-- Resend verification section — hidden until login fails due to unverified email -->
+      <div class="resend-section" id="resendSection">
+        <button type="button" class="resend-btn" id="resendBtn" onclick="resendVerification()">
+          <div class="resend-spinner"></div>
+          <span id="resendBtnText">Resend Verification Email</span>
+        </button>
+      </div>
     </div>
 
     <div class="trust-metrics">
@@ -572,9 +632,11 @@ function switchForm(mode) {
   const tabRegister = document.getElementById('tab-register');
   const tabLogin = document.getElementById('tab-login');
   const statusBanner = document.getElementById('statusBanner');
-  
+
+  // Reset banners and resend section on every tab switch
   statusBanner.className = 'status-banner';
   statusBanner.style.display = 'none';
+  document.getElementById('resendSection').classList.remove('visible');
   
   document.getElementById('loginForm').reset();
   document.getElementById('registerForm').reset();
@@ -604,16 +666,21 @@ function switchForm(mode) {
 
 async function handleAuth(event, type) {
   event.preventDefault();
-  
+
   const statusBanner = document.getElementById('statusBanner');
   statusBanner.className = 'status-banner';
   statusBanner.style.display = 'none';
-  
+
+  // Hide resend section on every new login attempt
+  if (type === 'login') {
+    document.getElementById('resendSection').classList.remove('visible');
+  }
+
   const form = event.target;
   const button = form.querySelector('.auth-btn');
   const btnTextNode = button.querySelector('.btn-text');
   const initialButtonText = btnTextNode.textContent;
-  
+
   const email = document.getElementById(`${type}Email`).value;
   const password = document.getElementById(`${type}Password`).value;
   const endpoint = `${API_BASE_URL}/${type}`;
@@ -633,38 +700,96 @@ async function handleAuth(event, type) {
     const data = await response.json();
 
     if (!response.ok) {
+      // ── Email verification gate ───────────────────────────────────────────
+      // Never treat this as a generic auth error — surface the resend widget instead.
+      // Resilient to future wording changes — matches requiresVerification flag
+      // or any error string containing 'verify your email'.
+      if (
+          type === 'login' &&
+          (
+              data.requiresVerification ||
+              (typeof data.error === 'string' &&
+               data.error.toLowerCase().includes('verify your email'))
+          )
+      ) {
+        statusBanner.textContent = "Your email address hasn't been verified yet. You can request a new verification email below.";
+        statusBanner.className = 'status-banner error';
+        document.getElementById('resendSection').classList.add('visible');
+        button.disabled = false;
+        btnTextNode.textContent = initialButtonText;
+        return;
+      }
+      // ── Generic error ─────────────────────────────────────────────────────
       throw new Error(data.message || data.error || `Failed to perform ${type} operation.`);
     }
 
     if (type === 'register') {
-      // Elegant non-blocking success routing
-      statusBanner.textContent = 'Account created successfully! Preparing secure login portal...';
-      statusBanner.classList.add('success');
-      
+      // Email verification is required before the account can be used.
+      statusBanner.textContent = 'Account created! Please check your inbox for a verification link before signing in.';
+      statusBanner.className = 'status-banner success';
+
       setTimeout(() => {
         switchForm('login');
-
         const loginStatusBanner = document.getElementById('statusBanner');
-        loginStatusBanner.textContent = 'Your account is ready. Please sign in.';
-        loginStatusBanner.classList.add('success');
-      }, 1500);
+        loginStatusBanner.textContent = 'Check your inbox and verify your email to sign in.';
+        loginStatusBanner.className = 'status-banner success';
+      }, 1800);
     } else {
       statusBanner.textContent = 'Authentication verified. Launching financial studio dashboard...';
-      statusBanner.classList.add('success');
-      
+      statusBanner.className = 'status-banner success';
       setTimeout(() => { window.location.href = 'index.html'; }, 1000);
     }
 
   } catch (err) {
     statusBanner.style.display = 'block';
     statusBanner.textContent = err.message;
-    statusBanner.classList.add('error');
-
+    statusBanner.className = 'status-banner error';
     button.disabled = false;
     btnTextNode.textContent = initialButtonText;
+  }
+}
+
+// ── Resend verification email ─────────────────────────────────────────────────
+// Reads the email already typed in the login field and POSTs to /resend-verification.
+// The API always responds 200 to prevent enumeration, so success is shown on any 2xx.
+async function resendVerification() {
+  const email      = document.getElementById('loginEmail').value.trim();
+  const btn        = document.getElementById('resendBtn');
+  const btnText    = document.getElementById('resendBtnText');
+  const statusBanner = document.getElementById('statusBanner');
+
+  // Disable button and show loading state
+  btn.disabled = true;
+  btn.classList.add('sending');
+  btnText.textContent = 'Sending...';
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/resend-verification`, {
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body:        JSON.stringify({ email })
+    });
+
+    if (res.ok) {
+      statusBanner.textContent = 'If your account exists and hasn\'t been verified yet, a new verification email has been sent.';
+      statusBanner.className = 'status-banner success';
+    } else {
+      let msg = 'Unable to send verification email. Please try again.';
+      try { const d = await res.json(); if (d.error) msg = d.error; } catch {}
+      statusBanner.textContent = msg;
+      statusBanner.className = 'status-banner error';
+    }
+  } catch {
+    statusBanner.textContent = 'Unable to reach the server. Please check your connection and try again.';
+    statusBanner.className = 'status-banner error';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('sending');
+    btnText.textContent = 'Resend Verification Email';
   }
 }
 </script>
 
 </body>
-</html>
+  </html>
