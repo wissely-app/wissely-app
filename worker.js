@@ -1251,6 +1251,179 @@ export default {
         }
       }
 
+      // ── RESEND VERIFICATION ─────────────────────────────────────────────────
+      if (path === '/resend-verification' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'resend-verification')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { email } = body;
+        if (!email) return createResponse(request, { error: 'Email required' }, 400);
+
+        // Standard enumeration-safe response — always returned regardless of outcome
+        const standardResponse = createResponse(request, {
+          success: true,
+          message: 'If the account exists and is not yet verified, a new verification email has been sent.'
+        }, 200);
+
+        // Input length guard — bail early but return standard response
+        if (email.length > MAX_EMAIL_LENGTH) return standardResponse;
+
+        const user = await env.DB.prepare(
+          "SELECT id, email_verified FROM users WHERE email = ?"
+        ).bind(email).first();
+
+        // Only act if the user exists and is unverified — never reveal which case applies
+        if (user && !user.email_verified) {
+          const rawVerifyToken    = generateResetToken();
+          const hashedVerifyToken = await hashToken(rawVerifyToken);
+          const verifyExpires     = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+          await env.DB.prepare(
+            "UPDATE users SET email_verification_token = ?, email_verification_expires = ? WHERE id = ?"
+          ).bind(hashedVerifyToken, verifyExpires, user.id).run();
+
+          try {
+            const verifyLink = `https://app.wissely.com/verify-email.html?token=${rawVerifyToken}`;
+
+            const verifyHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verify your Wissely email</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+          <tr>
+            <td style="padding-bottom:28px;" align="center">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width:32px;height:32px;background-color:#2d4a3e;border-radius:7px;text-align:center;vertical-align:middle;">
+                    <span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8c97a;line-height:32px;">W</span>
+                  </td>
+                  <td style="padding-left:10px;vertical-align:middle;">
+                    <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fefefc;letter-spacing:-0.5px;">Wissely</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:40px 40px 36px;">
+                    <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Email Verification</p>
+                    <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:32px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.1;">
+                      Verify your<br/><em style="font-style:italic;color:#e8c97a;">email address.</em>
+                    </h1>
+                    <p style="margin:0 0 32px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;">
+                      Here is your new verification link for Wissely. Click the button below to verify your email address and activate your account.
+                    </p>
+                    <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                      <tr>
+                        <td style="background-color:#c9a84c;border-radius:100px;">
+                          <a href="${verifyLink}"
+                             style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.2px;">
+                            Verify Email
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+                      <tr>
+                        <td style="background-color:rgba(45,74,62,0.25);border:1px solid rgba(45,74,62,0.45);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;">
+                          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;font-family:'Courier New',monospace;">
+                            <span style="color:#e8c97a;font-weight:600;">&#9679; EXPIRES IN 24 HOURS</span><br/>
+                            If you did not request this, you can safely ignore this email.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;">
+                      Button not working? Copy and paste this link:<br/>
+                      <a href="${verifyLink}" style="color:#c9a84c;text-decoration:none;word-break:break-all;">${verifyLink}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-top:1px solid rgba(255,255,255,0.05);padding:24px 40px;">
+                    <p style="margin:0 0 6px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Need help?</p>
+                    <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.45);line-height:1.7;">
+                      Contact us at&nbsp;<a href="mailto:support@wissely.com" style="color:#c9a84c;text-decoration:none;font-weight:500;">support@wissely.com</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
+                    <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">
+                      &copy; ${new Date().getFullYear()} Wissely. All rights reserved.<br/>
+                      You received this email because a new verification link was requested for this account.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+            let resendRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                from: 'Wissely <noreply@wissely.com>',
+                to: [email],
+                subject: 'Verify your Wissely email address',
+                html: verifyHtml,
+                text: `Verify your Wissely email address: ${verifyLink}`
+              })
+            });
+            if (!resendRes.ok) {
+              resendRes = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  from: 'Wissely <noreply@wissely.com>',
+                  to: [email],
+                  subject: 'Verify your Wissely email address',
+                  html: verifyHtml,
+                  text: `Verify your Wissely email address: ${verifyLink}`
+                })
+              });
+              if (!resendRes.ok) {
+                const errText = await resendRes.text();
+                console.error(`[ResendVerification] Email failed after retry: ${resendRes.status} - ${errText}`);
+              }
+            }
+          } catch (emailErr) {
+            console.error('[ResendVerification] Email exception:', emailErr);
+          }
+        }
+
+        return standardResponse;
+      }
+
       return createResponse(request, { error: 'Not found' }, 404);
     } catch (globalError) {
       console.error('[Worker] Unhandled exception:', globalError.message);
