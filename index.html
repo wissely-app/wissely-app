@@ -324,6 +324,8 @@ textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#
           <strong id="dropdownUserEmail" style="font-size:13px; word-break:break-all;">Account</strong>
           <div><span class="dropdown-plan-badge" id="dropdownPlanBadge">TRIAL</span></div>
           <div class="dropdown-usage-text" id="dropdownUsageText">Usage: - / -</div>
+          <!-- Task 5: Trial days remaining (shown only when available) -->
+          <div class="dropdown-usage-text" id="dropdownTrialText" style="display:none; color: var(--gold);"></div>
         </div>
         <a href="billing.html" class="dropdown-link">💳 Billing Settings</a>
         <a href="upgrade.html" class="dropdown-link upgrade-highlight" id="dropdownUpgradeLink">⭐ Upgrade Plan</a>
@@ -572,6 +574,31 @@ let currentUserPlan = "";
 let toolButtonsCollection;
 let lastAuthCheckTimestamp = 0;
 
+// ─── Task 1/2/3: Centralised auth-failure handler ────────────────────────────
+// Call this after every authenticated API response to handle 401 and 403.
+async function handleAuthResponse(res) {
+  // Task 1: 401 → redirect to login, no back-button return
+  if (res.status === 401) {
+    window.location.replace('auth.html?mode=login');
+    return false;
+  }
+
+  // Task 2: 403 → check for trialExpired flag
+  if (res.status === 403) {
+    let data = null;
+    try { data = await res.clone().json(); } catch (e) {}
+    if (data && data.trialExpired === true) {
+      window.location.replace('upgrade.html');
+      return false;
+    }
+    // Quota-exhaustion 403 — let caller handle via updateQuotaUI
+    return true;
+  }
+
+  return true; // 200, 2xx — proceed normally
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -647,42 +674,37 @@ function syncHistoryToStorage() {
 
 async function checkAuthSession() {
   if (isProcessing) return;
+
   const shield = document.getElementById('auth-gate-shield');
+
   try {
-    const res = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
-    
-    if (res.status === 401) {
-      window.location.href = 'auth.html';
+    const res = await fetch(`${API_BASE_URL}/me`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    // Centralized authentication handling
+    const authOk = await handleAuthResponse(res);
+    if (!authOk) return;
+
+    const data = await res.json();
+
+    if (data && data.authenticated && data.user) {
+      updateQuotaUI(data.user);
+      initLocalStorageHistory();
+
+      if (shield) {
+        shield.style.opacity = '0';
+        setTimeout(() => shield.remove(), 250);
+      }
+
       return;
     }
 
-    if (res.status === 200 || res.status === 403) {
-      const data = await res.json();
-      
-      if (res.status === 403 && data && data.authenticated && data.trialExpired && data.user) {
-        updateQuotaUI(data.user);
-        initLocalStorageHistory();
-        if (shield) { 
-          shield.style.opacity = '0'; 
-          setTimeout(() => shield.remove(), 250); 
-        }
-        return;
-      }
-      
-      if (res.status === 200 && data && data.authenticated && data.user) {
-        updateQuotaUI(data.user);
-        initLocalStorageHistory();
-        if (shield) { 
-          shield.style.opacity = '0'; 
-          setTimeout(() => shield.remove(), 250); 
-        }
-        return;
-      }
-    }
-    
-    window.location.href = 'auth.html';
-  } catch (err) { 
-    window.location.href = 'auth.html';
+    window.location.replace('auth.html?mode=login');
+
+  } catch (err) {
+    window.location.replace('auth.html?mode=login');
   }
 }
 
@@ -707,6 +729,33 @@ function updateQuotaUI(user) {
   document.getElementById('navAvatarBtn').textContent = emailDisplayStr.charAt(0).toUpperCase();
   document.getElementById('dropdownPlanBadge').textContent = rawPlan.toUpperCase();
   document.getElementById('dropdownUsageText').textContent = `Usage: ${used} / ${limit}`;
+
+  // Task 5: Display trial info if the API returns it
+  const trialTextEl = document.getElementById('dropdownTrialText');
+  if (trialTextEl) {
+    if (typeof user.trialDaysRemaining === 'number' && rawPlan === 'trial') {
+      const days = user.trialDaysRemaining;
+      trialTextEl.textContent = days > 0
+        ? `⏳ Trial: ${days} day${days !== 1 ? 's' : ''} remaining`
+        : '⏳ Trial expires today';
+      trialTextEl.style.display = 'block';
+    } else if (user.trialEndsAt && rawPlan === 'trial') {
+      try {
+        const endsDate = new Date(user.trialEndsAt);
+        const today = new Date();
+        const diffMs = endsDate - today;
+        const diffDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        trialTextEl.textContent = diffDays > 0
+          ? `⏳ Trial: ${diffDays} day${diffDays !== 1 ? 's' : ''} remaining`
+          : '⏳ Trial expires today';
+        trialTextEl.style.display = 'block';
+      } catch (e) {
+        trialTextEl.style.display = 'none';
+      }
+    } else {
+      trialTextEl.style.display = 'none';
+    }
+  }
   
   document.getElementById('widgetRemainingText').textContent = `${remaining} remaining`;
   document.getElementById('widgetPercentText').textContent = `${usagePercentage}%`;
@@ -779,6 +828,7 @@ function updateQuotaUI(user) {
   }
 }
 
+// Task 4: Logout uses replace() so back button can't return to dashboard
 async function triggerLogout() {
   try {
     await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
@@ -787,7 +837,7 @@ async function triggerLogout() {
   try {
     localStorage.removeItem('wissely_history_v2');
   } catch (e) {}
-  window.location.href = 'auth.html';
+  window.location.replace('auth.html?mode=login');
 }
 
 function selectTool(index) {
@@ -943,6 +993,10 @@ async function generate() {
     });
     clearTimeout(timeoutId);
 
+    // Task 1/2: Handle auth failures on /analyze
+    const authOk = await handleAuthResponse(res);
+    if (!authOk) return;
+
     if (!res.ok) throw new Error(`Server returned status code: ${res.status}`);
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) throw new Error("Server did not return valid JSON data payload.");
@@ -966,6 +1020,8 @@ async function generate() {
       updateQuotaUI(data.user);
     } else {
       const checkRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+      const checkAuthOk = await handleAuthResponse(checkRes);
+      if (!checkAuthOk) return;
       if (checkRes.ok) {
         try {
           const checkData = await checkRes.json();
@@ -1515,4 +1571,4 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 </body>
-  </html>
+</html>
