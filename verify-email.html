@@ -130,15 +130,12 @@
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* Gold accent bar at top of card */
     .card-accent {
       height: 3px;
       background: linear-gradient(90deg, var(--green-deep), var(--gold-primary), var(--green-deep));
     }
 
-    .card-body {
-      padding: 44px 40px 40px;
-    }
+    .card-body { padding: 44px 40px 40px; }
 
     /* ── Eyebrow label ──────────────────────────────────────────────────────── */
     .eyebrow {
@@ -162,10 +159,7 @@
       margin-bottom: 14px;
     }
 
-    .card-heading em {
-      font-style: italic;
-      color: var(--gold-light);
-    }
+    .card-heading em { font-style: italic; color: var(--gold-light); }
 
     /* ── Body copy ──────────────────────────────────────────────────────────── */
     .card-copy {
@@ -197,9 +191,7 @@
       animation: spin 0.9s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .spinner-label {
       font-family: var(--font-mono);
@@ -238,12 +230,9 @@
       border: 1px solid var(--red-border);
     }
 
-    .icon-circle svg {
-      width: 28px;
-      height: 28px;
-    }
+    .icon-circle svg { width: 28px; height: 28px; }
 
-    /* ── Notice box (expiry/info) ───────────────────────────────────────────── */
+    /* ── Notice box ─────────────────────────────────────────────────────────── */
     .notice {
       border-radius: 10px;
       padding: 14px 18px;
@@ -266,11 +255,7 @@
       border-left: 3px solid var(--red-text);
     }
 
-    .notice-dot {
-      font-weight: 700;
-      margin-right: 4px;
-    }
-
+    .notice-dot { font-weight: 700; margin-right: 4px; }
     .notice.success .notice-dot { color: var(--gold-light); }
     .notice.error   .notice-dot { color: var(--red-text); }
 
@@ -283,9 +268,7 @@
       margin-bottom: 28px;
     }
 
-    .countdown-text strong {
-      color: var(--gold-primary);
-    }
+    .countdown-text strong { color: var(--gold-primary); }
 
     /* ── Progress bar ───────────────────────────────────────────────────────── */
     .progress-track {
@@ -350,16 +333,72 @@
       border: 1px solid var(--white-12);
     }
 
-    .btn-ghost:hover {
-      background: var(--white-12);
-      color: var(--white-full);
+    .btn-ghost:hover { background: var(--white-12); color: var(--white-full); }
+
+    .btn-ghost:disabled,
+    .btn-ghost[aria-disabled="true"] {
+      opacity: 0.5;
+      pointer-events: none;
+      cursor: default;
     }
 
-    /* ── Card footer (support strip) ────────────────────────────────────────── */
-    .card-footer {
-      border-top: 1px solid var(--white-05);
-      padding: 22px 40px;
+    /* ── Resend verification widget ─────────────────────────────────────────── */
+    .resend-input-wrap { width: 100%; margin-bottom: 10px; }
+
+    .resend-input {
+      width: 100%;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--white-12);
+      border-radius: 10px;
+      padding: 13px 16px;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      color: var(--white-full);
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+      -webkit-appearance: none;
     }
+
+    .resend-input::placeholder { color: var(--white-35); }
+
+    .resend-input:focus {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.12);
+    }
+
+    .resend-input.input-invalid {
+      border-color: var(--red-text);
+      box-shadow: 0 0 0 3px rgba(220,60,60,0.15);
+    }
+
+    .resend-feedback {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.65;
+      padding: 11px 14px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .resend-feedback.visible { display: block; }
+
+    .resend-feedback.fb-success {
+      background: var(--green-dim);
+      border: 1px solid var(--green-border);
+      border-left: 3px solid var(--gold-primary);
+      color: var(--white-60);
+    }
+
+    .resend-feedback.fb-error {
+      background: var(--red-dim);
+      border: 1px solid var(--red-border);
+      border-left: 3px solid var(--red-text);
+      color: var(--white-60);
+    }
+
+    /* ── Card footer ────────────────────────────────────────────────────────── */
+    .card-footer { border-top: 1px solid var(--white-05); padding: 22px 40px; }
 
     .card-footer-label {
       font-family: var(--font-mono);
@@ -371,18 +410,8 @@
       margin-bottom: 6px;
     }
 
-    .card-footer p {
-      font-size: 13px;
-      color: rgba(255,255,255,0.45);
-      line-height: 1.7;
-    }
-
-    .card-footer a {
-      color: var(--gold-primary);
-      text-decoration: none;
-      font-weight: 500;
-    }
-
+    .card-footer p { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.7; }
+    .card-footer a { color: var(--gold-primary); text-decoration: none; font-weight: 500; }
     .card-footer a:hover { text-decoration: underline; }
 
     /* ── Page footer ────────────────────────────────────────────────────────── */
@@ -397,13 +426,13 @@
 
     /* ── Responsive ─────────────────────────────────────────────────────────── */
     @media (max-width: 520px) {
-      .card-body  { padding: 36px 24px 32px; }
+      .card-body   { padding: 36px 24px 32px; }
       .card-footer { padding: 20px 24px; }
       .card-heading { font-size: 26px; }
     }
 
     @media (max-width: 360px) {
-      .card-body  { padding: 28px 18px 26px; }
+      .card-body   { padding: 28px 18px 26px; }
       .card-footer { padding: 18px; }
     }
   </style>
@@ -486,7 +515,7 @@
           </p>
           <div class="notice error">
             <span class="notice-dot">&#9679;</span>LINK EXPIRED OR ALREADY USED<br />
-            Request a new verification link by registering with the same email address.
+            Request a new verification link using your email address below.
           </div>
           <a href="auth.html" class="btn btn-primary" style="margin-bottom:12px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -497,10 +526,18 @@
             </svg>
             Go to Login
           </a>
-          <!-- TODO: connect href to /resend-verification endpoint when implemented -->
-          <a href="auth.html" class="btn btn-ghost" title="Return to login to request a new verification email">
-            Request New Verification Email
-          </a>
+          <!-- Resend verification widget — email input + POST to /resend-verification -->
+          <div id="resend-widget">
+            <div class="resend-input-wrap">
+              <input type="email" id="resend-email" class="resend-input"
+                     placeholder="Enter your email address" autocomplete="email"
+                     spellcheck="false" maxlength="254" aria-label="Email address for resend" />
+            </div>
+            <div class="resend-feedback" id="resend-feedback" role="status" aria-live="polite"></div>
+            <button type="button" class="btn btn-ghost" id="btn-resend" onclick="resendVerification()">
+              Request New Verification Email
+            </button>
+          </div>
         </div>
 
         <!-- ── NO TOKEN STATE ────────────────────────────────────────────── -->
@@ -545,12 +582,12 @@
   <script>
     'use strict';
 
-    // ── Config ──────────────────────────────────────────────────────────────
-    const API_BASE        = 'https://wissely-worker.thilinarashmika0727.workers.dev';
-    const REDIRECT_URL    = 'auth.html';
-    const REDIRECT_DELAY  = 3000; // ms
+    // ── Config ───────────────────────────────────────────────────────────────
+    const API_BASE       = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+    const REDIRECT_URL   = 'auth.html';
+    const REDIRECT_DELAY = 3000; // ms
 
-    // ── Utilities ───────────────────────────────────────────────────────────
+    // ── Utilities ─────────────────────────────────────────────────────────────
     document.getElementById('footer-year').textContent = new Date().getFullYear();
 
     function showState(id) {
@@ -559,7 +596,7 @@
       if (target) target.classList.add('active');
     }
 
-    // ── Read token from URL ──────────────────────────────────────────────────
+    // ── Read token from URL ───────────────────────────────────────────────────
     const params = new URLSearchParams(window.location.search);
     const token  = params.get('token');
 
@@ -569,12 +606,11 @@
       verify(token.trim());
     }
 
-    // ── Verification request ─────────────────────────────────────────────────
+    // ── Email verification request ────────────────────────────────────────────
     async function verify(token) {
       showState('state-loading');
-
       try {
-        const res = await fetch(`${API_BASE}/verify-email`, {
+        const res = await fetch(API_BASE + '/verify-email', {
           method:      'POST',
           credentials: 'include',
           headers:     { 'Content-Type': 'application/json' },
@@ -582,25 +618,22 @@
         });
 
         let data = {};
-        try { data = await res.json(); } catch { /* non-JSON body — treat as error */ }
+        try { data = await res.json(); } catch { /* non-JSON — treat as error */ }
 
         if (res.ok && data.success) {
           onSuccess();
         } else {
-          const msg = data.error || 'This verification link is invalid or has expired.';
-          onError(msg);
+          onError(data.error || 'This verification link is invalid or has expired.');
         }
-
-      } catch (networkErr) {
+      } catch {
         onError('Unable to reach the verification service. Please check your connection and try again.');
       }
     }
 
-    // ── Success handler ──────────────────────────────────────────────────────
+    // ── Success handler ───────────────────────────────────────────────────────
     function onSuccess() {
       showState('state-success');
 
-      // Countdown text
       let remaining = Math.round(REDIRECT_DELAY / 1000);
       const countEl = document.getElementById('countdown');
 
@@ -610,17 +643,80 @@
         if (remaining <= 0) clearInterval(tick);
       }, 1000);
 
-      // Redirect
-      setTimeout(() => {
-        window.location.href = REDIRECT_URL;
-      }, REDIRECT_DELAY);
+      setTimeout(() => { window.location.href = REDIRECT_URL; }, REDIRECT_DELAY);
     }
 
-    // ── Error handler ────────────────────────────────────────────────────────
+    // ── Error handler ─────────────────────────────────────────────────────────
     function onError(message) {
       const msgEl = document.getElementById('error-message');
       if (msgEl) msgEl.textContent = message;
       showState('state-error');
+    }
+
+    // ── Resend verification email ─────────────────────────────────────────────
+    // POSTs to /resend-verification. The API always returns 200 to prevent
+    // email enumeration, so we show success regardless of whether the account
+    // exists — only genuine network/server failures are shown as errors.
+
+    async function resendVerification() {
+      const emailEl    = document.getElementById('resend-email');
+      const feedbackEl = document.getElementById('resend-feedback');
+      const btnEl      = document.getElementById('btn-resend');
+      const email      = emailEl ? emailEl.value.trim() : '';
+
+      // Reset previous feedback
+      if (feedbackEl) { feedbackEl.className = 'resend-feedback'; feedbackEl.textContent = ''; }
+      if (emailEl) emailEl.classList.remove('input-invalid');
+
+      // Client-side format check
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (emailEl) { emailEl.classList.add('input-invalid'); emailEl.focus(); }
+        showResendFeedback('error', 'Please enter a valid email address.');
+        return;
+      }
+
+      // Loading state
+      if (btnEl) { btnEl.setAttribute('aria-disabled', 'true'); btnEl.textContent = 'Sending\u2026'; }
+
+      try {
+        const res = await fetch(API_BASE + '/resend-verification', {
+          method:      'POST',
+          credentials: 'include',
+          headers:     { 'Content-Type': 'application/json' },
+          body:        JSON.stringify({ email })
+        });
+
+        if (res.ok) {
+          // Standard enumeration-safe success
+          showResendFeedback('success',
+            'If the account exists and is unverified, a new link has been sent. Please check your inbox.');
+          if (emailEl) emailEl.value = '';
+        } else {
+          let msg = 'Unable to send. Please try again.';
+          try { const d = await res.json(); if (d.error) msg = d.error; } catch {}
+          showResendFeedback('error', msg);
+        }
+      } catch {
+        showResendFeedback('error',
+          'Unable to reach the server. Please check your connection and try again.');
+      } finally {
+        if (btnEl) { btnEl.removeAttribute('aria-disabled'); btnEl.textContent = 'Request New Verification Email'; }
+      }
+    }
+
+    function showResendFeedback(type, message) {
+      const el = document.getElementById('resend-feedback');
+      if (!el) return;
+      el.textContent = message;
+      el.className   = 'resend-feedback visible fb-' + type;
+    }
+
+    // Enter key support on resend input
+    const resendInput = document.getElementById('resend-email');
+    if (resendInput) {
+      resendInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); resendVerification(); }
+      });
     }
   </script>
 </body>
