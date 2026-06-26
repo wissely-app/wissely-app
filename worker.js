@@ -1,10 +1,28 @@
 /**
- * Wissely Core API Worker - Production Ready Delivery Module
- * Features: PBKDF2 Hashing, Secure HttpOnly Sessions, Subscription Limits,
- * CORS Verification, Hardened Security Response Headers, AI Report Validator
+ * Wissely Core API Worker — Enterprise Production Build
+ *
+ * Features:
+ *   Authentication     — PBKDF2/SHA-256 passwords, hashed session IDs, HttpOnly cookies
+ *   Session security   — Per-session CSRF tokens, hashed session storage, 7-day expiry
+ *   CSRF protection    — X-CSRF-Token header validation on every state-changing endpoint
+ *   Rate limiting      — Per-IP sliding-window via Cloudflare KV
+ *   Login protection   — Per-IP + per-account brute-force blocking with auto-expiry
+ *   Audit logging      — Structured security event log with 90-day retention
+ *   AI integration     — Anthropic claude-sonnet-4-6, 60s timeout, exponential-backoff retry
+ *   AI validation      — Schema-enforced report normalisation, malformed-output handling
+ *   Email delivery     — Resend API, background via waitUntil(), automatic retry
+ *   Paddle Billing v2  — HMAC-SHA256 webhook verification, idempotency, full event set
+ *   Subscriptions      — Starter / Growth / Pro plans, atomic quota management
+ *   Cleanup            — Daily stale-data purge (5 % per-request) + monthly cron
+ *   Security headers   — HSTS, CSP, CORP, X-Frame, Referrer, Permissions-Policy
+ *   Request tracing    — X-Request-ID propagated through every log line
+ *   Database           — D1 batch/atomic operations, index-aware queries
  */
 
-// Explicit allowed origin whitelist for secure CORS isolation
+'use strict';
+
+// ── CONFIGURATION ────────────────────────────────────────────────────────────
+
 const ALLOWED_ORIGINS = [
   'https://wissely.com',
   'https://www.wissely.com',
@@ -12,29 +30,73 @@ const ALLOWED_ORIGINS = [
   'https://wissely-worker.thilinarashmika0727.workers.dev'
 ];
 
-// Input length hard limits
-const MAX_EMAIL_LENGTH = 254;
+// Hard input length limits
+const MAX_EMAIL_LENGTH    = 254;
 const MAX_PASSWORD_LENGTH = 1024;
-const MAX_TOKEN_LENGTH = 512;
+const MAX_TOKEN_LENGTH    = 512;
 
-// Rate limiting config (requests per window per IP)
+// General rate limiter — 10 requests per IP per 60-second window
 const RATE_LIMIT_WINDOW_SECONDS = 60;
-const RATE_LIMIT_MAX_REQUESTS = 10;
+const RATE_LIMIT_MAX_REQUESTS   = 10;
 
-// Security headers applied to every response (API-appropriate CSP, no inline/script
-// execution surface since this worker only ever returns JSON or an empty body).
+// Failed-login protection — tracked independently from the general limiter.
+// Two-key strategy: per-IP and per-email so both credential-stuffing (many
+// accounts from one IP) and targeted attacks (one account from many IPs) are caught.
+const LOGIN_FAIL_WINDOW_SECONDS = 900;  // 15-minute rolling window
+const LOGIN_BLOCK_THRESHOLD     = 10;   // failures before a block is issued
+const LOGIN_BLOCK_TTL_SECONDS   = 1800; // 30-minute block duration
+
+// CSRF-failure threshold — repeated failures from the same IP are treated as
+// a probing attack and surfaced as a high-severity audit event.
+const CSRF_FAIL_WINDOW_SECONDS  = 300;  // 5-minute window
+const CSRF_FAIL_ALERT_THRESHOLD = 5;    // failures before alert audit event
+
+// Webhook-signature-failure threshold — same pattern as CSRF monitoring.
+const WEBHOOK_FAIL_WINDOW_SECONDS  = 300;
+const WEBHOOK_FAIL_ALERT_THRESHOLD = 3;
+
+// AI integration
+const MAX_AI_PAYLOAD_BYTES  = 102400; // 100 KB — rejected before quota consumed
+const ANTHROPIC_TIMEOUT_MS  = 60000; // 60 s
+const ANTHROPIC_MAX_RETRIES = 1;     // one retry on 429 / 5xx with backoff
+const ANTHROPIC_RETRY_DELAY = 2000;  // 2 s initial backoff (doubled on each retry)
+
+// Paddle idempotency — event IDs stored in KV for 24 h to detect re-deliveries
+const PADDLE_EVENT_KV_PREFIX   = 'paddle_event:';
+const PADDLE_EVENT_TTL_SECONDS = 86400;
+
+// Audit log retention — records older than this are pruned by the monthly cron
+const AUDIT_RETENTION_DAYS = 90;
+
+// ── SECURITY HEADERS ─────────────────────────────────────────────────────────
+// Applied to every response. Worker returns JSON only, so CSP allows nothing.
+
 const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'geolocation=(), camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
-  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+  'X-Content-Type-Options':    'nosniff',
+  'X-Frame-Options':           'DENY',
+  'Referrer-Policy':           'strict-origin-when-cross-origin',
+  'Permissions-Policy':        'geolocation=(), camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
+  'Content-Security-Policy':   "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
   'Cross-Origin-Resource-Policy': 'same-site'
 };
 
-// Reusable system prompt injected into every AI request.
-// Instructs the model to return structured JSON only — no prose, no markdown.
+// ── PADDLE PLAN CONFIGURATION ─────────────────────────────────────────────────
+// In Paddle Billing v2 webhook payloads the price ID lives at:
+//   data.items[N].price.id   (full price object, not a flat price_id field)
+// resolvePaddlePlan() scans all items so multi-item subscriptions are handled.
+
+const PADDLE_PRICE_PLANS = {
+  'pri_01kvx9ybw6crh3pswgsj2wq39c': { plan: 'starter', analyses_limit: 50   },
+  'pri_01kvxa3n164k0zrrjte8sg17n9': { plan: 'growth',  analyses_limit: 250  },
+  'pri_01kvxa5v3s82pe1fw3h71wb4e9': { plan: 'pro',     analyses_limit: 1000 },
+};
+
+// Applied on cancellation, pause, or unrecognised price ID
+const PLAN_FREE = { plan: 'free', analyses_limit: 5 };
+
+// ── AI PROMPTS ────────────────────────────────────────────────────────────────
+
 const AI_BASE_SYSTEM_PROMPT = `You are a financial analysis AI for Wissely, a professional financial intelligence platform.
 
 STRICT OUTPUT RULES:
@@ -74,11 +136,8 @@ OUTPUT QUALITY:
 - confidence is an integer from 0 to 100 reflecting your certainty in the analysis.
 - status must be exactly one of: completed, warning, error.`;
 
-// Tool-specific prompt extensions. Each entry contains ONLY instructions unique
-// to that tool. They are appended to AI_BASE_SYSTEM_PROMPT at request time via
-// buildSystemPrompt() and must never duplicate global rules.
 const AI_TOOL_PROMPTS = {
-  "invoice-analyzer": `TOOL: Invoice Analyzer
+  'invoice-analyzer': `TOOL: Invoice Analyzer
 Your task is to extract and validate every field from the provided invoice.
 Focus on:
 - Vendor name, address, contact details
@@ -91,7 +150,7 @@ Focus on:
 - Invoice quality score and completeness
 Populate the optional fields: invoice, vendor, customer, totals, dates, paymentTerms.`,
 
-  "expense-clarity": `TOOL: Expense Clarity
+  'expense-clarity': `TOOL: Expense Clarity
 Your task is to analyze the provided expense data and identify patterns and savings.
 Focus on:
 - Categorizing every expense by type (travel, software, payroll, marketing, etc.)
@@ -102,7 +161,7 @@ Focus on:
 - Identifying trends across time periods if data allows
 Populate the optional fields: expenseBreakdown, categoryTotals, insights, timeline.`,
 
-  "finance-report": `TOOL: Finance Report
+  'finance-report': `TOOL: Finance Report
 Your task is to produce a concise executive financial report.
 Focus on:
 - Overall business financial health
@@ -114,7 +173,7 @@ Focus on:
 Write the summary as a boardroom-ready executive briefing.
 Populate the optional fields: insights, charts, tables, warnings.`,
 
-  "fraud-detection": `TOOL: Fraud Detection
+  'fraud-detection': `TOOL: Fraud Detection
 Your task is to identify suspicious activity and fraud signals in the provided data.
 Focus on:
 - Duplicate invoices or payments (same amount, vendor, or date)
@@ -126,7 +185,7 @@ Focus on:
 Set status to "warning" if moderate risk is detected, "error" if high risk.
 Populate the optional field: fraudIndicators (array of specific signals found).`,
 
-  "cash-flow-forecast": `TOOL: Cash Flow Forecast
+  'cash-flow-forecast': `TOOL: Cash Flow Forecast
 Your task is to project future cash flow based on the provided financial data.
 Focus on:
 - Projected income by period (weekly or monthly)
@@ -137,7 +196,7 @@ Focus on:
 - Recommendations to extend runway or improve cash position
 Populate the optional fields: cashFlow (array of period projections), timeline, warnings.`,
 
-  "payment-request": `TOOL: Payment Request
+  'payment-request': `TOOL: Payment Request
 Your task is to analyze and improve the quality of a payment request or reminder.
 Focus on:
 - Professional and polite tone throughout
@@ -149,148 +208,426 @@ Focus on:
 Populate findings with specific wording improvements and recommendations with actionable next steps.`
 };
 
-// Returns the full system prompt for a given tool.
-// Falls back to the base prompt if the tool is not registered.
+// Returns the merged system prompt for the requested tool.
+// Falls back to the base prompt for unregistered tool names.
 function buildSystemPrompt(toolName) {
-  const toolPrompt = AI_TOOL_PROMPTS[toolName];
-  if (toolPrompt) {
-    return AI_BASE_SYSTEM_PROMPT + '\n\n' + toolPrompt;
-  }
-  return AI_BASE_SYSTEM_PROMPT;
+  const ext = AI_TOOL_PROMPTS[toolName];
+  return ext ? AI_BASE_SYSTEM_PROMPT + '\n\n' + ext : AI_BASE_SYSTEM_PROMPT;
 }
 
-// Paddle price ID → internal plan mapping.
-// Replace placeholder keys with your actual Paddle price IDs from the dashboard.
-// analyses_limit is the monthly quota assigned when each plan activates.
-const PADDLE_PRICE_PLANS = {
-  'pri_REPLACE_starter_monthly':  { plan: 'starter',  analyses_limit: 50   },
-  'pri_REPLACE_starter_yearly':   { plan: 'starter',  analyses_limit: 50   },
-  'pri_REPLACE_pro_monthly':      { plan: 'pro',      analyses_limit: 200  },
-  'pri_REPLACE_pro_yearly':       { plan: 'pro',      analyses_limit: 200  },
-  'pri_REPLACE_business_monthly': { plan: 'business', analyses_limit: 1000 },
-  'pri_REPLACE_business_yearly':  { plan: 'business', analyses_limit: 1000 },
-};
-
-// Fallback plan applied on cancellation, pause, or unrecognised price ID
-const PLAN_FREE = { plan: 'free', analyses_limit: 5 };
-
-function getAllowedOrigin(request) {
-  const origin = request.headers.get('Origin');
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    return origin;
-  }
-  return ALLOWED_ORIGINS[0];
-}
+// ── CRYPTOGRAPHIC UTILITIES ───────────────────────────────────────────────────
 
 function bufToHex(buffer) {
-  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function hexToBuf(hexString) {
-  const matches = hexString.match(/.{1,2}/g) || [];
-  return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
-}
-
-// Constant-time string comparison to prevent timing attacks
-function safeCompare(a, b) {
-  const encodedA = new TextEncoder().encode(a);
-  const encodedB = new TextEncoder().encode(b);
-  if (encodedA.length !== encodedB.length) return false;
-  let diff = 0;
-  for (let i = 0; i < encodedA.length; i++) diff |= encodedA[i] ^ encodedB[i];
-  return diff === 0;
-}
-
-// SHA-256 hash a reset token before DB storage
-async function hashToken(token) {
-  const encoded = new TextEncoder().encode(token);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
-  return bufToHex(hashBuffer);
-}
-
-async function hashPassword(password, givenSalt = null) {
-  const encoder = new TextEncoder();
-  const passwordBuffer = encoder.encode(password);
-  const salt = givenSalt ? hexToBuf(givenSalt) : crypto.getRandomValues(new Uint8Array(16));
-
-  const baseKey = await crypto.subtle.importKey('raw', passwordBuffer, 'PBKDF2', false, ['deriveBits', 'deriveKey']);
-  const derivedKey = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    baseKey,
-    { name: 'HMAC', hash: 'SHA-256', length: 256 },
-    true,
-    ['sign']
-  );
-
-  const exportedKey = await crypto.subtle.exportKey('raw', derivedKey);
-  return { hash: bufToHex(exportedKey), salt: bufToHex(salt) };
-}
-
-// Generate a cryptographically secure mixed-case alphanumeric reset token
-function generateResetToken() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const bytes = crypto.getRandomValues(new Uint8Array(48));
-  return Array.from(bytes)
-    .map(b => chars[b % chars.length])
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
-// ── AI RESPONSE EXTRACTOR ────────────────────────────────────────────────────
-// Accepts raw AI responses from any provider/format and returns a plain object.
-// Never throws. Falls back to { rawText } if no JSON can be extracted.
+function hexToBuf(hex) {
+  const pairs = hex.match(/.{1,2}/g) || [];
+  return new Uint8Array(pairs.map(b => parseInt(b, 16)));
+}
+
+// Constant-time comparison — prevents timing oracle attacks on token equality checks.
+// Both inputs are encoded to Uint8Array so Unicode characters do not bypass the check.
+function safeCompare(a, b) {
+  const enc  = new TextEncoder();
+  const bufA = enc.encode(String(a));
+  const bufB = enc.encode(String(b));
+  if (bufA.length !== bufB.length) return false;
+  let diff = 0;
+  for (let i = 0; i < bufA.length; i++) diff |= bufA[i] ^ bufB[i];
+  return diff === 0;
+}
+
+// SHA-256 of an arbitrary string — used for session IDs, reset tokens, and
+// email verification tokens so raw secrets never reach the database.
+async function hashToken(token) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return bufToHex(buf);
+}
+
+// PBKDF2-HMAC-SHA256 password hashing — 100 000 iterations, 128-bit random salt.
+// When givenSalt is provided (login path) the same salt is reused for verification.
+async function hashPassword(password, givenSalt = null) {
+  const pwBuf  = new TextEncoder().encode(password);
+  const salt   = givenSalt ? hexToBuf(givenSalt) : crypto.getRandomValues(new Uint8Array(16));
+  const base   = await crypto.subtle.importKey('raw', pwBuf, 'PBKDF2', false, ['deriveKey']);
+  const derived = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    base,
+    { name: 'HMAC', hash: 'SHA-256', length: 256 },
+    true, ['sign']
+  );
+  const raw = await crypto.subtle.exportKey('raw', derived);
+  return { hash: bufToHex(raw), salt: bufToHex(salt) };
+}
+
+// Cryptographically secure 48-character alphanumeric token (Web Crypto only).
+// Used for: session IDs, CSRF tokens, reset tokens, verification tokens.
+// The modulo bias is negligible: charset length 62, byte range 0-255, max bias < 0.5 %.
+function generateSecureToken() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(48));
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('');
+}
+
+// Legacy alias kept for internal call-site consistency
+const generateResetToken = generateSecureToken;
+
+// ── NETWORK / REQUEST UTILITIES ───────────────────────────────────────────────
+
+// Returns the first CORS-allowed origin, or the request's Origin if whitelisted.
+function getAllowedOrigin(request) {
+  const origin = request.headers.get('Origin');
+  return (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0];
+}
+
+// CF-Connecting-IP is always present on inbound requests processed by Cloudflare.
+function getClientIp(request) {
+  return request.headers.get('CF-Connecting-IP') || 'unknown';
+}
+
+// Parses the Cookie header into a plain { name: value } object.
+function parseCookies(request) {
+  const jar = {};
+  const raw = request.headers.get('Cookie');
+  if (!raw) return jar;
+  for (const pair of raw.split(';')) {
+    const eq  = pair.indexOf('=');
+    if (eq < 1) continue;
+    const key = pair.slice(0, eq).trim();
+    const val = pair.slice(eq + 1).trim();
+    try { jar[key] = decodeURIComponent(val); } catch { jar[key] = val; }
+  }
+  return jar;
+}
+
+// Safe JSON body parser — never throws; returns a structured result object.
+async function parseJsonBody(request) {
+  try {
+    return { body: await request.json(), error: null };
+  } catch {
+    return { body: null, error: 'Invalid JSON in request body' };
+  }
+}
+
+// Builds the JSON response with unified CORS + security headers.
+// An optional extra-headers object is merged last so callers can add Set-Cookie etc.
+function createResponse(request, data, status = 200, extraHeaders = {}) {
+  const origin = getAllowedOrigin(request);
+  const headers = {
+    'Content-Type':                     'application/json',
+    'Access-Control-Allow-Origin':      origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Expose-Headers':    'Set-Cookie',
+    'Vary':                             'Origin',
+    'Cache-Control':                    'no-store',
+    ...SECURITY_HEADERS,
+    ...extraHeaders
+  };
+  return new Response(JSON.stringify(data), { status, headers });
+}
+
+// ── AUDIT LOGGING ─────────────────────────────────────────────────────────────
+// Structured security-event log. Never throws — a logging failure must never
+// affect the API response. Accepts an optional requestId for correlation.
+
+async function writeAuditLog(env, {
+  requestId = null,
+  userId    = null,
+  ip        = 'unknown',
+  eventType,
+  result,
+  metadata  = null
+}) {
+  try {
+    await env.DB.prepare(
+      'INSERT INTO audit_logs (id, timestamp, user_id, ip, event_type, result, metadata) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      crypto.randomUUID(),
+      new Date().toISOString(),
+      userId,
+      ip,
+      eventType,
+      result,
+      metadata ? JSON.stringify({ ...metadata, requestId }) : (requestId ? JSON.stringify({ requestId }) : null)
+    ).run();
+  } catch (err) {
+    // Console-only — never propagate
+    console.error('[Audit] Write failed:', err.message, { eventType, result });
+  }
+}
+
+// ── SECURITY MONITORING HELPERS ───────────────────────────────────────────────
+// Increment a per-IP abuse counter in KV and emit a high-severity audit event
+// once the threshold is crossed. Used for CSRF probing and webhook replay attempts.
+
+async function trackSecurityFailure(env, request, {
+  kvPrefix,
+  windowSeconds,
+  threshold,
+  alertEventType,
+  requestId
+}) {
+  if (!env.RATE_LIMIT_KV) return;
+  const ip       = getClientIp(request);
+  const window   = Math.floor(Date.now() / 1000 / windowSeconds);
+  const kvKey    = `${kvPrefix}:${ip}:${window}`;
+
+  try {
+    const raw   = await env.RATE_LIMIT_KV.get(kvKey);
+    const count = raw ? parseInt(raw, 10) + 1 : 1;
+    await env.RATE_LIMIT_KV.put(kvKey, String(count), { expirationTtl: windowSeconds * 2 });
+
+    if (count === threshold) {
+      // Fire the alert audit event exactly once per window crossing
+      await writeAuditLog(env, {
+        requestId,
+        ip,
+        eventType: alertEventType,
+        result:    'alert',
+        metadata:  { count, windowSeconds }
+      });
+      console.warn(`[Security] Threshold crossed for ${alertEventType}`, { ip, count });
+    }
+  } catch {
+    // Non-fatal
+  }
+}
+
+// ── RATE LIMITER ──────────────────────────────────────────────────────────────
+// Sliding-window counter stored in KV. Fails open on KV errors so a KV outage
+// never takes the API offline.
+
+async function checkRateLimit(request, env, key) {
+  if (!env.RATE_LIMIT_KV) return false;
+  const ip      = getClientIp(request);
+  const window  = Math.floor(Date.now() / 1000 / RATE_LIMIT_WINDOW_SECONDS);
+  const kvKey   = `rl:${key}:${ip}:${window}`;
+
+  try {
+    const raw   = await env.RATE_LIMIT_KV.get(kvKey);
+    const count = raw ? parseInt(raw, 10) : 0;
+    if (count >= RATE_LIMIT_MAX_REQUESTS) return true;
+    await env.RATE_LIMIT_KV.put(kvKey, String(count + 1), {
+      expirationTtl: RATE_LIMIT_WINDOW_SECONDS * 2
+    });
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// ── FAILED-LOGIN PROTECTION ───────────────────────────────────────────────────
+
+async function checkLoginBlock(request, env, email) {
+  if (!env.RATE_LIMIT_KV) return false;
+  const ip = getClientIp(request);
+  try {
+    const [ipBlock, emailBlock] = await Promise.all([
+      env.RATE_LIMIT_KV.get(`login_block:ip:${ip}`),
+      env.RATE_LIMIT_KV.get(`login_block:email:${email}`)
+    ]);
+    return ipBlock === 'blocked' || emailBlock === 'blocked';
+  } catch {
+    return false;
+  }
+}
+
+async function recordLoginFailure(request, env, email) {
+  if (!env.RATE_LIMIT_KV) return;
+  const ip      = getClientIp(request);
+  const window  = Math.floor(Date.now() / 1000 / LOGIN_FAIL_WINDOW_SECONDS);
+  const ipKey   = `login_fail:ip:${ip}:${window}`;
+  const emailKey = `login_fail:email:${email}:${window}`;
+  const ttl     = LOGIN_FAIL_WINDOW_SECONDS * 2;
+
+  try {
+    const [ipRaw, emailRaw] = await Promise.all([
+      env.RATE_LIMIT_KV.get(ipKey),
+      env.RATE_LIMIT_KV.get(emailKey)
+    ]);
+    const ipCount    = ipRaw    ? parseInt(ipRaw, 10)    + 1 : 1;
+    const emailCount = emailRaw ? parseInt(emailRaw, 10) + 1 : 1;
+
+    const writes = [
+      env.RATE_LIMIT_KV.put(ipKey,    String(ipCount),    { expirationTtl: ttl }),
+      env.RATE_LIMIT_KV.put(emailKey, String(emailCount), { expirationTtl: ttl })
+    ];
+    if (ipCount    >= LOGIN_BLOCK_THRESHOLD) writes.push(env.RATE_LIMIT_KV.put(`login_block:ip:${ip}`,       'blocked', { expirationTtl: LOGIN_BLOCK_TTL_SECONDS }));
+    if (emailCount >= LOGIN_BLOCK_THRESHOLD) writes.push(env.RATE_LIMIT_KV.put(`login_block:email:${email}`, 'blocked', { expirationTtl: LOGIN_BLOCK_TTL_SECONDS }));
+    await Promise.all(writes);
+  } catch {
+    // Non-fatal
+  }
+}
+
+async function clearLoginFailures(request, env, email) {
+  if (!env.RATE_LIMIT_KV) return;
+  const ip = getClientIp(request);
+  try {
+    await Promise.all([
+      env.RATE_LIMIT_KV.delete(`login_block:ip:${ip}`),
+      env.RATE_LIMIT_KV.delete(`login_block:email:${email}`)
+    ]);
+  } catch {
+    // Non-fatal
+  }
+}
+
+// ── SESSION MANAGEMENT ────────────────────────────────────────────────────────
+// Session IDs are hashed with SHA-256 before database storage (same pattern as
+// password-reset and verification tokens). The raw token travels only in the
+// HttpOnly cookie and is never stored in plaintext.
+
+async function authenticateSession(request, env) {
+  const cookies   = parseCookies(request);
+  const rawId     = cookies['wissely_session'];
+  if (!rawId) return null;
+
+  // Hash the cookie value before querying — the DB stores only the hash
+  const sessionHash = await hashToken(rawId);
+
+  const session = await env.DB.prepare(
+    'SELECT s.id AS session_id, s.expires_at, s.csrf_token, ' +
+    'u.id AS user_id, u.email, u.plan, u.analyses_used, u.analyses_limit, u.trial_end ' +
+    'FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.id = ?'
+  ).bind(sessionHash).first();
+
+  if (!session) return null;
+
+  const now = Date.now();
+
+  if (now > new Date(session.expires_at).getTime()) {
+    // Expired — clean up asynchronously so this path stays fast
+    await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionHash).run();
+    return null;
+  }
+
+  if (session.plan === 'trial' && now > new Date(session.trial_end).getTime()) {
+    session.isExpiredTrial = true;
+  }
+
+  return session;
+}
+
+// ── CSRF PROTECTION ───────────────────────────────────────────────────────────
+// Per-session CSRF token, generated at login, returned in the response body
+// (NOT a cookie so the browser cannot auto-send it). The frontend stores it and
+// sends it as X-CSRF-Token on every authenticated state-changing POST.
+//
+// Design decisions:
+//   • Per-session (not per-request) for simplicity without sacrificing security
+//   • Stored as plaintext in the DB — it is a bearer secret issued only via the
+//     login response body and never stored in an accessible location client-side
+//   • Validated with safeCompare() to prevent timing attacks
+//   • Repeated failures from the same IP trigger a security-monitoring alert
+
+async function validateCsrfToken(request, env, requestId) {
+  const cookies     = parseCookies(request);
+  const rawId       = cookies['wissely_session'];
+  if (!rawId) return false;
+
+  const clientToken = request.headers.get('X-CSRF-Token');
+  if (!clientToken || clientToken.length > MAX_TOKEN_LENGTH) return false;
+
+  try {
+    const sessionHash = await hashToken(rawId);
+    const session     = await env.DB.prepare(
+      'SELECT csrf_token FROM sessions WHERE id = ?'
+    ).bind(sessionHash).first();
+
+    if (!session || !session.csrf_token) return false;
+    return safeCompare(clientToken, session.csrf_token);
+  } catch {
+    return false;
+  }
+}
+
+// ── EMAIL HELPERS ─────────────────────────────────────────────────────────────
+// All email sends are fire-and-forget via ctx.waitUntil() — the API response
+// is never blocked on Resend. One automatic retry on transient failure.
+
+async function sendEmailWithRetry(env, { to, subject, html, text, logTag }) {
+  const payload = JSON.stringify({
+    from:    'Wissely <noreply@wissely.com>',
+    to:      [to],
+    subject,
+    html,
+    text
+  });
+  const headers = {
+    'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+    'Content-Type':  'application/json'
+  };
+
+  try {
+    let res = await fetch('https://api.resend.com/emails', { method: 'POST', headers, body: payload });
+    if (!res.ok) {
+      res = await fetch('https://api.resend.com/emails', { method: 'POST', headers, body: payload });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '(unreadable)');
+        console.error(`[${logTag}] Email failed after retry: ${res.status} — ${errText}`);
+      } else {
+        console.log(`[${logTag}] Email delivered on retry`);
+      }
+    }
+  } catch (err) {
+    console.error(`[${logTag}] Email exception:`, err.message);
+  }
+}
+
+// ── AI RESPONSE EXTRACTOR ─────────────────────────────────────────────────────
+// Accepts raw AI responses from any provider format and returns a plain object.
+// Never throws — falls back to { rawText } when JSON cannot be extracted.
+
 function extractAIReport(rawResponse) {
-  // Normalize to a string for uniform handling
   const raw = typeof rawResponse === 'string'
     ? rawResponse
     : JSON.stringify(rawResponse);
 
-  // Helper: attempt JSON.parse, return null on failure
-  function tryParse(str) {
-    try { return JSON.parse(str); } catch { return null; }
+  function tryParse(s) {
+    try { return JSON.parse(s); } catch { return null; }
   }
 
-  // Helper: strip markdown code fences (```json ... ``` or ``` ... ```)
-  function stripFences(str) {
-    return str.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  function stripFences(s) {
+    return s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   }
 
-  // Format 1 — already a plain object (caller passed parsed JSON)
+  // Already an object — unwrap known provider envelopes
   if (typeof rawResponse === 'object' && rawResponse !== null && !Array.isArray(rawResponse)) {
-    // Format 5 — Anthropic: { content: [{ text: "..." }] }
+    // Anthropic: { content: [{ type: 'text', text: '...' }] }
     if (Array.isArray(rawResponse.content)) {
-      const textBlock = rawResponse.content.find(b => b && typeof b.text === 'string');
-      if (textBlock) {
-        const inner = tryParse(textBlock.text) ?? tryParse(stripFences(textBlock.text));
-        if (inner) return inner;
-        return { rawText: textBlock.text };
+      const block = rawResponse.content.find(b => b && typeof b.text === 'string');
+      if (block) {
+        const inner = tryParse(block.text) ?? tryParse(stripFences(block.text));
+        return inner ?? { rawText: block.text };
       }
     }
-    // Format 6 — OpenAI: { choices: [{ message: { content: "..." } }] }
+    // OpenAI: { choices: [{ message: { content: '...' } }] }
     if (Array.isArray(rawResponse.choices) && rawResponse.choices[0]?.message?.content) {
       const content = rawResponse.choices[0].message.content;
-      const inner = tryParse(content) ?? tryParse(stripFences(content));
-      if (inner) return inner;
-      return { rawText: content };
+      const inner   = tryParse(content) ?? tryParse(stripFences(content));
+      return inner ?? { rawText: content };
     }
-    // Already a plain report object — return as-is
     return rawResponse;
   }
 
-  // Format 2 — raw JSON string
+  // Raw JSON string
   const direct = tryParse(raw);
   if (direct && typeof direct === 'object' && !Array.isArray(direct)) {
-    // Re-run provider unwrapping on the parsed result
     return extractAIReport(direct);
   }
 
-  // Format 3 / 4 — markdown fenced block (```json or ```)
+  // Fenced block
   if (raw.includes('```')) {
-    const stripped = stripFences(raw);
-    const fromFence = tryParse(stripped);
+    const fromFence = tryParse(stripFences(raw));
     if (fromFence && typeof fromFence === 'object') return extractAIReport(fromFence);
   }
 
-  // Format 7 — Cloudflare AI: { result: { response: "..." } } or { result: { ... } }
+  // Cloudflare AI envelope
   const cf = tryParse(raw);
   if (cf?.result) {
     if (typeof cf.result === 'object') return extractAIReport(cf.result);
@@ -300,245 +637,344 @@ function extractAIReport(rawResponse) {
     }
   }
 
-  // Format 8 — plain text / unrecognized: return as rawText, never throw
   return { rawText: raw };
 }
 
-// ── AI REPORT VALIDATOR ──────────────────────────────────────────────────────
-// Guarantees every AI endpoint returns a valid, normalized Wissely Report object.
-// Never throws. Missing fields are filled with safe defaults.
-// Designed to be extended for future schema versions (v1.1, v2.0, etc.).
+// ── AI REPORT VALIDATOR ───────────────────────────────────────────────────────
+// Normalises AI output into a guaranteed-valid Wissely Report object.
+// Never throws. Malformed array entries and invalid status values are replaced
+// with safe defaults. A { rawText } fallback is treated as a structural failure.
+
 function validateAIReport(raw) {
   let report;
-
-  // If raw is a string, attempt to parse it; on failure, start from scratch
   if (typeof raw === 'string') {
-    try {
-      report = JSON.parse(raw);
-    } catch {
-      report = {};
-    }
+    try { report = JSON.parse(raw); } catch { report = {}; }
   } else if (raw !== null && typeof raw === 'object') {
     report = raw;
   } else {
     report = {};
   }
 
-  const VALID_STATUSES = new Set(['completed', 'warning', 'error']);
+  const VALID_STATUSES  = new Set(['completed', 'warning', 'error']);
+  const isRawTextOnly   = Object.keys(report).length === 1 && typeof report.rawText === 'string';
+
+  // Each element of array fields must be a non-null plain object
+  function sanitizeArray(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(item => item !== null && typeof item === 'object' && !Array.isArray(item));
+  }
 
   return {
-    // Preserve every extra field the AI returns (invoiceNumber, vendor, charts, etc.)
-    // Required Wissely fields below override anything with the same key.
+    // Preserve optional AI-returned fields (vendor, invoice, charts, etc.)
+    // Required fields below override any same-named key in the spread.
     ...report,
 
-    schemaVersion:   typeof report.schemaVersion === 'string' && report.schemaVersion
-                       ? report.schemaVersion
-                       : '1.0',
+    schemaVersion:   (typeof report.schemaVersion === 'string' && report.schemaVersion)
+                       ? report.schemaVersion : '1.0',
 
-    tool:            typeof report.tool === 'string' && report.tool
-                       ? report.tool
-                       : 'unknown',
+    tool:            (typeof report.tool === 'string' && report.tool)
+                       ? report.tool : 'unknown',
 
-    title:           typeof report.title === 'string' && report.title
-                       ? report.title
-                       : 'AI Report',
+    title:           (typeof report.title === 'string' && report.title)
+                       ? report.title : 'AI Report',
 
-    status:          VALID_STATUSES.has(report.status)
-                       ? report.status
-                       : 'completed',
+    status:          isRawTextOnly
+                       ? 'error'
+                       : VALID_STATUSES.has(report.status) ? report.status : 'completed',
 
-    generatedAt:     typeof report.generatedAt === 'string' && !isNaN(Date.parse(report.generatedAt))
-                       ? report.generatedAt
-                       : new Date().toISOString(),
+    generatedAt:     (typeof report.generatedAt === 'string' && !isNaN(Date.parse(report.generatedAt)))
+                       ? report.generatedAt : new Date().toISOString(),
 
-    summary:         typeof report.summary === 'string' && report.summary
-                       ? report.summary
-                       : 'No summary available.',
+    summary:         isRawTextOnly
+                       ? 'The analysis could not be completed. Please try again.'
+                       : (typeof report.summary === 'string' && report.summary)
+                           ? report.summary : 'No summary available.',
 
-    metrics:         Array.isArray(report.metrics)         ? report.metrics         : [],
-    findings:        Array.isArray(report.findings)        ? report.findings        : [],
-    risks:           Array.isArray(report.risks)           ? report.risks           : [],
-    recommendations: Array.isArray(report.recommendations) ? report.recommendations : [],
+    metrics:         sanitizeArray(report.metrics),
+    findings:        sanitizeArray(report.findings),
+    risks:           sanitizeArray(report.risks),
+    recommendations: sanitizeArray(report.recommendations),
 
-    confidence:      (() => {
-                       const c = Number(report.confidence);
-                       if (!isFinite(c)) return 0;
-                       return Math.min(100, Math.max(0, c));
-                     })()
+    confidence: (() => {
+      const c = Number(report.confidence);
+      return isFinite(c) ? Math.min(100, Math.max(0, c)) : 0;
+    })()
   };
 }
 
-function createResponse(request, data, status = 200, headers = {}) {
-  const origin = getAllowedOrigin(request);
-  const corsHeaders = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Expose-Headers': 'Set-Cookie',
-    // Ensures shared/edge caches don't serve one origin's CORS headers to another origin
-    'Vary': 'Origin',
-    // API responses (including auth/session data) should never be cached
-    'Cache-Control': 'no-store'
+// ── ANTHROPIC FETCH WITH RETRY ────────────────────────────────────────────────
+// Wraps the Anthropic API call with:
+//   • 60-second AbortController timeout
+//   • Exponential-backoff retry on 429 (rate limit) and 5xx (server error)
+//   • No retry on 4xx client errors (400, 401, 403, etc.)
+// Returns { ok, status, text } mirroring the fetch Response shape.
+
+async function fetchAnthropicWithRetry(env, payload) {
+  const headers = {
+    'Content-Type':      'application/json',
+    'x-api-key':         env.ANTHROPIC_API_KEY,
+    'anthropic-version': '2023-06-01'
   };
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, ...SECURITY_HEADERS, ...headers }
-  });
-}
+  const body = JSON.stringify(payload);
 
-function parseCookies(request) {
-  const list = {};
-  const rc = request.headers.get('Cookie');
-  if (rc) {
-    rc.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      list[parts.shift().trim()] = decodeURI(parts.join('='));
-    });
-  }
-  return list;
-}
+  let lastRes  = null;
+  let lastText = '';
 
-// Safe JSON body parser — returns 400 instead of 500 on malformed input
-async function parseJsonBody(request) {
-  try {
-    return { body: await request.json(), error: null };
-  } catch {
-    return { body: null, error: 'Invalid JSON in request body' };
-  }
-}
+  for (let attempt = 0; attempt <= ANTHROPIC_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer      = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
 
-// IP-based rate limiter using Cloudflare KV
-async function checkRateLimit(request, env, key) {
-  if (!env.RATE_LIMIT_KV) return false; // skip if KV not bound
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const kvKey = `rl:${key}:${ip}`;
-  const now = Math.floor(Date.now() / 1000);
-  const windowKey = Math.floor(now / RATE_LIMIT_WINDOW_SECONDS);
-  const fullKey = `${kvKey}:${windowKey}`;
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers, body, signal: controller.signal
+      });
+      clearTimeout(timer);
 
-  try {
-    const current = await env.RATE_LIMIT_KV.get(fullKey);
-    const count = current ? parseInt(current) : 0;
-    if (count >= RATE_LIMIT_MAX_REQUESTS) return true; // rate limited
-    await env.RATE_LIMIT_KV.put(fullKey, String(count + 1), { expirationTtl: RATE_LIMIT_WINDOW_SECONDS * 2 });
-    return false;
-  } catch {
-    return false; // fail open — never block on KV errors
-  }
-}
+      const text = await res.text();
 
-async function authenticateSession(request, env) {
-  const cookies = parseCookies(request);
-  const sessionId = cookies['wissely_session'];
-  if (!sessionId) return null;
+      // Success
+      if (res.ok) return { ok: true, status: res.status, text };
 
-  const session = await env.DB.prepare(
-    "SELECT s.id AS session_id, s.expires_at, u.id AS user_id, u.email, u.plan, u.analyses_used, u.analyses_limit, u.trial_end " +
-    "FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.id = ?"
-  ).bind(sessionId).first();
+      // Client error — do not retry
+      if (res.status >= 400 && res.status < 500) {
+        return { ok: false, status: res.status, text };
+      }
 
-  if (!session) return null;
+      // Server error or rate limit — retry if attempts remain
+      lastRes  = res;
+      lastText = text;
+      console.warn(`[Anthropic] Attempt ${attempt + 1} failed: ${res.status}`);
 
-  if (new Date().getTime() > new Date(session.expires_at).getTime()) {
-    await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(sessionId).run();
-    return null;
+      if (attempt < ANTHROPIC_MAX_RETRIES) {
+        const delay = ANTHROPIC_RETRY_DELAY * Math.pow(2, attempt);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        // Surface timeout to caller
+        throw err;
+      }
+      // Network error — retry if attempts remain
+      console.warn(`[Anthropic] Attempt ${attempt + 1} network error:`, err.message);
+      if (attempt < ANTHROPIC_MAX_RETRIES) {
+        const delay = ANTHROPIC_RETRY_DELAY * Math.pow(2, attempt);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
   }
 
-  if (session.plan === 'trial' && new Date().getTime() > new Date(session.trial_end).getTime()) {
-    session.isExpiredTrial = true;
-  }
-
-  return session;
+  return { ok: false, status: lastRes?.status ?? 502, text: lastText };
 }
 
-// ── PADDLE WEBHOOK HELPERS ──────────────────────────────────────────────────
+// ── PADDLE HELPERS ────────────────────────────────────────────────────────────
+
 // Verify Paddle Billing v2 HMAC-SHA256 webhook signature.
-// Header format: "ts=<unix_timestamp>;h1=<hex_signature>"
-// Signed payload:  "<ts>:<rawBody>"
+// Header format: "ts=<unix>; h1=<hex>"  — signed payload: "<ts>:<rawBody>"
 async function verifyPaddleSignature(secret, rawBody, signatureHeader) {
   if (!secret || !signatureHeader) return false;
 
   const parts = {};
   for (const seg of signatureHeader.split(';')) {
     const eq = seg.indexOf('=');
-    if (eq !== -1) parts[seg.slice(0, eq)] = seg.slice(eq + 1);
+    if (eq > 0) parts[seg.slice(0, eq).trim()] = seg.slice(eq + 1).trim();
   }
   const { ts, h1 } = parts;
   if (!ts || !h1) return false;
 
-  // Reject webhooks older than 5 minutes — prevents replay attacks
-  const ageSeconds = Math.abs(Date.now() / 1000 - parseInt(ts, 10));
-  if (ageSeconds > 300) return false;
+  // Reject webhooks older than 5 minutes — replay-attack prevention
+  if (Math.abs(Date.now() / 1000 - parseInt(ts, 10)) > 300) return false;
 
-  const encoder = new TextEncoder();
+  const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
-  const signatureBuffer = await crypto.subtle.sign(
-    'HMAC', key, encoder.encode(`${ts}:${rawBody}`)
-  );
-  return safeCompare(bufToHex(signatureBuffer), h1);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`${ts}:${rawBody}`));
+  return safeCompare(bufToHex(sig), h1);
 }
 
-// Resolve a Paddle subscription event into the appropriate DB update.
-// Returns silently on unhandled event types — Paddle retries on 5xx only.
-async function processPaddleEvent(eventType, data, env) {
+async function isPaddleEventProcessed(eventId, env) {
+  if (!env.RATE_LIMIT_KV || !eventId) return false;
+  try {
+    return await env.RATE_LIMIT_KV.get(`${PADDLE_EVENT_KV_PREFIX}${eventId}`) !== null;
+  } catch {
+    return false;
+  }
+}
+
+async function markPaddleEventProcessed(eventId, env) {
+  if (!env.RATE_LIMIT_KV || !eventId) return;
+  try {
+    await env.RATE_LIMIT_KV.put(
+      `${PADDLE_EVENT_KV_PREFIX}${eventId}`, '1', { expirationTtl: PADDLE_EVENT_TTL_SECONDS }
+    );
+  } catch {
+    console.warn('[Paddle] Failed to mark event processed in KV:', eventId);
+  }
+}
+
+// Scans the items array for a recognised price ID and returns the plan config.
+// Checks every item so multi-price subscriptions are handled correctly.
+function resolvePaddlePlan(items) {
+  if (!Array.isArray(items)) return null;
+  for (const item of items) {
+    const cfg = PADDLE_PRICE_PLANS[item?.price?.id];
+    if (cfg) return cfg;
+  }
+  return null;
+}
+
+// ── PADDLE EVENT PROCESSOR ────────────────────────────────────────────────────
+// Handles all Paddle Billing v2 subscription lifecycle events.
+// Always returns — never throws — so the webhook handler can always return 200.
+
+async function processPaddleEvent(eventType, data, env, request, requestId) {
   const subscriptionId = data?.id;
   const customerId     = data?.customer_id;
-  const userId         = data?.custom_data?.user_id; // set at Paddle checkout time
+  const userId         = data?.custom_data?.user_id; // injected at checkout
   const status         = data?.status ?? 'unknown';
-  const priceId        = data?.items?.[0]?.price?.id;
-  const planConfig     = PADDLE_PRICE_PLANS[priceId]; // undefined = unrecognised price
+  const planConfig     = resolvePaddlePlan(data?.items);
+  const ip             = getClientIp(request);
+
+  const log = (et, meta = {}) =>
+    writeAuditLog(env, { requestId, userId, ip, eventType: et, result: 'success', metadata: meta });
 
   switch (eventType) {
 
-    // ── New subscription or plan upgrade/downgrade ───────────────────────────
-    case 'subscription.created':
-    case 'subscription.updated': {
+    // ── New subscription created — grant access immediately ──────────────────
+    case 'subscription.created': {
       const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
-
       if (userId) {
-        // Primary path: custom_data.user_id was injected at checkout
         await env.DB.prepare(
-          "UPDATE users SET plan = ?, analyses_limit = ?, paddle_customer_id = ?, " +
-          "paddle_subscription_id = ?, subscription_status = ? WHERE id = ?"
+          'UPDATE users SET plan = ?, analyses_limit = ?, paddle_customer_id = ?, ' +
+          'paddle_subscription_id = ?, subscription_status = ? WHERE id = ?'
         ).bind(plan, analyses_limit, customerId, subscriptionId, status, userId).run();
       } else if (customerId) {
-        // Fallback: match by paddle_customer_id stored from a prior event
         await env.DB.prepare(
-          "UPDATE users SET plan = ?, analyses_limit = ?, paddle_subscription_id = ?, " +
-          "subscription_status = ? WHERE paddle_customer_id = ?"
+          'UPDATE users SET plan = ?, analyses_limit = ?, paddle_subscription_id = ?, ' +
+          'subscription_status = ? WHERE paddle_customer_id = ?'
         ).bind(plan, analyses_limit, subscriptionId, status, customerId).run();
       } else {
-        console.warn('[Paddle] subscription event received with no resolvable user — skipped');
+        console.warn('[Paddle] subscription.created — no resolvable user, skipped');
+      }
+      await log('paddle_subscription_created', { plan, subscriptionId });
+      break;
+    }
+
+    // ── Trial-to-paid conversion — apply billing plan at payment time ────────
+    case 'subscription.activated': {
+      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      await env.DB.prepare(
+        'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? ' +
+        'WHERE paddle_subscription_id = ?'
+      ).bind(plan, analyses_limit, status, subscriptionId).run();
+      await log('paddle_subscription_activated', { plan, subscriptionId });
+      break;
+    }
+
+    // ── Plan change or renewal — reconfirm plan and quota ───────────────────
+    // Quota resets happen in the monthly cron, not here.
+    case 'subscription.updated': {
+      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      if (userId) {
+        await env.DB.prepare(
+          'UPDATE users SET plan = ?, analyses_limit = ?, paddle_customer_id = ?, ' +
+          'paddle_subscription_id = ?, subscription_status = ? WHERE id = ?'
+        ).bind(plan, analyses_limit, customerId, subscriptionId, status, userId).run();
+      } else if (subscriptionId) {
+        await env.DB.prepare(
+          'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? ' +
+          'WHERE paddle_subscription_id = ?'
+        ).bind(plan, analyses_limit, status, subscriptionId).run();
+      } else {
+        console.warn('[Paddle] subscription.updated — no resolvable user, skipped');
+      }
+      await log('paddle_subscription_updated', { plan, status, subscriptionId });
+      break;
+    }
+
+    // ── Cancellation — revert to free tier immediately ───────────────────────
+    case 'subscription.canceled': {
+      await env.DB.prepare(
+        'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? ' +
+        'WHERE paddle_subscription_id = ?'
+      ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, 'canceled', subscriptionId).run();
+      await log('paddle_subscription_canceled', { subscriptionId });
+      break;
+    }
+
+    // ── Billing paused (dunning exhausted) — revert to free tier ────────────
+    case 'subscription.paused': {
+      await env.DB.prepare(
+        'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? ' +
+        'WHERE paddle_subscription_id = ?'
+      ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, 'paused', subscriptionId).run();
+      await log('paddle_subscription_paused', { subscriptionId });
+      break;
+    }
+
+    // ── Subscription reactivated from pause — restore plan ───────────────────
+    case 'subscription.resumed': {
+      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      await env.DB.prepare(
+        'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? ' +
+        'WHERE paddle_subscription_id = ?'
+      ).bind(plan, analyses_limit, status, subscriptionId).run();
+      await log('paddle_subscription_resumed', { plan, subscriptionId });
+      break;
+    }
+
+    // ── Paddle-managed trial — update status flag only ───────────────────────
+    // Do not alter analyses_limit — that is set when the trial converts.
+    case 'subscription.trialing': {
+      await env.DB.prepare(
+        'UPDATE users SET subscription_status = ? WHERE paddle_subscription_id = ?'
+      ).bind('trialing', subscriptionId).run();
+      break;
+    }
+
+    // ── Payment past due — flag only; do not strip access yet ────────────────
+    // Access is stripped when subscription.paused or subscription.canceled fires.
+    case 'subscription.past_due': {
+      await env.DB.prepare(
+        'UPDATE users SET subscription_status = ? WHERE paddle_subscription_id = ?'
+      ).bind('past_due', subscriptionId).run();
+      await writeAuditLog(env, {
+        requestId, userId, ip, eventType: 'paddle_subscription_past_due',
+        result: 'warning', metadata: { subscriptionId }
+      });
+      break;
+    }
+
+    // ── Successful payment — secondary safety-net confirmation ───────────────
+    // subscription.updated fires for renewals too; this event provides a hard
+    // confirmation of active status after every real payment.
+    case 'transaction.completed': {
+      const txnSubId     = data?.subscription_id;
+      const txnPlanConf  = resolvePaddlePlan(data?.items);
+      if (txnSubId && txnPlanConf) {
+        const { plan, analyses_limit } = txnPlanConf;
+        await env.DB.prepare(
+          "UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = 'active' " +
+          'WHERE paddle_subscription_id = ?'
+        ).bind(plan, analyses_limit, txnSubId).run();
+        await log('paddle_transaction_completed', { plan, subscriptionId: txnSubId });
       }
       break;
     }
 
-    // ── Subscription canceled — revert to free tier ──────────────────────────
-    case 'subscription.canceled': {
-      await env.DB.prepare(
-        "UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? " +
-        "WHERE paddle_subscription_id = ?"
-      ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, 'canceled', subscriptionId).run();
-      break;
-    }
-
-    // ── Subscription paused (e.g. after grace period exhausted) ─────────────
-    case 'subscription.paused': {
-      await env.DB.prepare(
-        "UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ? " +
-        "WHERE paddle_subscription_id = ?"
-      ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, 'paused', subscriptionId).run();
-      break;
-    }
-
-    // ── Payment past due — flag without stripping access yet ─────────────────
-    // Business decision: strip access only after subscription.paused/canceled.
-    case 'subscription.past_due': {
-      await env.DB.prepare(
-        "UPDATE users SET subscription_status = ? WHERE paddle_subscription_id = ?"
-      ).bind('past_due', subscriptionId).run();
+    // ── Payment failed — log for monitoring; Paddle handles dunning ──────────
+    case 'transaction.payment_failed': {
+      const txnSubId = data?.subscription_id;
+      if (txnSubId) {
+        console.warn('[Paddle] Payment failed for subscription:', txnSubId);
+        await writeAuditLog(env, {
+          requestId, ip, eventType: 'paddle_payment_failed',
+          result: 'warning', metadata: { subscriptionId: txnSubId }
+        });
+      }
       break;
     }
 
@@ -547,44 +983,64 @@ async function processPaddleEvent(eventType, data, env) {
   }
 }
 
+// ── STALE-DATA CLEANUP ────────────────────────────────────────────────────────
+// Runs on ~5 % of all requests via waitUntil() — no impact on response latency.
+// Deletes expired sessions, reset tokens, and verification tokens in one batch.
+
+async function runInlineCleanup(env) {
+  const now = new Date().toISOString();
+  try {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now),
+      env.DB.prepare('DELETE FROM password_resets WHERE expires_at < ?').bind(now),
+      env.DB.prepare(
+        'UPDATE users SET email_verification_token = NULL, email_verification_expires = NULL ' +
+        'WHERE email_verified = 0 AND email_verification_expires IS NOT NULL ' +
+        'AND email_verification_expires < ?'
+      ).bind(now)
+    ]);
+  } catch (err) {
+    console.warn('[Cleanup] Inline stale-data cleanup failed:', err.message);
+  }
+}
+
+// ── MAIN FETCH HANDLER ────────────────────────────────────────────────────────
+
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
+    const url  = new URL(request.url);
     const path = url.pathname;
 
+    // Unique request ID propagated through every log line for correlation
+    const requestId = crypto.randomUUID();
+
+    // ── CORS preflight ────────────────────────────────────────────────────────
     if (request.method === 'OPTIONS') {
-      const origin = getAllowedOrigin(request);
       return new Response(null, {
         headers: {
-          'Access-Control-Allow-Origin': origin,
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Origin':      getAllowedOrigin(request),
+          'Access-Control-Allow-Methods':     'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers':     'Content-Type, Authorization, X-CSRF-Token',
           'Access-Control-Allow-Credentials': 'true',
-          // Lets browsers cache the preflight result, cutting down on extra round trips
-          'Access-Control-Max-Age': '86400',
-          'Vary': 'Origin',
+          'Access-Control-Max-Age':           '86400',
+          'Vary':                             'Origin',
           ...SECURITY_HEADERS
         }
       });
     }
 
     try {
-      // Non-blocking background housekeeping via waitUntil — does not delay response
+      // Probabilistic inline cleanup — fires on ~5 % of requests, never blocks
       if (Math.random() < 0.05) {
-        const nowIso = new Date().toISOString();
-        ctx.waitUntil(
-          env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(nowIso).run()
-        );
+        ctx.waitUntil(runInlineCleanup(env));
       }
 
-      // ── HEALTH ──────────────────────────────────────────────────────────────
+      // ── HEALTH ────────────────────────────────────────────────────────────
       if (path === '/health' && request.method === 'GET') {
         let dbStatus = 'ok';
-        try {
-          await env.DB.prepare("SELECT 1").first();
-        } catch {
-          dbStatus = 'error';
-        }
+        try { await env.DB.prepare('SELECT 1').first(); }
+        catch { dbStatus = 'error'; }
+
         const healthy = dbStatus === 'ok';
         return createResponse(request, {
           status:    healthy ? 'ok' : 'degraded',
@@ -594,39 +1050,73 @@ export default {
         }, healthy ? 200 : 503);
       }
 
-      // ── PADDLE WEBHOOK ───────────────────────────────────────────────────────
+      // ── PADDLE WEBHOOK ────────────────────────────────────────────────────
       if (path === '/webhook/paddle' && request.method === 'POST') {
-        // Raw body must be read before any other parsing — required for HMAC verification
-        const rawBody = await request.text();
+        // Raw body must be captured before any other parsing — the HMAC is
+        // computed over the exact bytes received, not a re-serialised object.
+        const rawBody         = await request.text();
         const signatureHeader = request.headers.get('Paddle-Signature');
+        const ip              = getClientIp(request);
 
+        // Step 1 — Verify HMAC-SHA256 signature and replay window
         const isValid = await verifyPaddleSignature(
           env.PADDLE_WEBHOOK_SECRET, rawBody, signatureHeader
         );
         if (!isValid) {
+          console.warn('[Paddle] Webhook signature invalid', { requestId, ip });
+          await writeAuditLog(env, {
+            requestId, ip,
+            eventType: 'paddle_webhook_signature_invalid',
+            result:    'failure'
+          });
+          // Track for security monitoring — alert on repeated failures from one IP
+          await trackSecurityFailure(env, request, {
+            kvPrefix:        'webhook_sig_fail',
+            windowSeconds:   WEBHOOK_FAIL_WINDOW_SECONDS,
+            threshold:       WEBHOOK_FAIL_ALERT_THRESHOLD,
+            alertEventType:  'paddle_webhook_signature_repeated_failure',
+            requestId
+          });
+          // 400 — Paddle treats 4xx as permanent failure and does not retry
           return createResponse(request, { error: 'Invalid webhook signature' }, 400);
         }
 
+        // Step 2 — Parse payload
         let event;
-        try {
-          event = JSON.parse(rawBody);
-        } catch {
-          return createResponse(request, { error: 'Invalid JSON payload' }, 400);
+        try { event = JSON.parse(rawBody); }
+        catch { return createResponse(request, { error: 'Invalid JSON payload' }, 400); }
+
+        const { event_id: eventId, event_type: eventType, data } = event;
+
+        // Step 3 — Idempotency check (Paddle retries on non-2xx with backoff)
+        if (await isPaddleEventProcessed(eventId, env)) {
+          console.log(`[Paddle] Duplicate event ignored: ${eventId} (${eventType})`);
+          return createResponse(request, { received: true, duplicate: true }, 200);
         }
 
-        const { event_type: eventType, data } = event;
-
+        // Step 4 — Process
         try {
-          await processPaddleEvent(eventType, data, env);
-        } catch (paddleErr) {
-          // Log but always return 200 — prevents Paddle retrying our internal errors
-          console.error('[Paddle] processPaddleEvent failed:', paddleErr.message);
+          await processPaddleEvent(eventType, data, env, request, requestId);
+        } catch (err) {
+          // Log but always return 200 — Paddle must not retry internal failures.
+          // Event intentionally NOT marked processed so a dashboard re-delivery works.
+          console.error('[Paddle] processPaddleEvent threw:', err.message, { requestId, eventType, eventId });
+          await writeAuditLog(env, {
+            requestId, ip,
+            eventType: 'paddle_webhook_processing_error',
+            result:    'failure',
+            metadata:  { eventType, eventId, error: err.message }
+          });
+          return createResponse(request, { received: true }, 200);
         }
 
+        // Step 5 — Mark processed (non-blocking)
+        ctx.waitUntil(markPaddleEventProcessed(eventId, env));
+        console.log(`[Paddle] Event processed: ${eventId} (${eventType})`, { requestId });
         return createResponse(request, { received: true }, 200);
       }
 
-      // ── REGISTER ────────────────────────────────────────────────────────────
+      // ── REGISTER ──────────────────────────────────────────────────────────
       if (path === '/register' && request.method === 'POST') {
         if (await checkRateLimit(request, env, 'register')) {
           return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
@@ -635,43 +1125,608 @@ export default {
         const { body, error: parseError } = await parseJsonBody(request);
         if (parseError) return createResponse(request, { error: parseError }, 400);
 
-        const { email, password } = body;
-        if (!email || !password) return createResponse(request, { error: 'Email and password required' }, 400);
-
-        // Input length guards
-        if (email.length > MAX_EMAIL_LENGTH) return createResponse(request, { error: 'Email address is too long' }, 400);
+        const { email, password } = body ?? {};
+        if (!email || !password) {
+          return createResponse(request, { error: 'Email and password required' }, 400);
+        }
+        if (email.length    > MAX_EMAIL_LENGTH)    return createResponse(request, { error: 'Email address is too long' }, 400);
         if (password.length > MAX_PASSWORD_LENGTH) return createResponse(request, { error: 'Password is too long' }, 400);
-        if (password.length < 8) return createResponse(request, { error: 'Password must be at least 8 characters' }, 400);
-
-        // Basic email format check
+        if (password.length < 8)                   return createResponse(request, { error: 'Password must be at least 8 characters' }, 400);
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           return createResponse(request, { error: 'Invalid email address' }, 400);
         }
 
-        const targetUser = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-        if (targetUser) return createResponse(request, { error: 'Email already registered' }, 409);
+        const existing = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+        if (existing) return createResponse(request, { error: 'Email already registered' }, 409);
 
-        const id = crypto.randomUUID();
+        const userId       = crypto.randomUUID();
         const { hash, salt } = await hashPassword(password);
-        const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const trialEnd     = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const now          = new Date().toISOString();
 
-        // Generate email verification token — same pattern as password reset
-        const rawVerifyToken     = generateResetToken();
-        const hashedVerifyToken  = await hashToken(rawVerifyToken);
-        const verifyExpires      = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 h
+        const rawVerifyToken    = generateSecureToken();
+        const hashedVerifyToken = await hashToken(rawVerifyToken);
+        const verifyExpires     = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
         await env.DB.prepare(
-          "INSERT INTO users (id, email, password_hash, password_salt, plan, analyses_used, analyses_limit, " +
-          "trial_end, created_at, email_verified, email_verification_token, email_verification_expires) " +
-          "VALUES (?, ?, ?, ?, 'trial', 0, 20, ?, ?, 0, ?, ?)"
-        ).bind(id, email, hash, salt, trialEnd, new Date().toISOString(),
-               hashedVerifyToken, verifyExpires).run();
+          'INSERT INTO users (id, email, password_hash, password_salt, plan, analyses_used, analyses_limit, ' +
+          'trial_end, created_at, email_verified, email_verification_token, email_verification_expires) ' +
+          'VALUES (?, ?, ?, ?, ?, 0, 20, ?, ?, 0, ?, ?)'
+        ).bind(userId, email, hash, salt, 'trial', trialEnd, now, hashedVerifyToken, verifyExpires).run();
 
-        // Send verification email — non-fatal if Resend is temporarily unavailable
+        await writeAuditLog(env, {
+          requestId, userId, ip: getClientIp(request),
+          eventType: 'register', result: 'success'
+        });
+
+        const verifyLink = `https://app.wissely.com/verify-email.html?token=${rawVerifyToken}`;
+        ctx.waitUntil(sendEmailWithRetry(env, {
+          to:      email,
+          subject: 'Verify your Wissely email address',
+          html:    buildVerificationEmailHtml(verifyLink, false),
+          text:    `Verify your Wissely email address: ${verifyLink}`,
+          logTag:  'Register'
+        }));
+
+        return createResponse(request, {
+          success:              true,
+          message:              'Account created. Please check your email to verify your account.',
+          requiresVerification: true
+        }, 201);
+      }
+
+      // ── LOGIN ─────────────────────────────────────────────────────────────
+      if (path === '/login' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'login')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { email, password } = body ?? {};
+        if (!email || !password) return createResponse(request, { error: 'Fields required' }, 400);
+        if (email.length > MAX_EMAIL_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+          return createResponse(request, { error: 'Invalid email or password' }, 401);
+        }
+
+        const ip = getClientIp(request);
+
+        // Brute-force block — checked before any DB work
+        if (await checkLoginBlock(request, env, email)) {
+          await writeAuditLog(env, {
+            requestId, ip, eventType: 'login_blocked', result: 'failure',
+            metadata: { email: email.slice(0, 3) + '***' }
+          });
+          return createResponse(request, { error: 'Too many failed login attempts. Please try again later.' }, 429);
+        }
+
+        const user = await env.DB.prepare(
+          'SELECT id, email, password_hash, password_salt, plan, analyses_used, analyses_limit, email_verified ' +
+          'FROM users WHERE email = ?'
+        ).bind(email).first();
+
+        if (!user) {
+          // Dummy hash to equalise timing regardless of whether the user exists
+          await hashPassword(password);
+          await recordLoginFailure(request, env, email);
+          await writeAuditLog(env, {
+            requestId, ip, eventType: 'login_failed', result: 'failure',
+            metadata: { reason: 'user_not_found' }
+          });
+          return createResponse(request, { error: 'Invalid email or password' }, 401);
+        }
+
+        const { hash } = await hashPassword(password, user.password_salt);
+        if (!safeCompare(hash, user.password_hash)) {
+          await recordLoginFailure(request, env, email);
+          await writeAuditLog(env, {
+            requestId, userId: user.id, ip, eventType: 'login_failed', result: 'failure',
+            metadata: { reason: 'invalid_password' }
+          });
+          return createResponse(request, { error: 'Invalid email or password' }, 401);
+        }
+
+        if (!user.email_verified) {
+          return createResponse(request, {
+            error:                'Please verify your email address before logging in.',
+            requiresVerification: true
+          }, 403);
+        }
+
+        // Successful authentication
+        await clearLoginFailures(request, env, email);
+
+        const rawSessionId  = generateSecureToken();
+        const sessionHash   = await hashToken(rawSessionId); // only the hash goes to DB
+        const csrfToken     = generateSecureToken();
+        const expiresAt     = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        // Atomic: invalidate all previous sessions and create the new one
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
+          env.DB.prepare('INSERT INTO sessions (id, user_id, expires_at, csrf_token) VALUES (?, ?, ?, ?)')
+            .bind(sessionHash, user.id, expiresAt.toISOString(), csrfToken)
+        ]);
+
+        await writeAuditLog(env, {
+          requestId, userId: user.id, ip, eventType: 'login_success', result: 'success'
+        });
+
+        const cookieStr = [
+          `wissely_session=${rawSessionId}`,
+          `Expires=${expiresAt.toUTCString()}`,
+          'HttpOnly',
+          'Path=/',
+          'SameSite=None',
+          'Secure'
+        ].join('; ');
+
+        return createResponse(request, {
+          success:   true,
+          csrfToken, // stored by frontend, sent as X-CSRF-Token on subsequent requests
+          user: {
+            id:              user.id,
+            email:           user.email,
+            plan:            user.plan,
+            analyses_used:   user.analyses_used,
+            analyses_limit:  user.analyses_limit
+          }
+        }, 200, { 'Set-Cookie': cookieStr });
+      }
+
+      // ── VERIFY EMAIL ──────────────────────────────────────────────────────
+      if (path === '/verify-email' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'verify-email')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { token } = body ?? {};
+        if (!token)                        return createResponse(request, { error: 'Verification token required' }, 400);
+        if (token.length > MAX_TOKEN_LENGTH) return createResponse(request, { error: 'Invalid verification token' }, 400);
+
+        const hashedToken = await hashToken(token);
+        const ip          = getClientIp(request);
+
+        const targetUser = await env.DB.prepare(
+          'SELECT id, email_verification_expires FROM users ' +
+          'WHERE email_verification_token = ? AND email_verified = 0'
+        ).bind(hashedToken).first();
+
+        if (!targetUser) {
+          await writeAuditLog(env, {
+            requestId, ip, eventType: 'email_verification_failed', result: 'failure',
+            metadata: { reason: 'invalid_token' }
+          });
+          return createResponse(request, { error: 'Invalid or already used verification link.' }, 400);
+        }
+
+        if (Date.now() > new Date(targetUser.email_verification_expires).getTime()) {
+          await writeAuditLog(env, {
+            requestId, userId: targetUser.id, ip,
+            eventType: 'email_verification_failed', result: 'failure',
+            metadata: { reason: 'token_expired' }
+          });
+          return createResponse(request, { error: 'Verification link has expired. Please request a new one.' }, 400);
+        }
+
+        await env.DB.prepare(
+          'UPDATE users SET email_verified = 1, email_verification_token = NULL, ' +
+          'email_verification_expires = NULL WHERE id = ?'
+        ).bind(targetUser.id).run();
+
+        await writeAuditLog(env, {
+          requestId, userId: targetUser.id, ip, eventType: 'email_verified', result: 'success'
+        });
+
+        return createResponse(request, {
+          success: true,
+          message: 'Email verified successfully. You can now log in.'
+        }, 200);
+      }
+
+      // ── FORGOT PASSWORD ───────────────────────────────────────────────────
+      if (path === '/forgot-password' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'forgot-password')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { email } = body ?? {};
+        if (!email) return createResponse(request, { error: 'Email required' }, 400);
+
+        // Enumeration-safe: always return the same response
+        const safeResponse = createResponse(request, {
+          success: true,
+          message: 'If the provided account exists, a reset link has been sent.'
+        }, 200);
+
+        if (email.length > MAX_EMAIL_LENGTH) return safeResponse;
+
+        const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+        if (!user) return safeResponse;
+
+        const rawToken    = generateSecureToken();
+        const hashedToken = await hashToken(rawToken);
+        const expiresAt   = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+        const createdAt   = new Date().toISOString();
+
+        // Atomic: delete any outstanding token then insert the new one
+        await env.DB.batch([
+          env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id),
+          env.DB.prepare(
+            'INSERT INTO password_resets (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)'
+          ).bind(hashedToken, user.id, expiresAt, createdAt)
+        ]);
+
+        await writeAuditLog(env, {
+          requestId, userId: user.id, ip: getClientIp(request),
+          eventType: 'password_reset_requested', result: 'success'
+        });
+
+        const resetLink = `https://app.wissely.com/reset-password.html?token=${rawToken}`;
+        ctx.waitUntil(sendEmailWithRetry(env, {
+          to:      email,
+          subject: 'Reset your Wissely password',
+          html:    buildPasswordResetEmailHtml(resetLink),
+          text:    `Reset your password: ${resetLink}`,
+          logTag:  'ForgotPassword'
+        }));
+
+        return safeResponse;
+      }
+
+      // ── RESET PASSWORD ────────────────────────────────────────────────────
+      if (path === '/reset-password' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'reset-password')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { token, password } = body ?? {};
+        if (!token || !password) return createResponse(request, { error: 'Token and password are required' }, 400);
+        if (token.length    > MAX_TOKEN_LENGTH)    return createResponse(request, { error: 'Invalid reset token' }, 400);
+        if (password.length > MAX_PASSWORD_LENGTH) return createResponse(request, { error: 'Password is too long' }, 400);
+        if (password.length < 8)                   return createResponse(request, { error: 'Password must be at least 8 characters' }, 400);
+
+        const hashedToken = await hashToken(token);
+        const ip          = getClientIp(request);
+
+        const resetRecord = await env.DB.prepare(
+          'SELECT token, user_id, expires_at FROM password_resets WHERE token = ?'
+        ).bind(hashedToken).first();
+
+        if (!resetRecord) {
+          await writeAuditLog(env, {
+            requestId, ip, eventType: 'password_reset_failed', result: 'failure',
+            metadata: { reason: 'invalid_token' }
+          });
+          return createResponse(request, { error: 'Invalid or expired reset link' }, 400);
+        }
+
+        if (Date.now() > new Date(resetRecord.expires_at).getTime()) {
+          await env.DB.prepare('DELETE FROM password_resets WHERE token = ?').bind(hashedToken).run();
+          await writeAuditLog(env, {
+            requestId, userId: resetRecord.user_id, ip,
+            eventType: 'password_reset_failed', result: 'failure',
+            metadata: { reason: 'token_expired' }
+          });
+          return createResponse(request, { error: 'Reset link has expired. Please request a new one.' }, 400);
+        }
+
+        const { hash, salt } = await hashPassword(password);
+
+        // Atomic: update password, nuke all sessions, delete reset token
+        await env.DB.batch([
+          env.DB.prepare('UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?')
+            .bind(hash, salt, resetRecord.user_id),
+          env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(resetRecord.user_id),
+          env.DB.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(resetRecord.user_id)
+        ]);
+
+        await writeAuditLog(env, {
+          requestId, userId: resetRecord.user_id, ip,
+          eventType: 'password_reset_success', result: 'success'
+        });
+
+        return createResponse(request, {
+          success: true,
+          message: 'Password updated successfully. Please log in with your new password.'
+        }, 200);
+      }
+
+      // ── ME ────────────────────────────────────────────────────────────────
+      if (path === '/me' && request.method === 'GET') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthenticated' }, 401);
+
+        const userPayload = {
+          id:             session.user_id,
+          email:          session.email,
+          plan:           session.plan,
+          analyses_used:  session.analyses_used,
+          analyses_limit: session.analyses_limit,
+          trial_end:      session.trial_end
+        };
+
+        if (session.isExpiredTrial) {
+          return createResponse(request, {
+            authenticated: true,
+            trialExpired:  true,
+            user:          userPayload
+          }, 403);
+        }
+
+        return createResponse(request, { authenticated: true, user: userPayload });
+      }
+
+      // ── LOGOUT ────────────────────────────────────────────────────────────
+      if (path === '/logout' && request.method === 'POST') {
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/logout' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        const cookies   = parseCookies(request);
+        const rawId     = cookies['wissely_session'];
+        let   userId    = null;
+
+        if (rawId) {
+          const sessionHash = await hashToken(rawId);
+          const row = await env.DB.prepare('SELECT user_id FROM sessions WHERE id = ?')
+            .bind(sessionHash).first();
+          if (row) userId = row.user_id;
+          await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionHash).run();
+        }
+
+        await writeAuditLog(env, {
+          requestId, userId, ip: getClientIp(request), eventType: 'logout', result: 'success'
+        });
+
+        return createResponse(request, { success: true }, 200, {
+          'Set-Cookie': 'wissely_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=None; Secure'
+        });
+      }
+
+      // ── ANALYZE ───────────────────────────────────────────────────────────
+      if (path === '/analyze' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session)                return createResponse(request, { error: 'Unauthorized' }, 401);
+        if (session.isExpiredTrial)  return createResponse(request, { error: 'Trial expired' }, 403);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/analyze' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+        if (!body?.messages) return createResponse(request, { error: 'Missing messages field' }, 400);
+
+        // Payload size gate — checked before quota is consumed
+        const payloadBytes = new TextEncoder().encode(JSON.stringify(body.messages)).length;
+        if (payloadBytes > MAX_AI_PAYLOAD_BYTES) {
+          console.warn('[Analyze] Payload too large:', payloadBytes, 'bytes, user:', session.user_id, { requestId });
+          return createResponse(request, {
+            error: 'Payload too large. Please reduce the size of your input and try again.'
+          }, 413);
+        }
+
+        // Atomic quota gate — single UPDATE prevents over-consumption under concurrent requests
+        const allocation = await env.DB.prepare(
+          'UPDATE users SET analyses_used = analyses_used + 1 ' +
+          'WHERE id = ? AND analyses_used < analyses_limit'
+        ).bind(session.user_id).run();
+
+        if (allocation.meta.changes === 0) {
+          return createResponse(request, { error: 'Usage limit reached for this month' }, 403);
+        }
+
+        // Quota has been consumed — roll back on any downstream failure
         try {
-          const verifyLink = `https://app.wissely.com/verify-email.html?token=${rawVerifyToken}`;
+          const result = await fetchAnthropicWithRetry(env, {
+            model:     'claude-sonnet-4-6',
+            max_tokens: 1000,
+            system:    buildSystemPrompt(body.tool || 'unknown'),
+            messages:  body.messages
+          });
 
-          const verifyHtml = `<!DOCTYPE html>
+          if (result.ok) {
+            const updatedUser = await env.DB.prepare(
+              'SELECT id, email, plan, analyses_used, analyses_limit, trial_end FROM users WHERE id = ?'
+            ).bind(session.user_id).first();
+
+            const report = validateAIReport(extractAIReport(result.text));
+
+            await writeAuditLog(env, {
+              requestId,
+              userId:    session.user_id,
+              ip:        getClientIp(request),
+              eventType: 'analysis_completed',
+              result:    'success',
+              metadata:  { tool: body.tool || 'unknown' }
+            });
+
+            return createResponse(request, { success: true, data: report, user: updatedUser });
+          }
+
+          // Non-OK Anthropic response — roll back
+          await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
+            .bind(session.user_id).run();
+          console.error('[Analyze] Anthropic non-OK:', result.status, { requestId });
+          return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
+
+        } catch (apiError) {
+          // Roll back quota on timeout or network failure
+          await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
+            .bind(session.user_id).run();
+
+          if (apiError.name === 'AbortError') {
+            console.warn('[Analyze] Anthropic timed out', { requestId, userId: session.user_id });
+            return createResponse(request, { error: 'Analysis timed out. Please try again.' }, 504);
+          }
+
+          console.error('[Analyze] Upstream fetch failed:', apiError.message, { requestId });
+          throw apiError;
+        }
+      }
+
+      // ── RESEND VERIFICATION ───────────────────────────────────────────────
+      if (path === '/resend-verification' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'resend-verification')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { email } = body ?? {};
+        if (!email) return createResponse(request, { error: 'Email required' }, 400);
+
+        // Enumeration-safe response — always returned
+        const safeResponse = createResponse(request, {
+          success: true,
+          message: 'If the account exists and is not yet verified, a new verification email has been sent.'
+        }, 200);
+
+        if (email.length > MAX_EMAIL_LENGTH) return safeResponse;
+
+        const user = await env.DB.prepare(
+          'SELECT id, email_verified FROM users WHERE email = ?'
+        ).bind(email).first();
+
+        if (user && !user.email_verified) {
+          const rawToken      = generateSecureToken();
+          const hashedToken   = await hashToken(rawToken);
+          const verifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+          await env.DB.prepare(
+            'UPDATE users SET email_verification_token = ?, email_verification_expires = ? WHERE id = ?'
+          ).bind(hashedToken, verifyExpires, user.id).run();
+
+          const verifyLink = `https://app.wissely.com/verify-email.html?token=${rawToken}`;
+          ctx.waitUntil(sendEmailWithRetry(env, {
+            to:      email,
+            subject: 'Verify your Wissely email address',
+            html:    buildVerificationEmailHtml(verifyLink, true),
+            text:    `Verify your Wissely email address: ${verifyLink}`,
+            logTag:  'ResendVerification'
+          }));
+        }
+
+        return safeResponse;
+      }
+
+      return createResponse(request, { error: 'Not found' }, 404);
+
+    } catch (globalError) {
+      // Internal implementation details must never reach the client
+      console.error('[Worker] Unhandled exception:', globalError.message, {
+        requestId, path, method: request.method
+      });
+      return createResponse(request, { error: 'An unexpected error occurred' }, 500);
+    }
+  },
+
+  // ── CRON: Monthly maintenance ─────────────────────────────────────────────
+  // Schedule: "0 0 1 * *"  (00:00 UTC on the 1st of every month)
+  // The UTC date guard is a safety net against misconfigured trigger schedules.
+  async scheduled(event, env, ctx) {
+    const today = new Date();
+    if (today.getUTCDate() !== 1) {
+      console.log('[Cron] Monthly maintenance skipped — not the 1st (UTC)');
+      return;
+    }
+
+    console.log('[Cron] Monthly maintenance starting');
+    const now = new Date().toISOString();
+
+    // ── Reset all usage counters ─────────────────────────────────────────────
+    try {
+      const r = await env.DB.prepare('UPDATE users SET analyses_used = 0').run();
+      console.log(`[Cron] Usage reset: ${r.meta.changes} user(s)`);
+    } catch (err) { console.error('[Cron] Usage reset failed:', err.message); }
+
+    // ── Delete expired password reset tokens ─────────────────────────────────
+    try {
+      const r = await env.DB.prepare('DELETE FROM password_resets WHERE expires_at < ?').bind(now).run();
+      console.log(`[Cron] Expired reset tokens deleted: ${r.meta.changes}`);
+    } catch (err) { console.error('[Cron] Reset token cleanup failed:', err.message); }
+
+    // ── Clear expired email verification tokens ───────────────────────────────
+    // Preserves the account row — users can request a fresh link at any time.
+    try {
+      const r = await env.DB.prepare(
+        'UPDATE users SET email_verification_token = NULL, email_verification_expires = NULL ' +
+        'WHERE email_verified = 0 AND email_verification_expires IS NOT NULL ' +
+        'AND email_verification_expires < ?'
+      ).bind(now).run();
+      console.log(`[Cron] Expired verification tokens cleared: ${r.meta.changes}`);
+    } catch (err) { console.error('[Cron] Verification token cleanup failed:', err.message); }
+
+    // ── Delete stale sessions ────────────────────────────────────────────────
+    try {
+      const r = await env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now).run();
+      console.log(`[Cron] Stale sessions deleted: ${r.meta.changes}`);
+    } catch (err) { console.error('[Cron] Session cleanup failed:', err.message); }
+
+    // ── Prune old audit log records ──────────────────────────────────────────
+    try {
+      const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 86400000).toISOString();
+      const r = await env.DB.prepare('DELETE FROM audit_logs WHERE timestamp < ?').bind(cutoff).run();
+      console.log(`[Cron] Audit records pruned (>${AUDIT_RETENTION_DAYS}d): ${r.meta.changes}`);
+    } catch (err) { console.error('[Cron] Audit log cleanup failed:', err.message); }
+
+    console.log('[Cron] Monthly maintenance complete');
+  }
+};
+
+// ── EMAIL TEMPLATE BUILDERS ───────────────────────────────────────────────────
+// Shared between /register (isResend=false) and /resend-verification (isResend=true).
+
+function buildVerificationEmailHtml(verifyLink, isResend) {
+  const bodyText   = isResend
+    ? 'Here is your new verification link for Wissely. Click the button below to verify your email address and activate your account.'
+    : 'Thanks for signing up for Wissely. Click the button below to verify your email address and activate your account.';
+  const footerNote = isResend
+    ? 'You received this email because a new verification link was requested for this account.'
+    : 'You received this email because an account was created with this email address.';
+  const ignoreNote = isResend
+    ? 'If you did not request this, you can safely ignore this email.'
+    : 'If you did not create a Wissely account, you can safely ignore this email.';
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -700,9 +1755,7 @@ export default {
           <tr>
             <td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
               <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td>
-                </tr>
+                <tr><td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td></tr>
               </table>
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
@@ -711,14 +1764,11 @@ export default {
                     <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:32px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.1;">
                       Verify your<br/><em style="font-style:italic;color:#e8c97a;">email address.</em>
                     </h1>
-                    <p style="margin:0 0 32px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;">
-                      Thanks for signing up for Wissely. Click the button below to verify your email address and activate your account.
-                    </p>
+                    <p style="margin:0 0 32px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;">${bodyText}</p>
                     <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
                       <tr>
                         <td style="background-color:#c9a84c;border-radius:100px;">
-                          <a href="${verifyLink}"
-                             style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.2px;">
+                          <a href="${verifyLink}" style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.2px;">
                             Verify Email
                           </a>
                         </td>
@@ -729,7 +1779,7 @@ export default {
                         <td style="background-color:rgba(45,74,62,0.25);border:1px solid rgba(45,74,62,0.45);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;">
                           <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;font-family:'Courier New',monospace;">
                             <span style="color:#e8c97a;font-weight:600;">&#9679; EXPIRES IN 24 HOURS</span><br/>
-                            If you did not create a Wissely account, you can safely ignore this email.
+                            ${ignoreNote}
                           </p>
                         </td>
                       </tr>
@@ -756,7 +1806,7 @@ export default {
                   <td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
                     <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">
                       &copy; ${new Date().getFullYear()} Wissely. All rights reserved.<br/>
-                      You received this email because an account was created with this email address.
+                      ${footerNote}
                     </p>
                   </td>
                 </tr>
@@ -769,184 +1819,10 @@ export default {
   </table>
 </body>
 </html>`;
+}
 
-          let verifyRes = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              from: 'Wissely <noreply@wissely.com>',
-              to: [email],
-              subject: 'Verify your Wissely email address',
-              html: verifyHtml,
-              text: `Verify your Wissely email address: ${verifyLink}`
-            })
-          });
-          if (!verifyRes.ok) {
-            // Single retry on transient failure
-            verifyRes = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                from: 'Wissely <noreply@wissely.com>',
-                to: [email],
-                subject: 'Verify your Wissely email address',
-                html: verifyHtml,
-                text: `Verify your Wissely email address: ${verifyLink}`
-              })
-            });
-            if (!verifyRes.ok) {
-              const errText = await verifyRes.text();
-              console.error(`[Register] Verification email failed after retry: ${verifyRes.status} - ${errText}`);
-            }
-          }
-        } catch (emailErr) {
-          console.error('[Register] Verification email exception:', emailErr);
-        }
-
-        return createResponse(request, {
-          success: true,
-          message: 'Account created. Please check your email to verify your account.',
-          requiresVerification: true
-        }, 201);
-      }
-
-      // ── LOGIN ────────────────────────────────────────────────────────────────
-      if (path === '/login' && request.method === 'POST') {
-        if (await checkRateLimit(request, env, 'login')) {
-          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
-        }
-
-        const { body, error: parseError } = await parseJsonBody(request);
-        if (parseError) return createResponse(request, { error: parseError }, 400);
-
-        const { email, password } = body;
-        if (!email || !password) return createResponse(request, { error: 'Fields required' }, 400);
-
-        // Input length guards
-        if (email.length > MAX_EMAIL_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
-          return createResponse(request, { error: 'Invalid email or password' }, 401);
-        }
-
-        const user = await env.DB.prepare(
-          "SELECT id, email, password_hash, password_salt, plan, analyses_used, analyses_limit, email_verified FROM users WHERE email = ?"
-        ).bind(email).first();
-
-        if (!user) return createResponse(request, { error: 'Invalid email or password' }, 401);
-
-        const { hash } = await hashPassword(password, user.password_salt);
-
-        // Constant-time comparison prevents timing attacks
-        if (!safeCompare(hash, user.password_hash)) {
-          return createResponse(request, { error: 'Invalid email or password' }, 401);
-        }
-
-        // Block login until email is verified
-        if (!user.email_verified) {
-          return createResponse(request, {
-            error: 'Please verify your email address before logging in.',
-            requiresVerification: true
-          }, 403);
-        }
-
-        // Invalidate all previous sessions on new login
-        await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id).run();
-
-        const sessionId = crypto.randomUUID();
-        const expiresAtDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        await env.DB.prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)").bind(sessionId, user.id, expiresAtDate.toISOString()).run();
-
-        const cookieStr = [
-          `wissely_session=${sessionId}`,
-          `Expires=${expiresAtDate.toUTCString()}`,
-          'HttpOnly',
-          'Path=/',
-          'SameSite=None',
-          'Secure'
-        ].join('; ');
-
-        return createResponse(request, {
-          success: true,
-          user: { id: user.id, email: user.email, plan: user.plan, analyses_used: user.analyses_used, analyses_limit: user.analyses_limit }
-        }, 200, { 'Set-Cookie': cookieStr });
-      }
-
-      // ── VERIFY EMAIL ────────────────────────────────────────────────────────
-      if (path === '/verify-email' && request.method === 'POST') {
-        if (await checkRateLimit(request, env, 'verify-email')) {
-          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
-        }
-
-        const { body, error: parseError } = await parseJsonBody(request);
-        if (parseError) return createResponse(request, { error: parseError }, 400);
-
-        const { token } = body;
-        if (!token) return createResponse(request, { error: 'Verification token required' }, 400);
-        if (token.length > MAX_TOKEN_LENGTH) return createResponse(request, { error: 'Invalid verification token' }, 400);
-
-        const hashedToken = await hashToken(token);
-
-        const targetUser = await env.DB.prepare(
-          "SELECT id, email_verification_expires FROM users WHERE email_verification_token = ? AND email_verified = 0"
-        ).bind(hashedToken).first();
-
-        if (!targetUser) {
-          return createResponse(request, { error: 'Invalid or already used verification link.' }, 400);
-        }
-
-        if (new Date().getTime() > new Date(targetUser.email_verification_expires).getTime()) {
-          return createResponse(request, { error: 'Verification link has expired. Please request a new one.' }, 400);
-        }
-
-        await env.DB.prepare(
-          "UPDATE users SET email_verified = 1, email_verification_token = NULL, email_verification_expires = NULL WHERE id = ?"
-        ).bind(targetUser.id).run();
-
-        return createResponse(request, {
-          success: true,
-          message: 'Email verified successfully. You can now log in.'
-        }, 200);
-      }
-
-      // ── FORGOT PASSWORD ──────────────────────────────────────────────────────
-      if (path === '/forgot-password' && request.method === 'POST') {
-        if (await checkRateLimit(request, env, 'forgot-password')) {
-          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
-        }
-
-        const { body, error: parseError } = await parseJsonBody(request);
-        if (parseError) return createResponse(request, { error: parseError }, 400);
-
-        const { email } = body;
-        if (!email) return createResponse(request, { error: 'Email required' }, 400);
-        if (email.length > MAX_EMAIL_LENGTH) {
-          // Return standard response to prevent enumeration
-          return createResponse(request, { success: true, message: 'If the provided account exists, a reset link has been sent.' }, 200);
-        }
-
-        const user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-
-        // Prevent email enumeration: return standard success payload even if user does not exist
-        if (user) {
-          // Raw token sent in email; hashed token stored in DB
-          const rawToken = generateResetToken();
-          const hashedToken = await hashToken(rawToken);
-
-          const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
-          const createdAt = new Date().toISOString();
-
-          // Delete any previously outstanding tokens for this user
-          await env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(user.id).run();
-
-          // Store the hashed token — raw token never touches the database
-          await env.DB.prepare(
-            "INSERT INTO password_resets (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)"
-          ).bind(hashedToken, user.id, expiresAt, createdAt).run();
-
-          // Send notification email with Resend API Integration
-          try {
-            const resetLink = `https://app.wissely.com/reset-password.html?token=${rawToken}`;
-
-            const htmlEmail = `<!DOCTYPE html>
+function buildPasswordResetEmailHtml(resetLink) {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -975,9 +1851,7 @@ export default {
           <tr>
             <td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
               <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td>
-                </tr>
+                <tr><td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td></tr>
               </table>
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
@@ -992,8 +1866,7 @@ export default {
                     <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
                       <tr>
                         <td style="background-color:#c9a84c;border-radius:100px;">
-                          <a href="${resetLink}"
-                             style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.2px;">
+                          <a href="${resetLink}" style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.2px;">
                             Reset Password
                           </a>
                         </td>
@@ -1044,409 +1917,38 @@ export default {
   </table>
 </body>
 </html>`;
+}
 
-            // Resend with one retry on transient failure
-            let resendRes = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                from: 'Wissely <noreply@wissely.com>',
-                to: [email],
-                subject: 'Reset your Wissely password',
-                html: htmlEmail,
-                text: `Reset your password: ${resetLink}`
-              })
-            });
-
-            if (!resendRes.ok) {
-              // Single retry on failure
-              resendRes = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  from: 'Wissely <noreply@wissely.com>',
-                  to: [email],
-                  subject: 'Reset your Wissely password',
-                  html: htmlEmail,
-                  text: `Reset your password: ${resetLink}`
-                })
-              });
-
-              if (!resendRes.ok) {
-                const errorText = await resendRes.text();
-                console.error(`[PASSWORD RESET] Resend failed after retry: ${resendRes.status} - ${errorText}`);
-              }
-            }
-          } catch (emailError) {
-            console.error('[PASSWORD RESET] Email dispatch exception:', emailError);
-          }
-        }
-
-        return createResponse(request, {
-          success: true,
-          message: 'If the provided account exists, a reset link has been sent.'
-        }, 200);
-      }
-
-      // ── RESET PASSWORD ───────────────────────────────────────────────────────
-      if (path === '/reset-password' && request.method === 'POST') {
-        if (await checkRateLimit(request, env, 'reset-password')) {
-          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
-        }
-
-        const { body, error: parseError } = await parseJsonBody(request);
-        if (parseError) return createResponse(request, { error: parseError }, 400);
-
-        const { token, password } = body;
-        if (!token || !password) return createResponse(request, { error: 'Token and password are required' }, 400);
-
-        // Input length guards
-        if (token.length > MAX_TOKEN_LENGTH) return createResponse(request, { error: 'Invalid reset token' }, 400);
-        if (password.length > MAX_PASSWORD_LENGTH) return createResponse(request, { error: 'Password is too long' }, 400);
-        if (password.length < 8) return createResponse(request, { error: 'Password must be at least 8 characters' }, 400);
-
-        // Hash the incoming raw token to look up the stored hashed token
-        const hashedToken = await hashToken(token);
-
-        const resetRecord = await env.DB.prepare(
-          "SELECT token, user_id, expires_at FROM password_resets WHERE token = ?"
-        ).bind(hashedToken).first();
-
-        if (!resetRecord) {
-          return createResponse(request, { error: 'Invalid or expired reset link' }, 400);
-        }
-
-        if (new Date().getTime() > new Date(resetRecord.expires_at).getTime()) {
-          await env.DB.prepare("DELETE FROM password_resets WHERE token = ?").bind(hashedToken).run();
-          return createResponse(request, { error: 'Reset link has expired. Please request a new one.' }, 400);
-        }
-
-        const { hash, salt } = await hashPassword(password);
-
-        // Batch: update password, invalidate all sessions, delete reset token
-        await env.DB.batch([
-          env.DB.prepare("UPDATE users SET password_hash = ?, password_salt = ? WHERE id = ?").bind(hash, salt, resetRecord.user_id),
-          env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(resetRecord.user_id),
-          env.DB.prepare("DELETE FROM password_resets WHERE user_id = ?").bind(resetRecord.user_id)
-        ]);
-
-        return createResponse(request, {
-          success: true,
-          message: 'Password updated successfully. Please log in with your new password.'
-        }, 200);
-      }
-
-      // ── ME ───────────────────────────────────────────────────────────────────
-      if (path === '/me' && request.method === 'GET') {
-        const session = await authenticateSession(request, env);
-        if (!session) return createResponse(request, { error: 'Unauthenticated' }, 401);
-
-        if (session.isExpiredTrial) {
-          return createResponse(request, {
-            authenticated: true,
-            trialExpired: true,
-            user: {
-              id: session.user_id,
-              email: session.email,
-              plan: session.plan,
-              analyses_used: session.analyses_used,
-              analyses_limit: session.analyses_limit,
-              trial_end: session.trial_end
-            }
-          }, 403);
-        }
-
-        return createResponse(request, {
-          authenticated: true,
-          user: {
-            id: session.user_id,
-            email: session.email,
-            plan: session.plan,
-            analyses_used: session.analyses_used,
-            analyses_limit: session.analyses_limit,
-            trial_end: session.trial_end
-          }
-        });
-      }
-
-      // ── LOGOUT ───────────────────────────────────────────────────────────────
-      if (path === '/logout' && request.method === 'POST') {
-        const cookies = parseCookies(request);
-        const sessionId = cookies['wissely_session'];
-        if (sessionId) {
-          await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(sessionId).run();
-        }
-        return createResponse(request, { success: true }, 200, {
-          'Set-Cookie': 'wissely_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=None; Secure'
-        });
-      }
-
-      // ── ANALYZE ──────────────────────────────────────────────────────────────
-      if (path === '/analyze' && request.method === 'POST') {
-        const session = await authenticateSession(request, env);
-        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
-        if (session.isExpiredTrial) return createResponse(request, { error: 'Trial expired' }, 403);
-
-        const allocation = await env.DB.prepare(
-          "UPDATE users SET analyses_used = analyses_used + 1 WHERE id = ? AND analyses_used < analyses_limit"
-        ).bind(session.user_id).run();
-
-        if (allocation.meta.changes === 0) {
-          return createResponse(request, { error: 'Usage limit reached for this month' }, 403);
-        }
-
-        const { body, error: parseError } = await parseJsonBody(request);
-        if (parseError) {
-          await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
-          return createResponse(request, { error: parseError }, 400);
-        }
-
-        if (!body.messages) {
-          await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
-          return createResponse(request, { error: 'Missing messages field' }, 400);
-        }
-
-        try {
-          const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': env.ANTHROPIC_API_KEY,
-              'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1000, system: buildSystemPrompt(body.tool || 'unknown'), messages: body.messages })
-          });
-
-          const rawPayload = await anthropicRes.text();
-
-          if (anthropicRes.ok) {
-            const updatedUser = await env.DB.prepare(
-              "SELECT id, email, plan, analyses_used, analyses_limit, trial_end FROM users WHERE id = ?"
-            ).bind(session.user_id).first();
-
-            // Extract structured JSON from any provider format, then validate/normalize.
-            // Neither call ever throws — malformed or partial AI output is always safe.
-            const extractedReport = extractAIReport(rawPayload);
-            const report = validateAIReport(extractedReport);
-
-            return createResponse(request, {
-              success: true,
-              data: report,
-              user: updatedUser
-            });
-          } else {
-            await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
-            return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
-          }
-        } catch (apiError) {
-          await env.DB.prepare("UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?").bind(session.user_id).run();
-          console.error('[Analyze] Upstream fetch failed:', apiError.message);
-          throw apiError;
-        }
-      }
-
-      // ── RESEND VERIFICATION ─────────────────────────────────────────────────
-      if (path === '/resend-verification' && request.method === 'POST') {
-        if (await checkRateLimit(request, env, 'resend-verification')) {
-          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
-        }
-
-        const { body, error: parseError } = await parseJsonBody(request);
-        if (parseError) return createResponse(request, { error: parseError }, 400);
-
-        const { email } = body;
-        if (!email) return createResponse(request, { error: 'Email required' }, 400);
-
-        // Standard enumeration-safe response — always returned regardless of outcome
-        const standardResponse = createResponse(request, {
-          success: true,
-          message: 'If the account exists and is not yet verified, a new verification email has been sent.'
-        }, 200);
-
-        // Input length guard — bail early but return standard response
-        if (email.length > MAX_EMAIL_LENGTH) return standardResponse;
-
-        const user = await env.DB.prepare(
-          "SELECT id, email_verified FROM users WHERE email = ?"
-        ).bind(email).first();
-
-        // Only act if the user exists and is unverified — never reveal which case applies
-        if (user && !user.email_verified) {
-          const rawVerifyToken    = generateResetToken();
-          const hashedVerifyToken = await hashToken(rawVerifyToken);
-          const verifyExpires     = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-
-          await env.DB.prepare(
-            "UPDATE users SET email_verification_token = ?, email_verification_expires = ? WHERE id = ?"
-          ).bind(hashedVerifyToken, verifyExpires, user.id).run();
-
-          try {
-            const verifyLink = `https://app.wissely.com/verify-email.html?token=${rawVerifyToken}`;
-
-            const verifyHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Verify your Wissely email</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-          <tr>
-            <td style="padding-bottom:28px;" align="center">
-              <table cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="width:32px;height:32px;background-color:#2d4a3e;border-radius:7px;text-align:center;vertical-align:middle;">
-                    <span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8c97a;line-height:32px;">W</span>
-                  </td>
-                  <td style="padding-left:10px;vertical-align:middle;">
-                    <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fefefc;letter-spacing:-0.5px;">Wissely</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td>
-                </tr>
-              </table>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:40px 40px 36px;">
-                    <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Email Verification</p>
-                    <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:32px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.1;">
-                      Verify your<br/><em style="font-style:italic;color:#e8c97a;">email address.</em>
-                    </h1>
-                    <p style="margin:0 0 32px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;">
-                      Here is your new verification link for Wissely. Click the button below to verify your email address and activate your account.
-                    </p>
-                    <table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
-                      <tr>
-                        <td style="background-color:#c9a84c;border-radius:100px;">
-                          <a href="${verifyLink}"
-                             style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;font-family:'Segoe UI',Arial,sans-serif;letter-spacing:0.2px;">
-                            Verify Email
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
-                      <tr>
-                        <td style="background-color:rgba(45,74,62,0.25);border:1px solid rgba(45,74,62,0.45);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;">
-                          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;font-family:'Courier New',monospace;">
-                            <span style="color:#e8c97a;font-weight:600;">&#9679; EXPIRES IN 24 HOURS</span><br/>
-                            If you did not request this, you can safely ignore this email.
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
-                    <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;">
-                      Button not working? Copy and paste this link:<br/>
-                      <a href="${verifyLink}" style="color:#c9a84c;text-decoration:none;word-break:break-all;">${verifyLink}</a>
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="border-top:1px solid rgba(255,255,255,0.05);padding:24px 40px;">
-                    <p style="margin:0 0 6px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Need help?</p>
-                    <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.45);line-height:1.7;">
-                      Contact us at&nbsp;<a href="mailto:support@wissely.com" style="color:#c9a84c;text-decoration:none;font-weight:500;">support@wissely.com</a>
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
-                    <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">
-                      &copy; ${new Date().getFullYear()} Wissely. All rights reserved.<br/>
-                      You received this email because a new verification link was requested for this account.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-            let resendRes = await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                from: 'Wissely <noreply@wissely.com>',
-                to: [email],
-                subject: 'Verify your Wissely email address',
-                html: verifyHtml,
-                text: `Verify your Wissely email address: ${verifyLink}`
-              })
-            });
-            if (!resendRes.ok) {
-              resendRes = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  from: 'Wissely <noreply@wissely.com>',
-                  to: [email],
-                  subject: 'Verify your Wissely email address',
-                  html: verifyHtml,
-                  text: `Verify your Wissely email address: ${verifyLink}`
-                })
-              });
-              if (!resendRes.ok) {
-                const errText = await resendRes.text();
-                console.error(`[ResendVerification] Email failed after retry: ${resendRes.status} - ${errText}`);
-              }
-            }
-          } catch (emailErr) {
-            console.error('[ResendVerification] Email exception:', emailErr);
-          }
-        }
-
-        return standardResponse;
-      }
-
-      return createResponse(request, { error: 'Not found' }, 404);
-    } catch (globalError) {
-      console.error('[Worker] Unhandled exception:', globalError.message);
-      return createResponse(request, { error: 'An unexpected error occurred' }, 500);
-    }
-  },
-
-  // ── CRON: Monthly usage reset ────────────────────────────────────────────
-  // Triggered by wrangler.toml cron schedule: "0 0 1 * *" (00:00 UTC, 1st of month)
-  // The UTC date check inside is a safety net against misconfigured schedules.
-  async scheduled(event, env, ctx) {
-    const today = new Date();
-    if (today.getUTCDate() !== 1) {
-      console.log('[Cron] Monthly reset skipped — not the 1st of the month (UTC)');
-      return;
-    }
-    try {
-      const result = await env.DB.prepare(
-        "UPDATE users SET analyses_used = 0"
-      ).run();
-      console.log(`[Cron] Monthly usage reset complete — ${result.meta.changes} user(s) reset`);
-    } catch (err) {
-      console.error('[Cron] Monthly usage reset failed:', err.message);
-    }
-  }
-};
+// ── SCHEMA MIGRATION REFERENCE ────────────────────────────────────────────────
+// Apply to Cloudflare D1 before deploying this worker version.
+//
+// 1. sessions table — add csrf_token column if not present:
+//    ALTER TABLE sessions ADD COLUMN csrf_token TEXT;
+//
+//    NOTE: sessions.id now stores a SHA-256 hex hash of the raw session token.
+//    All existing sessions will be invalidated on deploy (users must log in again).
+//    No schema change is required — the column type (TEXT) is unchanged.
+//
+// 2. Audit log table:
+//    CREATE TABLE IF NOT EXISTS audit_logs (
+//      id         TEXT PRIMARY KEY,
+//      timestamp  TEXT NOT NULL,
+//      user_id    TEXT,
+//      ip         TEXT,
+//      event_type TEXT NOT NULL,
+//      result     TEXT NOT NULL,
+//      metadata   TEXT
+//    );
+//
+// 3. Indexes — apply all; IF NOT EXISTS makes them safe to re-run:
+//    CREATE INDEX IF NOT EXISTS idx_users_email                ON users(email);
+//    CREATE INDEX IF NOT EXISTS idx_sessions_user_id           ON sessions(user_id);
+//    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at        ON sessions(expires_at);
+//    CREATE INDEX IF NOT EXISTS idx_password_resets_user_id    ON password_resets(user_id);
+//    CREATE INDEX IF NOT EXISTS idx_password_resets_expires_at ON password_resets(expires_at);
+//    CREATE INDEX IF NOT EXISTS idx_users_verification_token   ON users(email_verification_token);
+//    CREATE INDEX IF NOT EXISTS idx_users_paddle_sub_id        ON users(paddle_subscription_id);
+//    CREATE INDEX IF NOT EXISTS idx_users_paddle_cust_id       ON users(paddle_customer_id);
+//    CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp       ON audit_logs(timestamp);
+//    CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id         ON audit_logs(user_id);
+//    CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type      ON audit_logs(event_type);
