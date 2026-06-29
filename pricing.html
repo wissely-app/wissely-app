@@ -240,32 +240,105 @@ nav{
 </section>
 
 <script>
+const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
+const PAID_PLANS = ['starter', 'growth', 'pro'];
+
+// Wire up upgrade buttons — navigate to checkout unless the button has been
+// disabled (current plan). The disabled check is the safety net; the button's
+// own disabled attribute also blocks clicks, but this guards programmatic calls.
 document.querySelectorAll('.upgrade-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.disabled) return;
     window.location.href = `checkout.html?plan=${btn.dataset.plan}`;
   });
 });
 
-window.addEventListener('DOMContentLoaded', () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const targetPlan = urlParams.get('plan');
+// Mark a card as the user's current active plan.
+function markCurrentPlan(planName) {
+  const card = document.getElementById(`${planName}-plan`);
+  if (!card) return;
 
-  if (targetPlan) {
-    const cleanPlanId = `${targetPlan.toLowerCase()}-plan`;
-    const targetCard = document.getElementById(cleanPlanId);
+  // Insert the green CURRENT PLAN badge before the card's first child so it
+  // sits at the top, matching the position of the existing .badge element on
+  // the Growth card. If the card already has a .badge (Growth), insert after it
+  // so both badges are visible in their natural order.
+  const existingBadge = card.querySelector('.badge');
+  const currentBadge = document.createElement('div');
+  currentBadge.className = 'current-plan';
+  currentBadge.textContent = 'CURRENT PLAN';
 
-    if (targetCard) {
-      targetCard.classList.add('selected-plan');
-
-      requestAnimationFrame(() => { 
-        targetCard.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        }); 
-      });
-    }
+  if (existingBadge) {
+    existingBadge.insertAdjacentElement('afterend', currentBadge);
+  } else {
+    card.insertBefore(currentBadge, card.firstChild);
   }
-});
+
+  // Disable the upgrade button and update its label.
+  const btn = card.querySelector('.upgrade-btn');
+  if (btn) {
+    btn.textContent = 'Current Plan';
+    btn.disabled = true;
+    btn.style.cursor = 'not-allowed';
+    btn.style.opacity = '0.65';
+  }
+}
+
+// Highlight a card via the selected-plan class and scroll it into view.
+// Used for both the URL ?plan= parameter and the current-plan highlight.
+function highlightAndScroll(planName) {
+  const card = document.getElementById(`${planName}-plan`);
+  if (!card) return;
+
+  card.classList.add('selected-plan');
+
+  requestAnimationFrame(() => {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
+
+// Fetch the authenticated user's profile and apply current-plan UI if on a
+// paid plan. Trial users are left untouched so they can upgrade freely.
+async function applyCurrentPlanState() {
+  try {
+    const res = await fetch(`${API_BASE}/me`, { credentials: 'include' });
+
+    // Not authenticated or any non-OK response — silently skip plan highlighting.
+    if (!res.ok) return;
+
+    const json = await res.json();
+    const plan = json?.user?.plan;
+
+    if (plan && PAID_PLANS.includes(plan)) {
+      markCurrentPlan(plan);
+      highlightAndScroll(plan);
+      // Current plan takes priority over any ?plan= URL param, so we return
+      // early here and skip the URL param logic below.
+      return;
+    }
+  } catch {
+    // Network error or unexpected response shape — degrade gracefully, the
+    // page remains fully functional without the current-plan state applied.
+  }
+
+  // Fall through to URL param handling when the user is unauthenticated,
+  // on trial, or when the /me request fails.
+  applyUrlParamHighlight();
+}
+
+// Highlight and scroll to the card named in the ?plan= URL parameter.
+function applyUrlParamHighlight() {
+  const targetPlan = new URLSearchParams(window.location.search).get('plan');
+  if (!targetPlan) return;
+
+  const normalized = targetPlan.toLowerCase();
+  if (!PAID_PLANS.includes(normalized)) return;
+
+  highlightAndScroll(normalized);
+}
+
+// Kick off on DOM ready.
+window.addEventListener('DOMContentLoaded', applyCurrentPlanState);
 </script>
 
 </body>
