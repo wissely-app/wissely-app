@@ -166,10 +166,15 @@ main {
   box-sizing: border-box;
 }
 
-.pay-btn:hover {
+.pay-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
   opacity: 0.95;
+}
+
+.pay-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .note {
@@ -179,6 +184,19 @@ main {
   color: var(--text-muted);
   font-family: 'DM Mono', monospace;
   letter-spacing: 0.5px;
+}
+
+.error-msg {
+  display: none;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
 }
 
 footer {
@@ -213,7 +231,7 @@ footer {
 
 <nav>
   <a href="index.html" class="logo">Wissely</a>
-  <a href="upgrade.html" class="back-btn">← Back</a>
+  <a href="pricing.html" class="back-btn">← Back</a>
 </nav>
 
 <main>
@@ -249,8 +267,10 @@ footer {
     Continue to Payment
   </button>
 
+  <div class="error-msg" id="errorMsg"></div>
+
   <div class="note">
-    Paddle integration will be connected here.
+    Secured by Paddle · SSL encrypted
   </div>
 
 </div>
@@ -262,43 +282,151 @@ WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
 </footer>
 
 <script>
+const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
 
-const plans = {
-  starter:{
-    name:"Starter",
-    price:"$12/month"
-  },
-  growth:{
-    name:"Growth",
-    price:"$29/month"
-  },
-  pro:{
-    name:"Pro",
-    price:"$79/month"
-  }
+const PLANS = {
+  starter: { name: 'Starter', price: '$12/month' },
+  growth:  { name: 'Growth',  price: '$29/month' },
+  pro:     { name: 'Pro',     price: '$79/month' }
 };
 
-const params = new URLSearchParams(window.location.search);
-const selectedPlan = params.get("plan") || "growth";
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-if(plans[selectedPlan]){
-  document.getElementById("planName").textContent =
-    plans[selectedPlan].name;
-
-  document.getElementById("planPrice").textContent =
-    plans[selectedPlan].price;
+function setButtonState(loading) {
+  const btn = document.getElementById('payBtn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Redirecting…' : 'Continue to Payment';
 }
 
-document.getElementById("payBtn").addEventListener("click",()=>{
+function showError(message) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = message;
+  el.style.display = 'block';
+}
 
-  /* Paddle goes here later */
+function hideError() {
+  const el = document.getElementById('errorMsg');
+  el.style.display = 'none';
+  el.textContent = '';
+}
 
-  window.location.href =
-    `success.html?plan=${selectedPlan}`;
+// CSRF tokens are issued at login and expected to be available to the
+// frontend (e.g. stored in sessionStorage by the login flow). Read it here
+// defensively — if it's missing, the worker rejects the request with 403
+// and the catch block below surfaces a friendly error.
+function getCsrfToken() {
+  try {
+    return sessionStorage.getItem('csrfToken') || '';
+  } catch {
+    return '';
+  }
+}
 
+// ── Plan validation ───────────────────────────────────────────────────────────
+// Only starter / growth / pro are valid. Any other ?plan= value sends the user
+// back to pricing so they can make a proper selection.
+
+const params = new URLSearchParams(window.location.search);
+const selectedPlan = (params.get('plan') || '').toLowerCase();
+
+if (!PLANS[selectedPlan]) {
+  window.location.replace('pricing.html');
+} else {
+  document.getElementById('planName').textContent  = PLANS[selectedPlan].name;
+  document.getElementById('planPrice').textContent = PLANS[selectedPlan].price;
+}
+
+// ── Auth gate ─────────────────────────────────────────────────────────────────
+// Verify the session before letting the user interact with the checkout.
+// A 401 means unauthenticated → redirect to login.
+// A 403 means trial expired → redirect to upgrade.
+// Any other non-OK response or network failure is treated as a transient
+// problem; the page loads normally so the user can still attempt checkout.
+
+async function verifyAuth() {
+  try {
+    const res = await fetch(`${API_BASE}/me`, { credentials: 'include' });
+    if (res.status === 401) {
+      window.location.replace('login.html');
+      return;
+    }
+    if (res.status === 403) {
+      window.location.replace('upgrade.html');
+      return;
+    }
+    // Any other status (200, 5xx, network error) → allow the page to load.
+  } catch {
+    // Network error — degrade gracefully, do not block the page.
+  }
+}
+
+verifyAuth();
+
+// ── Payment button ────────────────────────────────────────────────────────────
+
+document.getElementById('payBtn').addEventListener('click', async () => {
+  // Guard against double-clicks; the button is already disabled after first click.
+  if (document.getElementById('payBtn').disabled) return;
+
+  hideError();
+  setButtonState(true);
+
+  try {
+    const res = await fetch(`${API_BASE}/create-checkout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      },
+      body: JSON.stringify({ plan: selectedPlan })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    // ── Redirect responses — never show an error for these ─────────────────
+
+    // 401 — session expired mid-checkout; send to login
+    if (res.status === 401) {
+      window.location.replace('login.html');
+      return;
+    }
+
+    // 409 — already subscribed to this plan; send to billing management
+    if (res.status === 409) {
+      window.location.replace('billing.html');
+      return;
+    }
+
+    // 403 — two distinct cases:
+    //   "Trial expired"                    → upgrade page
+    //   "Invalid or missing security token" → session/CSRF stale, re-login
+    if (res.status === 403) {
+      if (data.error === 'Invalid or missing security token') {
+        window.location.replace('login.html');
+      } else {
+        // Covers "Trial expired" and any other 403 reason
+        window.location.replace('upgrade.html');
+      }
+      return;
+    }
+
+    // ── Normal error handling ───────────────────────────────────────────────
+
+    if (!res.ok || !data.checkoutUrl) {
+      throw new Error(data.error || 'Could not create checkout session.');
+    }
+
+    // Success — hand off to Paddle's hosted checkout immediately.
+    window.location.replace(data.checkoutUrl);
+
+  } catch (err) {
+    // Restore the button so the user can try again.
+    setButtonState(false);
+    showError(err.message || 'Something went wrong. Please try again or contact support.');
+  }
 });
-
 </script>
 
 </body>
-</html>
+  </html>
