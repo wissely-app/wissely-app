@@ -13,6 +13,7 @@
  *   Email delivery     — Resend API, background via waitUntil(), automatic retry
  *   Paddle Billing v2  — HMAC-SHA256 webhook verification, idempotency, full event set
  *   Subscriptions      — Starter / Growth / Pro plans, atomic quota management
+ *   Checkout           — Server-side Paddle transaction creation for hosted checkout
  *   Cleanup            — Daily stale-data purge (5 % per-request) + monthly cron
  *   Security headers   — HSTS, CSP, CORP, X-Frame, Referrer, Permissions-Policy
  *   Request tracing    — X-Request-ID propagated through every log line
@@ -65,6 +66,13 @@ const ANTHROPIC_RETRY_DELAY = 2000;  // 2 s initial backoff (doubled on each ret
 const PADDLE_EVENT_KV_PREFIX   = 'paddle_event:';
 const PADDLE_EVENT_TTL_SECONDS = 86400;
 
+// Paddle checkout creation — subrequest timeout to the Paddle Transactions API
+const PADDLE_CHECKOUT_TIMEOUT_MS = 10000; // 10 s
+
+// Paddle customer lookup — subrequest timeout for resolving an account from
+// a webhook event when custom_data.user_id is not present.
+const PADDLE_CUSTOMER_LOOKUP_TIMEOUT_MS = 8000; // 8 s
+
 // Audit log retention — records older than this are pruned by the monthly cron
 const AUDIT_RETENTION_DAYS = 90;
 
@@ -91,6 +99,14 @@ const PADDLE_PRICE_PLANS = {
   'pri_01kvxa3n164k0zrrjte8sg17n9': { plan: 'growth',  analyses_limit: 250  },
   'pri_01kvxa5v3s82pe1fw3h71wb4e9': { plan: 'pro',     analyses_limit: 1000 },
 };
+
+// Reverse lookup — plan name to price ID, used when creating a checkout
+// transaction. Built once from PADDLE_PRICE_PLANS so the two maps can never
+// drift out of sync with each other.
+const PLAN_TO_PRICE_ID = Object.entries(PADDLE_PRICE_PLANS).reduce((acc, [priceId, cfg]) => {
+  acc[cfg.plan] = priceId;
+  return acc;
+}, {});
 
 // Applied on cancellation, pause, or unrecognised price ID
 const PLAN_FREE = { plan: 'free', analyses_limit: 5 };
@@ -826,6 +842,158 @@ function resolvePaddlePlan(items) {
   return null;
 }
 
+// Creates a Paddle Billing v2 hosted-checkout transaction for the given plan
+// and user, and returns the checkout URL the frontend should redirect to.
+//
+// Uses the Transactions API with `collection_mode: automatic`, which causes
+// Paddle to generate a hosted checkout URL at `data.checkout.url` once the
+// transaction is created in `draft`/`ready` status. The user's ID is attached
+// via custom_data so the webhook handler (subscription.created, etc.) can
+// resolve the Wissely account without any extra round trip.
+//
+// success_url / cancel_url are passed via Paddle's `checkout.url` field as a
+// single base return URL — Paddle's hosted checkout appends its own status
+// query params to whichever URL is supplied. Since Paddle Billing only
+// supports one configured return URL per transaction (not separate success
+// and cancel destinations), PADDLE_CHECKOUT_SUCCESS_URL is used as that base
+// return URL and the frontend's success.html is responsible for inspecting
+// the appended Paddle status/transaction params and redirecting to
+// cancel.html if the checkout was not completed. If PADDLE_CHECKOUT_SUCCESS_URL
+// is not configured, PADDLE_CHECKOUT_RETURN_URL is used as a fallback so
+// existing deployments keep working without a config change.
+//
+// Returns { ok: true, checkoutUrl } on success, or { ok: false, status, message }
+// on any failure — the caller decides how to surface this to the client.
+async function createPaddleCheckoutTransaction(env, { priceId, userId, userEmail }) {
+  const apiBase = env.PADDLE_API_BASE || 'https://api.paddle.com';
+
+  if (!env.PADDLE_API_KEY) {
+    console.error('[Paddle] PADDLE_API_KEY is not configured');
+    return { ok: false, status: 500, message: 'Payment provider is not configured' };
+  }
+
+  const returnUrl = env.PADDLE_CHECKOUT_SUCCESS_URL || env.PADDLE_CHECKOUT_RETURN_URL || undefined;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PADDLE_CHECKOUT_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${apiBase}/transactions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.PADDLE_API_KEY}`,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify({
+        items: [{ price_id: priceId, quantity: 1 }],
+        customer: userEmail ? { email: userEmail } : undefined,
+        custom_data: { user_id: userId },
+        collection_mode: 'automatic',
+        checkout: {
+          url: returnUrl
+        }
+      }),
+      signal: controller.signal
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      console.error('[Paddle] Transaction creation failed:', res.status, text);
+      return { ok: false, status: res.status, message: 'Failed to create checkout transaction' };
+    }
+
+    let json;
+    try { json = JSON.parse(text); } catch {
+      console.error('[Paddle] Transaction response was not valid JSON');
+      return { ok: false, status: 502, message: 'Invalid response from payment provider' };
+    }
+
+    const checkoutUrl = json?.data?.checkout?.url;
+    if (!checkoutUrl) {
+      console.error('[Paddle] Transaction created but no checkout URL present:', JSON.stringify(json?.data ?? {}));
+      return { ok: false, status: 502, message: 'Checkout URL missing from payment provider response' };
+    }
+
+    return { ok: true, checkoutUrl };
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error('[Paddle] Transaction creation timed out');
+      return { ok: false, status: 504, message: 'Payment provider timed out' };
+    }
+    console.error('[Paddle] Transaction creation exception:', err.message);
+    return { ok: false, status: 502, message: 'Failed to reach payment provider' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Fetches a Paddle customer's email address from the Paddle API.
+// Used only as a fallback during webhook user resolution, when
+// custom_data.user_id was not present on the event payload (e.g. events
+// triggered directly from the Paddle dashboard, or older transactions
+// created before custom_data was attached).
+// Never throws — returns null on any failure so callers can fall back further.
+async function fetchPaddleCustomerEmail(env, customerId) {
+  if (!customerId || !env.PADDLE_API_KEY) return null;
+  const apiBase = env.PADDLE_API_BASE || 'https://api.paddle.com';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PADDLE_CUSTOMER_LOOKUP_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${apiBase}/customers/${encodeURIComponent(customerId)}`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${env.PADDLE_API_KEY}` },
+      signal: controller.signal
+    });
+
+    if (!res.ok) {
+      console.warn('[Paddle] Customer lookup failed:', res.status, customerId);
+      return null;
+    }
+
+    const json = await res.json().catch(() => null);
+    const email = json?.data?.email;
+    return typeof email === 'string' && email ? email : null;
+
+  } catch (err) {
+    console.warn('[Paddle] Customer lookup exception:', err.message, customerId);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Resolves the Wissely user ID for an inbound Paddle webhook event.
+// Resolution order:
+//   1. data.custom_data.user_id — attached at checkout creation, present on
+//      almost every event for transactions initiated through Wissely.
+//   2. Paddle customer email lookup — fallback for events where custom_data
+//      is missing (e.g. manually created subscriptions, dashboard actions),
+//      resolved against the local users table by email.
+// Returns null if no user can be resolved — callers must handle that case
+// without throwing, since Paddle webhooks must always receive a 200.
+async function resolveWebhookUserId(env, data) {
+  const directUserId = data?.custom_data?.user_id;
+  if (directUserId) return directUserId;
+
+  const customerId = data?.customer_id;
+  if (!customerId) return null;
+
+  const email = await fetchPaddleCustomerEmail(env, customerId);
+  if (!email) return null;
+
+  try {
+    const user = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
+    return user?.id ?? null;
+  } catch (err) {
+    console.warn('[Paddle] Local user lookup by email failed:', err.message);
+    return null;
+  }
+}
+
 // ── PADDLE EVENT PROCESSOR ────────────────────────────────────────────────────
 // Handles all Paddle Billing v2 subscription lifecycle events.
 // Always returns — never throws — so the webhook handler can always return 200.
@@ -833,7 +1001,9 @@ function resolvePaddlePlan(items) {
 async function processPaddleEvent(eventType, data, env, request, requestId) {
   const subscriptionId = data?.id;
   const customerId     = data?.customer_id;
-  const userId         = data?.custom_data?.user_id; // injected at checkout
+  // Resolution order: custom_data.user_id first, falling back to a Paddle
+  // customer-email lookup against the local users table when absent.
+  const userId          = await resolveWebhookUserId(env, data);
   const status         = data?.status ?? 'unknown';
   const planConfig     = resolvePaddlePlan(data?.items);
   const ip             = getClientIp(request);
@@ -1507,6 +1677,87 @@ export default {
         });
       }
 
+      // ── CREATE CHECKOUT ───────────────────────────────────────────────────
+      // Creates a Paddle Billing v2 hosted-checkout transaction for the
+      // requested plan and returns the URL the frontend should redirect to.
+      // No price IDs or Paddle credentials are exposed to the client at any
+      // point — the price ID is resolved server-side from PLAN_TO_PRICE_ID,
+      // which is itself derived from the existing PADDLE_PRICE_PLANS map.
+      if (path === '/create-checkout' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session)               return createResponse(request, { error: 'Unauthorized' }, 401);
+        if (session.isExpiredTrial) return createResponse(request, { error: 'Trial expired' }, 403);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/create-checkout' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'create-checkout')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, 400);
+
+        const { plan } = body ?? {};
+        const priceId   = typeof plan === 'string' ? PLAN_TO_PRICE_ID[plan] : undefined;
+
+        if (!priceId) {
+          return createResponse(request, {
+            error: 'Invalid plan. Allowed values are: starter, growth, pro.'
+          }, 400);
+        }
+
+        // Block redundant checkouts — a user already on the requested plan
+        // (with an active/trialing subscription) gains nothing from a new
+        // transaction and Paddle would simply create a duplicate subscription.
+        if (session.plan === plan) {
+          return createResponse(request, {
+            error: `You are already subscribed to the ${plan} plan.`
+          }, 409);
+        }
+
+        const ip = getClientIp(request);
+
+        const result = await createPaddleCheckoutTransaction(env, {
+          priceId,
+          userId:    session.user_id,
+          userEmail: session.email
+        });
+
+        if (!result.ok) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip,
+            eventType: 'checkout_creation_failed', result: 'failure',
+            metadata: { plan, status: result.status }
+          });
+          return createResponse(request, {
+            error: result.message || 'Unable to create checkout session. Please try again.'
+          }, result.status && result.status >= 400 && result.status < 600 ? result.status : 502);
+        }
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip,
+          eventType: 'checkout_created', result: 'success',
+          metadata: { plan }
+        });
+
+        return createResponse(request, { checkoutUrl: result.checkoutUrl }, 200);
+      }
+
       // ── ANALYZE ───────────────────────────────────────────────────────────
       if (path === '/analyze' && request.method === 'POST') {
         const session = await authenticateSession(request, env);
@@ -1952,3 +2203,28 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp       ON audit_logs(timestamp);
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id         ON audit_logs(user_id);
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type      ON audit_logs(event_type);
+//
+// 4. Required Cloudflare environment variables / secrets for this version:
+//    PADDLE_API_KEY              — Paddle API key (secret), used for both
+//                                   transaction creation and customer lookups.
+//    PADDLE_WEBHOOK_SECRET       — Paddle webhook signing secret (secret).
+//    PADDLE_API_BASE              — optional, defaults to https://api.paddle.com
+//                                   (override to https://sandbox-api.paddle.com
+//                                   for sandbox testing).
+//    PADDLE_CHECKOUT_SUCCESS_URL  — preferred return URL for hosted checkout;
+//                                   should resolve to success.html on the
+//                                   frontend. Falls back to
+//                                   PADDLE_CHECKOUT_RETURN_URL if unset.
+//    PADDLE_CHECKOUT_CANCEL_URL   — destination the frontend's success.html /
+//                                   checkout.html should send the user to if
+//                                   the hosted checkout indicates the payment
+//                                   was not completed. Not sent to Paddle
+//                                   directly (Paddle Billing v2 hosted
+//                                   checkout supports a single return URL);
+//                                   read by the frontend only.
+//    RATE_LIMIT_KV                — KV namespace binding for rate limiting,
+//                                   login protection, CSRF/webhook monitoring,
+//                                   and Paddle event idempotency.
+//    DB                           — D1 database binding.
+//    ANTHROPIC_API_KEY            — Anthropic API key (secret).
+//    RESEND_API_KEY               — Resend API key (secret).
