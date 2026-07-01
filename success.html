@@ -190,6 +190,52 @@ h1 {
   transform: translateY(0);
 }
 
+/* Pending / error banner — hidden until needed */
+.status-banner {
+  display: none;
+  padding: 16px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.status-banner.pending {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.status-banner.error {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+/* Secondary retry button — hidden until needed */
+.btn-retry {
+  display: none;
+  width: 100%;
+  margin-top: 12px;
+  padding: 16px 24px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--sage);
+  border: 1px solid var(--cream3);
+  transition: var(--transition);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.btn-retry:hover {
+  border-color: var(--sage-muted);
+  background: var(--cream);
+}
+
 .footer {
   margin-top: 40px;
   font-size: 11px;
@@ -257,24 +303,33 @@ h1 {
 
   <h1>Payment Successful</h1>
 
-  <p class="subtitle">
+  <p class="subtitle" id="subtitle">
     Your subscription has been activated successfully. You can now access your upgraded workspace.
   </p>
 
   <div class="info-box">
     <div class="info-row">
       <span class="info-label">Status</span>
-      <span class="status">Active</span>
+      <span class="status" id="statusBadge">Active</span>
     </div>
     <div class="info-row">
       <span class="info-label">Plan</span>
-      <span class="plan" id="planName" aria-live="polite">Loading...</span>
+      <span class="plan" id="planName" aria-live="polite">Verifying…</span>
     </div>
   </div>
 
-  <a href="index.html" class="btn">
+  <!-- Shown when Paddle webhook has not yet updated the database -->
+  <div class="status-banner pending" id="pendingBanner"></div>
+
+  <!-- Shown on network error -->
+  <div class="status-banner error" id="errorBanner"></div>
+
+  <a href="index.html" class="btn" id="workspaceBtn">
     Return to Workspace
   </a>
+
+  <!-- Shown after timeout or on error so the user can trigger a fresh check -->
+  <button class="btn-retry" id="retryBtn" type="button">Check Again</button>
 
 </div>
 
@@ -283,23 +338,247 @@ h1 {
 </div>
 
 <script>
-  (function() {
-    // Standard structured plans lookup mapping table
-    const plans = {
-      starter: 'Starter',
-      growth: 'Growth',
-      pro: 'Pro'
-    };
+(function () {
+  'use strict';
 
-    // Client-side extraction via URL params for seamless migration to server injection points later
-    const params = new URLSearchParams(window.location.search);
-    const planParam = params.get('plan');
-    
-    const cleanPlan = planParam ? planParam.trim().toLowerCase() : 'starter';
-    
-    // Explicit map fallback handling to completely prevent parameter XSS injections or dynamic empty states
-    document.getElementById('planName').textContent = plans[cleanPlan] || plans['starter'];
-  })();
+  // ── Configuration ───────────────────────────────────────────────────────────
+
+  const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
+  // Worker /me returns exactly: { authenticated, user: { id, email, plan,
+  // analyses_used, analyses_limit, trial_end } }. There is no subscription_status,
+  // isPaid, or active flag in the response — those DB columns exist but are not
+  // included in userPayload. user.plan is therefore the only field available to
+  // detect subscription state, and a set comparison is the correct approach.
+  //
+  // Possible user.plan values (from worker.js):
+  //   'trial'   — 14-day trial, not yet paid
+  //   'free'    — no subscription (post-trial or cancelled)
+  //   'starter' — paid Starter plan  ($12/mo, 50 analyses)
+  //   'growth'  — paid Growth plan   ($29/mo, 250 analyses)
+  //   'pro'     — paid Pro plan      ($79/mo, 1000 analyses)
+  //
+  // Polling stops as soon as plan enters this set — meaning the Paddle
+  // subscription.created / transaction.completed webhook has updated the DB.
+  const PAID_PLANS = new Set(['starter', 'growth', 'pro']);
+
+  // Display labels for each paid plan.
+  const PLAN_LABELS = {
+    starter: 'Starter',
+    growth:  'Growth',
+    pro:     'Pro'
+  };
+
+  // Polling parameters — poll every 2.5 s for up to 30 s.
+  const POLL_INTERVAL_MS = 2500;
+  const POLL_MAX_ATTEMPTS = 12; // 12 × 2.5 s ≈ 30 s
+
+  // ── DOM references ──────────────────────────────────────────────────────────
+
+  const elPlanName      = document.getElementById('planName');
+  const elStatusBadge   = document.getElementById('statusBadge');
+  const elSubtitle      = document.getElementById('subtitle');
+  const elPendingBanner = document.getElementById('pendingBanner');
+  const elErrorBanner   = document.getElementById('errorBanner');
+  const elWorkspaceBtn  = document.getElementById('workspaceBtn');
+  const elRetryBtn      = document.getElementById('retryBtn');
+
+  // ── UI state helpers ────────────────────────────────────────────────────────
+
+  function showSuccess(planKey) {
+    const label = PLAN_LABELS[planKey] || planKey;
+
+    elPlanName.textContent = label;
+    elStatusBadge.textContent = 'Active';
+
+    elSubtitle.textContent =
+      'Your subscription has been activated successfully. ' +
+      'You can now access your upgraded workspace.';
+
+    hideBanner(elPendingBanner);
+    hideBanner(elErrorBanner);
+    elWorkspaceBtn.style.display = 'flex';
+    elRetryBtn.style.display = 'none';
+  }
+
+  function showPending(attemptsLeft) {
+    elPlanName.textContent = 'Activating…';
+    elStatusBadge.textContent = 'Processing';
+
+    elSubtitle.textContent =
+      'Your payment was received and is being confirmed.';
+
+    showBanner(elPendingBanner,
+      'We\'re waiting for payment confirmation — this usually takes just a few seconds. ' +
+      'Please keep this page open.'
+    );
+    hideBanner(elErrorBanner);
+
+    // Hide the workspace link until activation is confirmed
+    elWorkspaceBtn.style.display = 'none';
+    elRetryBtn.style.display = 'none';
+  }
+
+  function showTimeout() {
+    elPlanName.textContent = 'Pending';
+    elStatusBadge.textContent = 'Processing';
+
+    elSubtitle.textContent = 'Your payment is being processed.';
+
+    showBanner(elPendingBanner,
+      'Your payment has been received, but activation is taking longer than expected. ' +
+      'This can happen during high traffic. Your plan will activate shortly — ' +
+      'you can check again below or return in a few minutes.'
+    );
+    hideBanner(elErrorBanner);
+
+    elWorkspaceBtn.style.display = 'none';
+    elRetryBtn.style.display = 'block';
+  }
+
+  function showNetworkError() {
+    showBanner(elErrorBanner,
+      'Unable to reach Wissely right now. Please check your connection and try again.'
+    );
+    hideBanner(elPendingBanner);
+    elWorkspaceBtn.style.display = 'none';
+    elRetryBtn.style.display = 'block';
+  }
+
+  function showBanner(el, message) {
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function hideBanner(el) {
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+  // ── Core: fetch /me and return the parsed user object ───────────────────────
+  // Worker response envelope: { authenticated: true, user: { id, email, plan,
+  // analyses_used, analyses_limit, trial_end } }
+  // 401 → session missing/expired; 403 → trial expired (trialExpired: true).
+  // Throws { status } on auth failure, { networkError: true } on network/parse error.
+
+  async function fetchMe() {
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/me`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      });
+    } catch {
+      // Network failure (offline, DNS, etc.)
+      throw { networkError: true };
+    }
+
+    // Auth failures — caller handles redirects
+    if (res.status === 401 || res.status === 403) {
+      throw { status: res.status };
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw { networkError: true };
+    }
+
+    if (!data?.user) {
+      throw { networkError: true };
+    }
+
+    return data.user;
+  }
+
+  // ── Polling loop ────────────────────────────────────────────────────────────
+  // Calls /me up to POLL_MAX_ATTEMPTS times, waiting POLL_INTERVAL_MS between
+  // each attempt. Checks user.plan — the only subscription field /me returns —
+  // against PAID_PLANS. Stops immediately when the Paddle webhook has fired and
+  // the DB reflects the new plan. Redirects on auth errors; surfaces network
+  // failures with a retry prompt.
+
+  let pollTimer = null;
+
+  function startPolling() {
+    let attempts = 0;
+
+    async function poll() {
+      attempts++;
+
+      try {
+        const user = await fetchMe();
+        const plan = (user.plan || '').toLowerCase();
+
+        if (PAID_PLANS.has(plan)) {
+          // Subscription confirmed by the backend — show success and stop.
+          showSuccess(plan);
+          return;
+        }
+
+        // Webhook has not yet updated the DB.
+        if (attempts < POLL_MAX_ATTEMPTS) {
+          showPending(POLL_MAX_ATTEMPTS - attempts);
+          pollTimer = setTimeout(poll, POLL_INTERVAL_MS);
+        } else {
+          // Exhausted all retries — show the human-readable timeout message.
+          showTimeout();
+        }
+
+      } catch (err) {
+        if (err.status === 401) {
+          // Session expired during polling — send back to login.
+          window.location.replace('login.html');
+          return;
+        }
+        if (err.status === 403) {
+          // Trial/access issue — send to upgrade page.
+          window.location.replace('upgrade.html');
+          return;
+        }
+        // Network or parse failure — show error and let the user retry.
+        showNetworkError();
+      }
+    }
+
+    poll();
+  }
+
+  // ── Retry button ────────────────────────────────────────────────────────────
+  // Resets state and starts a fresh polling cycle, giving the user another
+  // 30-second window to wait for webhook delivery.
+
+  elRetryBtn.addEventListener('click', function () {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
+    }
+    hideBanner(elPendingBanner);
+    hideBanner(elErrorBanner);
+    elRetryBtn.style.display = 'none';
+    elPlanName.textContent = 'Verifying…';
+    startPolling();
+  });
+
+  // ── Entry point ─────────────────────────────────────────────────────────────
+  // Begin polling as soon as the page loads. The first call to /me also acts
+  // as the authentication check — no separate auth preflight is needed.
+
+  startPolling();
+
+  // ── Cleanup on page exit ─────────────────────────────────────────────────────
+  // Cancel any pending poll timer when the user navigates away or refreshes,
+  // so no orphaned callbacks fire against a stale document context.
+
+  window.addEventListener('beforeunload', function () {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+    }
+  });
+
+})();
 </script>
 
 </body>
