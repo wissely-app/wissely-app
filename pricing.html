@@ -1,178 +1,336 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Wissely Pricing</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Upgrade Your Workspace - Wissely</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --ink:#0c0c0a;
-  --sage:#2d4a3e;
-  --gold:#c9a84c;
-  --gold2:#e8c97a;
-  --cream:#f8f6f0;
-  --cream3:#dedad0;
-  --white:#ffffff;
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold-dark: #b0913b;
+  --gold-light: #f4ebd0;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-html{ 
-  scroll-behavior:smooth; 
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body{
-  background:var(--cream);
-  font-family:'DM Sans',sans-serif;
-  color:#2a2a20;
+nav {
+  height: 70px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
 }
 
-nav{
-  height:70px;
-  background:var(--ink);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 40px;
+.logo {
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  transition: var(--transition);
 }
 
-.logo{
-  color:white;
-  text-decoration:none;
-  font-family:'Cormorant Garamond',serif;
-  font-size:28px;
-  font-weight:700;
+.logo:hover {
+  opacity: 0.85;
 }
 
-.back-btn{
-  color:white;
-  text-decoration:none;
+.back-btn {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
 }
 
-.hero{
-  text-align:center;
-  padding:80px 20px;
+.back-btn:hover {
+  color: var(--gold);
 }
 
-.hero h1{
-  font-family:'Cormorant Garamond',serif;
-  font-size:64px;
-  margin-bottom:16px;
+main {
+  flex-grow: 1;
 }
 
-.hero p{
-  color:#666;
+.hero {
+  text-align: center;
+  padding: 80px 20px 50px;
 }
 
-.pricing-grid{
-  max-width:1100px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:24px;
-  padding:0 20px 80px;
+.hero h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 58px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 16px;
 }
 
-.card{
-  background:white;
-  border:1px solid var(--cream3);
-  border-radius:18px;
-  padding:32px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+.hero p {
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+  font-size: 18px;
+  line-height: 1.6;
 }
 
-.card.popular{
-  background:var(--sage);
-  color:white;
+.pricing-grid {
+  max-width: 1100px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding: 0 20px 80px;
+  align-items: stretch;
 }
 
-.card:hover{ 
-  transform:translateY(-4px); 
-  box-shadow:0 10px 25px rgba(0,0,0,.08); 
+.card {
+  background: var(--cream-card);
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px 32px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: var(--transition);
+  box-shadow: var(--shadow);
+  position: relative;
 }
 
-.card.selected-plan { 
-  border: 2px solid var(--gold) !important; 
-  box-shadow: 0 0 30px rgba(201,168,76,.45); 
-  transform: translateY(-6px); 
-} 
-
-.card.selected-plan:hover{ 
-  transform:translateY(-6px); 
+.card:hover { 
+  transform: translateY(-4px); 
+  box-shadow: 0 30px 50px -20px rgba(45, 74, 62, 0.12);
+  border-color: var(--gold);
 }
 
-.price{
-  font-size:54px;
-  font-family:'Cormorant Garamond',serif;
+.card.popular {
+  background: var(--sage);
+  color: #ffffff;
+  border-color: var(--sage);
 }
 
-.features{
-  margin:24px 0;
+.card.popular:hover {
+  border-color: var(--gold);
 }
 
-.features div{
-  margin-bottom:10px;
+.card-header {
+  margin-bottom: 24px;
 }
 
-.upgrade-btn{
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:999px;
-  cursor:pointer;
-  background:var(--gold);
-  font-weight:600;
-  transition: background 0.15s ease;
-}
-
-.upgrade-btn:hover {
-  background: var(--gold2);
-}
-
-.card.popular .upgrade-btn {
+.badge {
   background: var(--gold);
   color: var(--ink);
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
-.card.popular .upgrade-btn:hover {
-  background: var(--gold2);
+.card h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 8px;
 }
 
-.badge{
-  background:var(--gold);
-  color:black;
-  display:inline-block;
-  padding:4px 12px;
-  border-radius:999px;
-  font-size:12px;
-  margin-bottom:16px;
+.card.popular h2 {
+  color: #ffffff;
 }
 
-.current-plan{ 
-  background:#22c55e; 
-  color:#fff; 
-  display:inline-block; 
-  padding:4px 12px; 
-  border-radius:999px; 
-  font-size:12px; 
-  margin-bottom:16px; 
+.price-container {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+.price-amount {
+  font-size: 36px;
+  font-weight: 700;
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.price-period {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.card.popular .price-period {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.features {
+  margin-bottom: 36px;
+  border-top: 1px solid var(--cream3);
+  padding-top: 24px;
+}
+
+.card.popular .features {
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.features div {
+  margin-bottom: 14px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+}
+
+.card.popular .features div {
+  color: #ffffff;
+}
+
+.features div:last-child {
+  margin-bottom: 0;
+}
+
+.checkmark {
+  color: var(--gold-dark);
+  margin-right: 10px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.card.popular .checkmark {
+  color: var(--gold);
+}
+
+.select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  text-align: center;
+  text-decoration: none;
+  transition: var(--transition);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* Default & Secondary State Button */
+.card .select-btn {
+  background: linear-gradient(135deg, #c9a84c, #a8873c);
+  color: #0c0c0a;
+  border: 1px solid #b0913b;
+}
+
+.card .select-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
+  opacity: 0.95;
+}
+
+/* Popular Premium State Button */
+.card.popular .select-btn {
+  background: #ffffff;
+  color: var(--sage);
+  border: 1px solid #ffffff;
+}
+
+.card.popular .select-btn:hover {
+  background: var(--gold-light);
+  border-color: var(--gold);
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Current Active State Design Variant */
+.card.current-tier {
+  border-color: var(--cream3);
+  opacity: 0.85;
+}
+
+.card.current-tier:hover {
+  transform: none;
+  box-shadow: var(--shadow);
+  border-color: var(--cream3);
+}
+
+.card .select-btn.disabled-state {
+  background: var(--cream3) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--cream3) !important;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  font-weight: 500;
+  border-top: 1px solid var(--cream3);
+  background: var(--cream-card);
 }
 
 @media(max-width:900px){
-  nav{ 
-    padding:0 20px; 
+  nav { 
+    padding: 0 20px; 
   }
   
-  .pricing-grid{
-    grid-template-columns:1fr;
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-bottom: 60px;
   }
 
-  .hero h1{
-    font-size:42px;
+  .hero h1 {
+    font-size: 42px;
+  }
+  
+  .hero p {
+    font-size: 16px;
+  }
+
+  .card {
+    padding: 32px 24px;
+    border-radius: 20px;
   }
 }
 </style>
@@ -181,164 +339,203 @@ nav{
 
 <nav>
   <a href="index.html" class="logo">Wissely</a>
-  <a href="app.html" class="back-btn">← Back to Dashboard</a>
+  <a href="index.html" class="back-btn">← Back to Dashboard</a>
 </nav>
 
-<section class="hero">
-  <h1>Choose Your Plan</h1>
-  <p>Upgrade anytime. Cancel anytime.</p>
-</section>
+<main>
+  <section class="hero">
+    <h1>Upgrade Your Workspace</h1>
+    <p id="hero-subtext">Unlock more analyses, exports, and advanced financial intelligence.</p>
+  </section>
 
-<section class="pricing-grid">
-  
-  <div class="card" id="starter-plan">
-    <h2>Starter</h2>
-    <div class="price">$12</div>
-    <p>per month</p>
-    <div class="features">
-      <div>✓ 50 analyses</div>
-      <div>✓ All 6 AI tools</div>
-      <div>✓ PDF Export</div>
-      <div>✓ Email support</div>
+  <!-- data-plan identifies each card's tier so the script can compare it against the user's current plan -->
+  <section class="pricing-grid" id="pricing-grid">
+
+    <div class="card" data-plan="starter">
+      <div class="card-header">
+        <h2>Starter</h2>
+        <div class="price-container">
+          <span class="price-amount">$12</span>
+          <span class="price-period">/ month</span>
+        </div>
+        <div class="features">
+          <div><span class="checkmark" aria-hidden="true">✓</span> 50 analyses / month</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> All 6 AI Tools</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> PDF Export</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Email Support</div>
+        </div>
+      </div>
+      <a href="checkout.html?plan=starter" class="select-btn" aria-label="Select Starter Plan">
+        Select Starter
+      </a>
     </div>
-    <button class="upgrade-btn" data-plan="starter">
-      Upgrade to Starter
-    </button>
-  </div>
 
-  <div class="card popular" id="growth-plan">
-    <div class="badge">MOST POPULAR</div>
-    <h2>Growth</h2>
-    <div class="price">$29</div>
-    <p>per month</p>
-    <div class="features">
-      <div>✓ 250 analyses</div>
-      <div>✓ All 6 AI tools</div>
-      <div>✓ CSV Export</div>
-      <div>✓ Priority support</div>
+    <div class="card popular" data-plan="growth">
+      <div class="card-header">
+        <div class="badge">Most Popular</div>
+        <h2>Growth</h2>
+        <div class="price-container">
+          <span class="price-amount">$29</span>
+          <span class="price-period">/ month</span>
+        </div>
+        <div class="features">
+          <div><span class="checkmark" aria-hidden="true">✓</span> 250 analyses / month</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> All 6 AI Tools</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> CSV Export</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Priority Support</div>
+        </div>
+      </div>
+      <a href="checkout.html?plan=growth" class="select-btn" aria-label="Select Growth Plan">
+        Select Growth
+      </a>
     </div>
-    <button class="upgrade-btn" data-plan="growth">
-      Upgrade to Growth
-    </button>
-  </div>
 
-  <div class="card" id="pro-plan">
-    <h2>Pro</h2>
-    <div class="price">$79</div>
-    <p>per month</p>
-    <div class="features">
-      <div>✓ 1000 analyses</div>
-      <div>✓ Team access</div>
-      <div>✓ API access</div>
-      <div>✓ Dedicated support</div>
+    <div class="card" data-plan="pro">
+      <div class="card-header">
+        <h2>Pro</h2>
+        <div class="price-container">
+          <span class="price-amount">$79</span>
+          <span class="price-period">/ month</span>
+        </div>
+        <div class="features">
+          <div><span class="checkmark" aria-hidden="true">✓</span> 1,000 analyses / month</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> All 6 AI Tools</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Team Access</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> API Access</div>
+          <div><span class="checkmark" aria-hidden="true">✓</span> Dedicated Support</div>
+        </div>
+      </div>
+      <a href="checkout.html?plan=pro" class="select-btn" aria-label="Select Pro Plan">
+        Select Pro
+      </a>
     </div>
-    <button class="upgrade-btn" data-plan="pro">
-      Upgrade to Pro
-    </button>
-  </div>
 
-</section>
+  </section>
+</main>
+
+<footer>
+  WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer>
 
 <script>
-const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+(function () {
+  'use strict';
 
-const PAID_PLANS = ['starter', 'growth', 'pro'];
+  // ---------------------------------------------------------------------
+  // Plan hierarchy used to decide whether a card is an "Upgrade" or a
+  // "Downgrade" relative to the user's current plan. "trial" and "free"
+  // are treated as the lowest tier (no paid plan active yet), so every
+  // paid card will correctly show "Upgrade" for those users.
+  // ---------------------------------------------------------------------
+  var PLAN_ORDER = ['trial', 'free', 'starter', 'growth', 'pro'];
 
-// Wire up upgrade buttons — navigate to checkout unless the button has been
-// disabled (current plan). The disabled check is the safety net; the button's
-// own disabled attribute also blocks clicks, but this guards programmatic calls.
-document.querySelectorAll('.upgrade-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (btn.disabled) return;
-    window.location.href = `checkout.html?plan=${btn.dataset.plan}`;
-  });
-});
-
-// Mark a card as the user's current active plan.
-function markCurrentPlan(planName) {
-  const card = document.getElementById(`${planName}-plan`);
-  if (!card) return;
-
-  // Insert the green CURRENT PLAN badge before the card's first child so it
-  // sits at the top, matching the position of the existing .badge element on
-  // the Growth card. If the card already has a .badge (Growth), insert after it
-  // so both badges are visible in their natural order.
-  const existingBadge = card.querySelector('.badge');
-  const currentBadge = document.createElement('div');
-  currentBadge.className = 'current-plan';
-  currentBadge.textContent = 'CURRENT PLAN';
-
-  if (existingBadge) {
-    existingBadge.insertAdjacentElement('afterend', currentBadge);
-  } else {
-    card.insertBefore(currentBadge, card.firstChild);
+  function planRank(plan) {
+    var idx = PLAN_ORDER.indexOf(plan);
+    // Unknown/unrecognized plan values are treated as the lowest rank
+    // so the UI still degrades gracefully instead of breaking.
+    return idx === -1 ? 0 : idx;
   }
 
-  // Disable the upgrade button and update its label.
-  const btn = card.querySelector('.upgrade-btn');
-  if (btn) {
-    btn.textContent = 'Current Plan';
-    btn.disabled = true;
-    btn.style.cursor = 'not-allowed';
-    btn.style.opacity = '0.65';
-  }
-}
-
-// Highlight a card via the selected-plan class and scroll it into view.
-// Used for both the URL ?plan= parameter and the current-plan highlight.
-function highlightAndScroll(planName) {
-  const card = document.getElementById(`${planName}-plan`);
-  if (!card) return;
-
-  card.classList.add('selected-plan');
-
-  requestAnimationFrame(() => {
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
-}
-
-// Fetch the authenticated user's profile and apply current-plan UI if on a
-// paid plan. Trial users are left untouched so they can upgrade freely.
-async function applyCurrentPlanState() {
-  try {
-    const res = await fetch(`${API_BASE}/me`, { credentials: 'include' });
-
-    // Not authenticated or any non-OK response — silently skip plan highlighting.
-    if (!res.ok) return;
-
-    const json = await res.json();
-    const plan = json?.user?.plan;
-
-    if (plan && PAID_PLANS.includes(plan)) {
-      markCurrentPlan(plan);
-      highlightAndScroll(plan);
-      // Current plan takes priority over any ?plan= URL param, so we return
-      // early here and skip the URL param logic below.
-      return;
+  function setHeroNotice(message) {
+    var subtext = document.getElementById('hero-subtext');
+    if (subtext && message) {
+      subtext.textContent = message;
     }
-  } catch {
-    // Network error or unexpected response shape — degrade gracefully, the
-    // page remains fully functional without the current-plan state applied.
   }
 
-  // Fall through to URL param handling when the user is unauthenticated,
-  // on trial, or when the /me request fails.
-  applyUrlParamHighlight();
-}
+  // ---------------------------------------------------------------------
+  // Applies the correct visual/functional state to each pricing card
+  // based on the user's current plan. Only classes/text that already
+  // exist in the design system (current-tier, disabled-state) are used.
+  // ---------------------------------------------------------------------
+  function applyPlanState(currentPlan) {
+    var cards = document.querySelectorAll('#pricing-grid .card[data-plan]');
+    var currentRank = planRank(currentPlan);
 
-// Highlight and scroll to the card named in the ?plan= URL parameter.
-function applyUrlParamHighlight() {
-  const targetPlan = new URLSearchParams(window.location.search).get('plan');
-  if (!targetPlan) return;
+    cards.forEach(function (card) {
+      var cardPlan = card.getAttribute('data-plan');
+      var cardRank = planRank(cardPlan);
+      var btn = card.querySelector('.select-btn');
 
-  const normalized = targetPlan.toLowerCase();
-  if (!PAID_PLANS.includes(normalized)) return;
+      if (!btn) return;
 
-  highlightAndScroll(normalized);
-}
+      if (cardPlan === currentPlan) {
+        // This is the user's active plan: mark the card, disable the
+        // button, and relabel it, while keeping checkout href intact.
+        card.classList.add('current-tier');
+        btn.classList.add('disabled-state');
+        btn.textContent = 'Current Plan';
+        btn.setAttribute('aria-disabled', 'true');
+        btn.addEventListener('click', function (e) {
+          // Belt-and-suspenders: prevent navigation even if disabled
+          // styling is somehow bypassed (e.g. keyboard activation).
+          e.preventDefault();
+        });
+      } else if (cardRank > currentRank) {
+        btn.textContent = 'Upgrade';
+      } else {
+        btn.textContent = 'Downgrade';
+      }
+      // Checkout URLs (href="checkout.html?plan=...") are left untouched
+      // in every branch, per requirements.
+    });
+  }
 
-// Kick off on DOM ready.
-window.addEventListener('DOMContentLoaded', applyCurrentPlanState);
+  // ---------------------------------------------------------------------
+  // Session verification against the existing /me endpoint.
+  // ---------------------------------------------------------------------
+  function verifySessionAndRender() {
+    fetch('/me', {
+      method: 'GET',
+      credentials: 'include', // send existing session/auth cookies
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (response) {
+        if (response.status === 401) {
+          // Not authenticated: send the user to login.
+          window.location.href = 'login.html';
+          return null;
+        }
+
+        if (response.status === 403) {
+          // Authenticated but forbidden: the existing backend flow uses
+          // 403 to signal an expired trial. Keep the user on this page
+          // (it's the natural place to get them onto a paid plan), but
+          // treat them as having no active plan so every card reads
+          // "Upgrade" and none are disabled.
+          return response.json()
+            .catch(function () { return {}; })
+            .then(function (body) {
+              setHeroNotice(
+                (body && body.message) ||
+                'Your trial has expired. Choose a plan below to keep using Wissely.'
+              );
+              return { plan: 'trial', trialExpired: true };
+            });
+        }
+
+        if (!response.ok) {
+          throw new Error('Unexpected /me response: ' + response.status);
+        }
+
+        return response.json();
+      })
+      .then(function (data) {
+        if (!data) return; // already redirected (401 case)
+
+        var currentPlan = (data.plan || 'trial').toLowerCase();
+        applyPlanState(currentPlan);
+      })
+      .catch(function (err) {
+        // Fail safe: don't leave the page in a broken/misleading state.
+        // Log for diagnostics; leave default "Select X" buttons active
+        // so the page remains usable even if /me is unreachable.
+        console.error('Wissely: failed to verify session', err);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', verifySessionAndRender);
+})();
 </script>
 
 </body>
