@@ -317,7 +317,7 @@ h1 {
     </div>
     <div class="info-row">
       <span class="info-label">Plan Status</span>
-      <span class="plan">Unchanged</span>
+      <span class="plan" id="planStatus" aria-live="polite">Unchanged</span>
     </div>
     <div class="info-row">
       <span class="info-label">Reason</span>
@@ -326,7 +326,8 @@ h1 {
   </div>
 
   <div class="cta-group">
-    <a href="pricing.html" class="btn btn-primary">
+    <!-- href and label updated by JS once /me resolves -->
+    <a href="pricing.html" class="btn btn-primary" id="primaryBtn">
       View Plans
     </a>
     <a href="index.html" class="btn btn-secondary">
@@ -344,6 +345,100 @@ h1 {
 <div class="footer">
   WISSELY.COM · YOUR FINANCES, FINALLY CLEAR
 </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Configuration ───────────────────────────────────────────────────────────
+
+  const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
+  // Worker /me returns user.plan as one of these exact strings.
+  // See worker.js userPayload — the only subscription field exposed to the client.
+  const PLAN_LABELS = {
+    trial:   'Trial',
+    free:    'Free',
+    starter: 'Starter',
+    growth:  'Growth',
+    pro:     'Pro'
+  };
+
+  // Plans that constitute an active paid subscription (from PADDLE_PRICE_PLANS
+  // in worker.js). Users on these plans are directed to billing management
+  // rather than the plan selection page.
+  const PAID_PLANS = new Set(['starter', 'growth', 'pro']);
+
+  // ── DOM references ──────────────────────────────────────────────────────────
+
+  const elPlanStatus = document.getElementById('planStatus');
+  const elPrimaryBtn = document.getElementById('primaryBtn');
+
+  // ── Auth check and plan display ─────────────────────────────────────────────
+  // Calls /me on page load to:
+  //   1. Verify the session is valid (redirect on 401/403).
+  //   2. Read the actual current plan and update the info-box.
+  //   3. Point the primary CTA to billing.html for paid users, pricing.html otherwise.
+  //
+  // On network failure the page remains fully functional with its static defaults —
+  // both buttons still work and no content is broken.
+
+  async function init() {
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/me`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      });
+    } catch {
+      // Network error — degrade gracefully, static defaults remain in place.
+      return;
+    }
+
+    // 401 — no valid session, send to login
+    if (res.status === 401) {
+      window.location.replace('login.html');
+      return;
+    }
+
+    // 403 — trial expired (worker returns trialExpired: true at 403)
+    if (res.status === 403) {
+      window.location.replace('upgrade.html');
+      return;
+    }
+
+    // Any other non-OK response (5xx, etc.) — degrade gracefully
+    if (!res.ok) return;
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      return; // Parse failure — degrade gracefully
+    }
+
+    const plan = (data?.user?.plan || '').toLowerCase();
+    if (!plan) return;
+
+    // Update "Plan Status" cell with the real plan name from the backend.
+    // Falls back to the raw plan string if it's an unrecognised value.
+    elPlanStatus.textContent = PLAN_LABELS[plan] || plan;
+
+    // Update the primary CTA based on whether the user already holds a paid plan.
+    // Paid users cancelled by accident or changed their mind — send them to billing
+    // management. Free/trial users haven't subscribed yet — send them to pricing.
+    if (PAID_PLANS.has(plan)) {
+      elPrimaryBtn.textContent = 'Manage Billing';
+      elPrimaryBtn.href = 'billing.html';
+    }
+    // else: defaults (href="pricing.html", text "View Plans") remain unchanged
+  }
+
+  init();
+
+})();
+</script>
 
 </body>
 </html>
