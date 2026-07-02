@@ -214,7 +214,7 @@ main {
 }
 
 .usage-fill {
-  width: 16.8%; /* BACKEND_DATA: dynamic calculation logic placeholder (42/250 * 100) */
+  width: 0%;
   height: 100%;
   background: linear-gradient(90deg, var(--sage), #3f6d5a);
   border-radius: 999px;
@@ -225,6 +225,11 @@ main {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 36px;
+}
+
+/* Single-button state when cancel is hidden */
+.actions.single {
+  grid-template-columns: 1fr;
 }
 
 .btn {
@@ -332,6 +337,13 @@ main {
   letter-spacing: 0.5px;
 }
 
+.history-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
 .footer {
   text-align: center;
   padding: 40px 20px;
@@ -372,6 +384,10 @@ main {
     gap: 12px;
     margin-top: 28px;
   }
+
+  .actions.single {
+    grid-template-columns: 1fr;
+  }
   
   .btn {
     padding: 14px;
@@ -394,73 +410,58 @@ main {
 
   <div class="billing-card">
     <div class="info-grid">
-      
+
+      <!-- Current Plan ───────────────────────────────────────────────────── -->
       <div class="info-box">
         <h2 class="label">Current Plan</h2>
-        <div class="value">Growth</div>
-        <ul class="features-list">
-          <li><span class="checkmark" aria-hidden="true">✓</span> 250 Analyses / Month</li>
-          <li><span class="checkmark" aria-hidden="true">✓</span> Advanced CSV Export</li>
-          <li><span class="checkmark" aria-hidden="true">✓</span> Cash Flow Forecasting</li>
-          <li><span class="checkmark" aria-hidden="true">✓</span> Priority Processing</li>
-        </ul>
+        <div class="value" id="planName" aria-live="polite">—</div>
+        <ul class="features-list" id="featuresList"></ul>
       </div>
 
+      <!-- Billing Status ─────────────────────────────────────────────────── -->
       <div class="info-box">
         <h2 class="label">Billing Status</h2>
-        <div class="status-active">Active</div>
+        <div class="status-active" id="billingStatus" aria-live="polite">—</div>
       </div>
 
+      <!-- Usage This Month ────────────────────────────────────────────────── -->
       <div class="info-box">
         <h2 class="label" id="usage-label">Usage This Month</h2>
-        <div class="value" aria-labelledby="usage-label">42 / 250</div>
-        <div class="usage-bar" role="progressbar" aria-valuenow="42" aria-valuemin="0" aria-valuemax="250" aria-label="Monthly analysis limit utilization">
-          <div class="usage-fill"></div>
+        <div class="value" id="usageValue" aria-labelledby="usage-label" aria-live="polite">—</div>
+        <div class="usage-bar"
+             role="progressbar"
+             id="usageBar"
+             aria-valuenow="0"
+             aria-valuemin="0"
+             aria-valuemax="0"
+             aria-label="Monthly analysis limit utilization">
+          <div class="usage-fill" id="usageFill"></div>
         </div>
       </div>
 
+      <!-- Next Renewal ────────────────────────────────────────────────────── -->
       <div class="info-box">
         <h2 class="label">Next Renewal</h2>
-        <div class="value">July 4, 2026</div>
+        <!-- Renewal date is not returned by /me — Paddle manages billing dates.
+             trial_end is shown for trial users; all others see the fallback. -->
+        <div class="value" id="renewalValue" aria-live="polite">Managed by Paddle</div>
         <p class="note-text">Your subscription renews automatically unless cancelled before the renewal date.</p>
       </div>
 
     </div>
 
-    <div class="actions">
-      <a href="upgrade.html" class="btn btn-upgrade">Upgrade Plan</a>
-      <a href="cancel.html" class="btn btn-cancel">Cancel Subscription</a>
+    <div class="actions" id="actionsRow">
+      <a href="upgrade.html" class="btn btn-upgrade" id="upgradeBtn">Upgrade Plan</a>
+      <a href="cancel.html"  class="btn btn-cancel"  id="cancelBtn">Cancel Subscription</a>
     </div>
   </div>
 
   <div class="history-section">
     <h2>Billing History</h2>
-    <div class="history-table">
-      <div class="history-row">
-        <div class="invoice-meta">
-          <span class="invoice-plan">Growth Plan</span>
-          <span class="invoice-date">June 2026</span>
-        </div>
-        <span class="invoice-status">Paid</span>
-      </div>
-
-      <div class="history-row">
-        <div class="invoice-meta">
-          <span class="invoice-plan">Growth Plan</span>
-          <span class="invoice-date">May 2026</span>
-        </div>
-        <span class="invoice-status">Paid</span>
-      </div>
-
-      <div class="history-row">
-        <div class="invoice-meta">
-          <span class="invoice-plan">Growth Plan</span>
-          <span class="invoice-date">April 2026</span>
-        </div>
-        <span class="invoice-status">Paid</span>
-      </div>
-      
-      </div>
+    <div class="history-table" id="historyTable">
+      <!-- Replaced by JS — no invoice endpoint exists in worker.js -->
+      <p class="history-empty">No billing history available.</p>
+    </div>
   </div>
 </main>
 
@@ -468,5 +469,206 @@ main {
   WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
 </footer>
 
+<script>
+(function () {
+  'use strict';
+
+  // ── Configuration ───────────────────────────────────────────────────────────
+
+  const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
+  // Worker /me returns user.plan as one of these exact strings (from worker.js
+  // PLAN_FREE and PADDLE_PRICE_PLANS constants). No other plan values exist.
+  const PAID_PLANS = new Set(['starter', 'growth', 'pro']);
+
+  // Display label for each plan value
+  const PLAN_LABELS = {
+    trial:   'Trial',
+    free:    'Free',
+    starter: 'Starter',
+    growth:  'Growth',
+    pro:     'Pro'
+  };
+
+  // Billing status text driven solely by user.plan — worker.js does not
+  // expose subscription_status through /me.
+  const PLAN_STATUS = {
+    trial:   'Trial',
+    free:    'Free',
+    starter: 'Active',
+    growth:  'Active',
+    pro:     'Active'
+  };
+
+  // Feature bullet points per plan. These mirror the plan descriptions in
+  // PADDLE_PRICE_PLANS (worker.js) and the public pricing page.
+  const PLAN_FEATURES = {
+    trial: [
+      '20 Analyses included',
+      'All core tools',
+      'Basic CSV Export',
+      '14-day access'
+    ],
+    free: [
+      '5 Analyses / Month',
+      'Invoice Analyzer',
+      'Expense Clarity',
+      'Standard processing'
+    ],
+    starter: [
+      '50 Analyses / Month',
+      'All analysis tools',
+      'Basic CSV Export',
+      'Standard processing'
+    ],
+    growth: [
+      '250 Analyses / Month',
+      'Advanced CSV Export',
+      'Cash Flow Forecasting',
+      'Priority Processing'
+    ],
+    pro: [
+      '1,000 Analyses / Month',
+      'Full tool suite',
+      'Advanced CSV Export',
+      'Cash Flow Forecasting',
+      'Priority Processing'
+    ]
+  };
+
+  // ── DOM references ──────────────────────────────────────────────────────────
+
+  const elPlanName      = document.getElementById('planName');
+  const elFeaturesList  = document.getElementById('featuresList');
+  const elBillingStatus = document.getElementById('billingStatus');
+  const elUsageValue    = document.getElementById('usageValue');
+  const elUsageBar      = document.getElementById('usageBar');
+  const elUsageFill     = document.getElementById('usageFill');
+  const elRenewalValue  = document.getElementById('renewalValue');
+  const elActionsRow    = document.getElementById('actionsRow');
+  const elCancelBtn     = document.getElementById('cancelBtn');
+
+  // ── Render helpers ──────────────────────────────────────────────────────────
+
+  // Writes the feature list for the given plan into #featuresList.
+  function renderFeatures(plan) {
+    const features = PLAN_FEATURES[plan] || PLAN_FEATURES.free;
+    elFeaturesList.innerHTML = features
+      .map(f => `<li><span class="checkmark" aria-hidden="true">✓</span> ${f}</li>`)
+      .join('');
+  }
+
+  // Updates the usage bar width and all ARIA attributes.
+  // Clamps pct to [0, 100] so the bar never overflows or goes negative.
+  function renderUsage(used, limit) {
+    const safeUsed  = Math.max(0, used  || 0);
+    const safeLimit = Math.max(1, limit || 1); // avoid division by zero
+    const pct       = Math.min(100, Math.max(0, (safeUsed / safeLimit) * 100));
+
+    elUsageValue.textContent   = `${safeUsed} / ${safeLimit}`;
+    elUsageFill.style.width    = `${pct.toFixed(1)}%`;
+    elUsageBar.setAttribute('aria-valuenow',  String(safeUsed));
+    elUsageBar.setAttribute('aria-valuemax',  String(safeLimit));
+  }
+
+  // Formats trial_end as a human-readable date for trial users.
+  // Returns null for any non-trial plan — renewal is managed by Paddle.
+  function formatTrialEnd(trialEnd) {
+    if (!trialEnd) return null;
+    try {
+      return new Date(trialEnd).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Main render ─────────────────────────────────────────────────────────────
+  // Applies all backend data to the DOM. Called once after /me resolves.
+
+  function render(user) {
+    const plan = (user.plan || 'free').toLowerCase();
+
+    // ── Current Plan ──────────────────────────────────────────────────────────
+    elPlanName.textContent = PLAN_LABELS[plan] || plan;
+    renderFeatures(plan);
+
+    // ── Billing Status ────────────────────────────────────────────────────────
+    elBillingStatus.textContent = PLAN_STATUS[plan] || plan;
+
+    // ── Usage ─────────────────────────────────────────────────────────────────
+    renderUsage(user.analyses_used, user.analyses_limit);
+
+    // ── Next Renewal ──────────────────────────────────────────────────────────
+    // worker.js does not return a renewal date. For trial users trial_end is a
+    // useful proxy; for paid plans Paddle manages the billing schedule.
+    if (plan === 'trial') {
+      const formatted = formatTrialEnd(user.trial_end);
+      elRenewalValue.textContent = formatted
+        ? `Trial ends ${formatted}`
+        : 'Managed by Paddle';
+    }
+    // else: stays "Managed by Paddle" as set in HTML
+
+    // ── Buttons ───────────────────────────────────────────────────────────────
+    // Upgrade button always points to upgrade.html (handles both upgrade and
+    // downgrade flows). Cancel button is only relevant for paid subscribers.
+    if (!PAID_PLANS.has(plan)) {
+      // trial / free — hide cancel, collapse grid to single column
+      elCancelBtn.style.display = 'none';
+      elActionsRow.classList.add('single');
+    }
+    // else: both buttons remain visible as in the HTML defaults
+  }
+
+  // ── Auth check and data load ────────────────────────────────────────────────
+
+  async function init() {
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/me`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      });
+    } catch {
+      // Network failure — page remains functional with static placeholder values.
+      // Nothing is rendered so no misleading data is shown.
+      return;
+    }
+
+    // 401 — no valid session
+    if (res.status === 401) {
+      window.location.replace('login.html');
+      return;
+    }
+
+    // 403 — expired trial (worker.js sets trialExpired: true at 403)
+    if (res.status === 403) {
+      window.location.replace('upgrade.html');
+      return;
+    }
+
+    // Any other non-OK response (5xx, etc.) — degrade gracefully
+    if (!res.ok) return;
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      return; // Parse failure — degrade gracefully
+    }
+
+    if (!data?.user) return;
+
+    render(data.user);
+  }
+
+  init();
+
+})();
+</script>
+
 </body>
-  </html>
+</html>
