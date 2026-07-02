@@ -73,6 +73,9 @@ const PADDLE_CHECKOUT_TIMEOUT_MS = 10000; // 10 s
 // a webhook event when custom_data.user_id is not present.
 const PADDLE_CUSTOMER_LOOKUP_TIMEOUT_MS = 8000; // 8 s
 
+// Paddle customer portal — subrequest timeout to the Portal Sessions API.
+const PADDLE_PORTAL_TIMEOUT_MS = 8000; // 8 s
+
 // Audit log retention — records older than this are pruned by the monthly cron
 const AUDIT_RETENTION_DAYS = 90;
 
@@ -1153,6 +1156,87 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
   }
 }
 
+// ── PADDLE CUSTOMER PORTAL ────────────────────────────────────────────────────
+// Creates a Paddle Billing v2 Customer Portal session for the given customer
+// and returns the URL the frontend should redirect the user to.
+//
+// Paddle's Customer Portal allows subscribers to view invoices, update payment
+// methods, and manage or cancel their own subscription — replacing any need for
+// a bespoke cancel/manage flow on the Wissely side.
+//
+// API reference:
+//   POST /customers/{customer_id}/portal-sessions
+//   Response: { data: { urls: { customer_portal: "https://..." } } }
+//
+// The portal session URL is single-use and expires after a short window (Paddle
+// enforces this server-side). No URL should be cached or reused across requests.
+//
+// Returns { ok: true, portalUrl } on success, or { ok: false, status, message }
+// on any failure — the caller decides how to surface the error to the client.
+
+async function createPaddlePortalSession(env, customerId) {
+  if (!customerId) {
+    return { ok: false, status: 400, message: 'No billing account found. Please contact support.' };
+  }
+
+  if (!env.PADDLE_API_KEY) {
+    console.error('[Paddle] PADDLE_API_KEY is not configured');
+    return { ok: false, status: 500, message: 'Payment provider is not configured' };
+  }
+
+  const apiBase = env.PADDLE_API_BASE || 'https://api.paddle.com';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PADDLE_PORTAL_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(
+      `${apiBase}/customers/${encodeURIComponent(customerId)}/portal-sessions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.PADDLE_API_KEY}`,
+          'Content-Type':  'application/json'
+        },
+        // Empty body — Paddle generates a full-access portal session by default.
+        // Optionally accepts { subscription_ids: [...] } to scope the session.
+        body: JSON.stringify({}),
+        signal: controller.signal
+      }
+    );
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      console.error('[Paddle] Portal session creation failed:', res.status, text);
+      return { ok: false, status: res.status, message: 'Failed to create billing portal session' };
+    }
+
+    let json;
+    try { json = JSON.parse(text); } catch {
+      console.error('[Paddle] Portal session response was not valid JSON');
+      return { ok: false, status: 502, message: 'Invalid response from payment provider' };
+    }
+
+    const portalUrl = json?.data?.urls?.customer_portal;
+    if (!portalUrl) {
+      console.error('[Paddle] Portal session created but no URL present:', JSON.stringify(json?.data ?? {}));
+      return { ok: false, status: 502, message: 'Billing portal URL missing from payment provider response' };
+    }
+
+    return { ok: true, portalUrl };
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error('[Paddle] Portal session creation timed out');
+      return { ok: false, status: 504, message: 'Payment provider timed out' };
+    }
+    console.error('[Paddle] Portal session creation exception:', err.message);
+    return { ok: false, status: 502, message: 'Failed to reach payment provider' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── STALE-DATA CLEANUP ────────────────────────────────────────────────────────
 // Runs on ~5 % of all requests via waitUntil() — no impact on response latency.
 // Deletes expired sessions, reset tokens, and verification tokens in one batch.
@@ -1899,6 +1983,88 @@ export default {
         return safeResponse;
       }
 
+      // ── BILLING PORTAL ────────────────────────────────────────────────────
+      // Creates a Paddle Customer Portal session for the authenticated user
+      // and returns the single-use portal URL for the frontend to redirect to.
+      // The portal lets subscribers manage payment methods, view invoices, and
+      // cancel or change their subscription without any additional Wissely UI.
+      if (path === '/billing-portal' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session)               return createResponse(request, { error: 'Unauthorized' }, 401);
+        if (session.isExpiredTrial) return createResponse(request, { error: 'Trial expired' }, 403);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/billing-portal' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'billing-portal')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const ip = getClientIp(request);
+
+        // Retrieve the Paddle customer ID stored when the subscription was
+        // first created. It is not included in the session object, so a
+        // targeted DB read is required.
+        let customerId = null;
+        try {
+          const row = await env.DB.prepare(
+            'SELECT paddle_customer_id FROM users WHERE id = ?'
+          ).bind(session.user_id).first();
+          customerId = row?.paddle_customer_id ?? null;
+        } catch (err) {
+          console.error('[BillingPortal] DB lookup failed:', err.message, { requestId });
+          return createResponse(request, {
+            error: 'Unable to retrieve billing account. Please try again.'
+          }, 502);
+        }
+
+        if (!customerId) {
+          // User has never completed a Paddle checkout — no portal session exists.
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip,
+            eventType: 'billing_portal_no_customer', result: 'failure',
+            metadata: { plan: session.plan }
+          });
+          return createResponse(request, {
+            error: 'No billing account found. Please subscribe to a plan first.'
+          }, 404);
+        }
+
+        const result = await createPaddlePortalSession(env, customerId);
+
+        if (!result.ok) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip,
+            eventType: 'billing_portal_failed', result: 'failure',
+            metadata: { status: result.status }
+          });
+          return createResponse(request, {
+            error: result.message || 'Unable to open billing portal. Please try again.'
+          }, result.status && result.status >= 400 && result.status < 600 ? result.status : 502);
+        }
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip,
+          eventType: 'billing_portal_opened', result: 'success'
+        });
+
+        return createResponse(request, { portalUrl: result.portalUrl }, 200);
+      }
+
       return createResponse(request, { error: 'Not found' }, 404);
 
     } catch (globalError) {
@@ -2222,6 +2388,10 @@ function buildPasswordResetEmailHtml(resetLink) {
 //                                   directly (Paddle Billing v2 hosted
 //                                   checkout supports a single return URL);
 //                                   read by the frontend only.
+//    PADDLE_BILLING_PORTAL_URL    — (optional) override the Paddle Customer
+//                                   Portal base URL. Not required; the portal
+//                                   URL is returned dynamically by the Paddle
+//                                   API per-session via /billing-portal.
 //    RATE_LIMIT_KV                — KV namespace binding for rate limiting,
 //                                   login protection, CSRF/webhook monitoring,
 //                                   and Paddle event idempotency.
