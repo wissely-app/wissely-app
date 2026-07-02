@@ -258,15 +258,15 @@ main {
   opacity: 0.95;
 }
 
-.btn-cancel {
+.btn-manage {
   background: transparent;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  color: var(--sage);
+  border: 1px solid var(--cream3);
 }
 
-.btn-cancel:hover {
-  background: #fdf2f2;
-  border-color: #f87171;
+.btn-manage:hover {
+  background: var(--cream);
+  border-color: var(--sage-muted);
   transform: translateY(-1px);
 }
 
@@ -452,7 +452,7 @@ main {
 
     <div class="actions" id="actionsRow">
       <a href="upgrade.html" class="btn btn-upgrade" id="upgradeBtn">Upgrade Plan</a>
-      <a href="cancel.html"  class="btn btn-cancel"  id="cancelBtn">Cancel Subscription</a>
+      <button type="button" class="btn btn-manage" id="manageBtn">Manage Subscription</button>
     </div>
   </div>
 
@@ -546,7 +546,7 @@ main {
   const elUsageFill     = document.getElementById('usageFill');
   const elRenewalValue  = document.getElementById('renewalValue');
   const elActionsRow    = document.getElementById('actionsRow');
-  const elCancelBtn     = document.getElementById('cancelBtn');
+  const elManageBtn     = document.getElementById('manageBtn');
 
   // ── Render helpers ──────────────────────────────────────────────────────────
 
@@ -590,6 +590,12 @@ main {
   function render(user) {
     const plan = (user.plan || 'free').toLowerCase();
 
+    const upgradeBtn = document.getElementById('upgradeBtn');
+
+    if (plan === 'pro') {
+      upgradeBtn.textContent = 'Change Plan';
+    }
+
     // ── Current Plan ──────────────────────────────────────────────────────────
     elPlanName.textContent = PLAN_LABELS[plan] || plan;
     renderFeatures(plan);
@@ -615,8 +621,9 @@ main {
     // Upgrade button always points to upgrade.html (handles both upgrade and
     // downgrade flows). Cancel button is only relevant for paid subscribers.
     if (!PAID_PLANS.has(plan)) {
-      // trial / free — hide cancel, collapse grid to single column
-      elCancelBtn.style.display = 'none';
+      // trial / free — no active subscription to manage; hide the portal button
+      // and collapse the actions grid to a single column so Upgrade fills the row.
+      elManageBtn.style.display = 'none';
       elActionsRow.classList.add('single');
     }
     // else: both buttons remain visible as in the HTML defaults
@@ -664,6 +671,67 @@ main {
 
     render(data.user);
   }
+
+  // ── Billing portal button ────────────────────────────────────────────────────
+  // Calls POST /billing-portal (auth + CSRF required) to obtain a single-use
+  // Paddle Customer Portal URL, then immediately redirects the user there.
+  // The portal handles payment method updates, invoice downloads, plan changes,
+  // and subscription cancellation — no separate cancel.html flow is needed.
+
+  elManageBtn.addEventListener('click', async function () {
+    // Prevent double-clicks while the request is in flight
+    elManageBtn.disabled = true;
+    const originalText = elManageBtn.textContent;
+    elManageBtn.textContent = 'Opening portal…';
+
+    try {
+      const csrfToken = (() => {
+        try {
+          return sessionStorage.getItem('csrfToken') || '';
+        } catch {
+          return '';
+        }
+      })();
+
+      const res = await fetch(`${API_BASE}/billing-portal`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({})
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        window.location.replace('login.html');
+        return;
+      }
+
+      if (res.status === 403) {
+        if ((data.error || '').toLowerCase().includes('trial')) {
+          window.location.replace('upgrade.html');
+        } else {
+          alert(data.error || 'Your session has expired. Please sign in again.');
+        }
+        return;
+      }
+
+      if (!res.ok || !data.portalUrl) {
+        throw new Error(data.error || 'Unable to open billing portal. Please try again.');
+      }
+
+      window.location.href = data.portalUrl;
+
+    } catch (err) {
+      alert(err.message || 'Something went wrong. Please try again or contact support@wissely.com.');
+    } finally {
+      elManageBtn.disabled = false;
+      elManageBtn.textContent = originalText;
+    }
+  });
 
   init();
 
