@@ -345,12 +345,13 @@ footer {
 <main>
   <section class="hero">
     <h1>Upgrade Your Workspace</h1>
-    <p>Unlock more analyses, exports, and advanced financial intelligence.</p>
+    <p id="hero-subtext">Unlock more analyses, exports, and advanced financial intelligence.</p>
   </section>
 
-  <section class="pricing-grid">
-    
-    <div class="card">
+  <!-- data-plan identifies each card's tier so the script can compare it against the user's current plan -->
+  <section class="pricing-grid" id="pricing-grid">
+
+    <div class="card" data-plan="starter">
       <div class="card-header">
         <h2>Starter</h2>
         <div class="price-container">
@@ -369,7 +370,7 @@ footer {
       </a>
     </div>
 
-    <div class="card popular">
+    <div class="card popular" data-plan="growth">
       <div class="card-header">
         <div class="badge">Most Popular</div>
         <h2>Growth</h2>
@@ -389,7 +390,7 @@ footer {
       </a>
     </div>
 
-    <div class="card">
+    <div class="card" data-plan="pro">
       <div class="card-header">
         <h2>Pro</h2>
         <div class="price-container">
@@ -416,5 +417,210 @@ footer {
   WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
 </footer>
 
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------
+  // Plan hierarchy used to decide whether a card is an "Upgrade" or a
+  // "Downgrade" relative to the user's current plan. "trial" and "free"
+  // are treated as the lowest tier (no paid plan active yet), so every
+  // paid card will correctly show "Upgrade" for those users.
+  // ---------------------------------------------------------------------
+  var PLAN_ORDER = ['trial', 'free', 'starter', 'growth', 'pro'];
+
+  function planRank(plan) {
+    var idx = PLAN_ORDER.indexOf(plan);
+    // Unknown/unrecognized plan values are treated as the lowest rank
+    // so the UI still degrades gracefully instead of breaking.
+    return idx === -1 ? 0 : idx;
+  }
+
+  // ---------------------------------------------------------------------
+  // Only these values are trusted as a "plan" coming back from the
+  // backend. Anything else (missing field, typo, future plan the
+  // frontend doesn't know about yet, malformed payload, etc.) falls
+  // back to "trial" rather than risk showing incorrect button states.
+  // ---------------------------------------------------------------------
+  function sanitizePlan(rawPlan) {
+    var plan = (rawPlan || '').toString().toLowerCase().trim();
+    return PLAN_ORDER.indexOf(plan) !== -1 ? plan : 'trial';
+  }
+
+  function setHeroNotice(message) {
+    var subtext = document.getElementById('hero-subtext');
+    if (subtext && message) {
+      subtext.textContent = message;
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Loading state: shown immediately on page load, before /me resolves,
+  // so the user never sees a "Select X" button that might be wrong for
+  // their actual plan. Reuses the existing disabled-state styling.
+  // ---------------------------------------------------------------------
+  function setLoadingState() {
+    var cards = document.querySelectorAll('#pricing-grid .card[data-plan]');
+    cards.forEach(function (card) {
+      var btn = card.querySelector('.select-btn');
+      if (!btn) return;
+
+      // Remember the original label so we can restore it if the /me
+      // request ultimately fails and we need to fall back gracefully.
+      if (!btn.dataset.originalText) {
+        btn.dataset.originalText = btn.textContent.trim();
+      }
+
+      btn.textContent = 'Loading...';
+      btn.classList.add('disabled-state');
+      btn.setAttribute('aria-disabled', 'true');
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Fallback used only if the /me request fails outright (network error,
+  // unexpected status, etc.) after the loading state was applied. Restores
+  // the original "Select X" buttons so the page remains usable.
+  // ---------------------------------------------------------------------
+  function restoreDefaultButtons() {
+    var cards = document.querySelectorAll('#pricing-grid .card[data-plan]');
+    cards.forEach(function (card) {
+      var btn = card.querySelector('.select-btn');
+      if (!btn) return;
+
+      btn.textContent = btn.dataset.originalText || btn.textContent;
+      btn.classList.remove('disabled-state');
+      btn.removeAttribute('aria-disabled');
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Applies the correct visual/functional state to each pricing card
+  // based on the user's current plan. Only classes/text that already
+  // exist in the design system (current-tier, disabled-state) are used.
+  // ---------------------------------------------------------------------
+  function applyPlanState(currentPlan) {
+    var cards = document.querySelectorAll('#pricing-grid .card[data-plan]');
+    var currentRank = planRank(currentPlan);
+
+    cards.forEach(function (card) {
+      var cardPlan = card.getAttribute('data-plan');
+      var cardRank = planRank(cardPlan);
+      var btn = card.querySelector('.select-btn');
+
+      if (!btn) return;
+
+      // Clear any state left over from the loading phase (or a prior
+      // call) before deciding the final state for this card. Using the
+      // onclick property (rather than addEventListener) means this
+      // reset simply overwrites the previous handler instead of
+      // stacking a new listener on top of it each time this runs.
+      card.classList.remove('current-tier');
+      btn.classList.remove('disabled-state');
+      btn.removeAttribute('aria-disabled');
+      btn.onclick = null;
+
+      if (cardPlan === currentPlan) {
+        // This is the user's active plan: mark the card, disable the
+        // button, and relabel it, while keeping checkout href intact.
+        card.classList.add('current-tier');
+        btn.classList.add('disabled-state');
+        btn.textContent = 'Current Plan';
+        btn.setAttribute('aria-disabled', 'true');
+        // Belt-and-suspenders: prevent navigation even if disabled
+        // styling is somehow bypassed (e.g. keyboard activation).
+        // Assigning to onclick (instead of addEventListener) ensures
+        // at most one handler ever exists on this button, regardless
+        // of how many times applyPlanState() is called.
+        btn.onclick = function (e) {
+          e.preventDefault();
+        };
+      } else if (cardRank > currentRank) {
+        btn.textContent = 'Upgrade';
+      } else {
+        btn.textContent = 'Downgrade';
+      }
+      // Checkout URLs (href="checkout.html?plan=...") are left untouched
+      // in every branch, per requirements.
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Determines whether a parsed /me response body explicitly signals an
+  // expired trial, independent of HTTP status. Backends may express this
+  // a couple of different ways, so we check both known shapes.
+  // ---------------------------------------------------------------------
+  function bodyIndicatesTrialExpired(body) {
+    return !!body && (body.trialExpired === true || body.error === 'trial_expired');
+  }
+
+  // ---------------------------------------------------------------------
+  // Session verification against the existing /me endpoint.
+  // ---------------------------------------------------------------------
+  function verifySessionAndRender() {
+    var responseStatus = null;
+
+    fetch('/me', {
+      method: 'GET',
+      credentials: 'include', // send existing session/auth cookies
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (response) {
+        responseStatus = response.status;
+
+        if (responseStatus === 401) {
+          // Not authenticated: send the user to login.
+          window.location.href = 'login.html';
+          return null;
+        }
+
+        // Parse the body regardless of status code, since expiry can be
+        // signaled explicitly in the payload even on a 200 response,
+        // not just via a 403 status.
+        return response.json().catch(function () { return {}; });
+      })
+      .then(function (body) {
+        if (body === null) return; // already redirected (401 case)
+
+        var trialExpired = responseStatus === 403 || bodyIndicatesTrialExpired(body);
+
+        if (trialExpired) {
+          // Authenticated but the trial has ended (via 403 status or an
+          // explicit indicator in the body). Keep the user on this page
+          // — it's the natural place to get them onto a paid plan — but
+          // treat them as having no active plan so every card reads
+          // "Upgrade" and none are disabled.
+          setHeroNotice(
+            (body && body.message) ||
+            'Your trial has expired. Choose a plan below to keep using Wissely.'
+          );
+          applyPlanState('trial');
+          return;
+        }
+
+        if (responseStatus < 200 || responseStatus >= 300) {
+          throw new Error('Unexpected /me response: ' + responseStatus);
+        }
+
+        var currentPlan = sanitizePlan(body && body.plan);
+        applyPlanState(currentPlan);
+      })
+      .catch(function (err) {
+        // Fail safe: don't leave the page in a broken/misleading state.
+        // Log for diagnostics; restore the default "Select X" buttons
+        // (out of the loading state) so the page remains usable even
+        // if /me is unreachable.
+        console.error('Wissely: failed to verify session', err);
+        restoreDefaultButtons();
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    setLoadingState();
+    verifySessionAndRender();
+  });
+})();
+</script>
+
 </body>
-  </html>
+</html>
