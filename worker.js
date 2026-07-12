@@ -115,6 +115,22 @@ const PADDLE_PORTAL_TIMEOUT_MS = 8000; // 8 s
 // Audit log retention — records older than this are pruned by the monthly cron
 const AUDIT_RETENTION_DAYS = 90;
 
+// API Access — Pro plan only. Keys are high-entropy bearer tokens, hashed
+// with the same SHA-256 primitive already used for session IDs (hashToken).
+// The raw key is shown to the user exactly once, at creation time, and is
+// never persisted or logged in plaintext anywhere thereafter.
+const API_KEY_PREFIX               = 'wsk_live_';
+const API_KEY_SECRET_LENGTH        = 40;  // random chars appended after the prefix
+const API_KEY_DISPLAY_PREFIX_CHARS = 8;   // chars of the secret retained in key_prefix for identification
+const MAX_API_KEY_LENGTH           = 128; // hard ceiling checked before hashing an inbound Bearer token
+const MAX_API_KEY_NAME_LENGTH      = 64;
+const MAX_API_KEYS_PER_USER        = 10;
+
+// Per-API-key rate limit — independent of the general per-IP limiter, since
+// legitimate API traffic can legitimately come from a single server IP.
+const API_RATE_LIMIT_WINDOW_SECONDS = 60;
+const API_RATE_LIMIT_MAX_REQUESTS   = 20;
+
 // ── SECURITY HEADERS ─────────────────────────────────────────────────────────
 // Applied to every response. Worker returns JSON only, so CSP allows nothing.
 
@@ -147,9 +163,14 @@ const PLAN_TO_PRICE_ID = Object.entries(PADDLE_PRICE_PLANS).reduce((acc, [priceI
   return acc;
 }, {});
 
-// Applied only once a scheduled cancellation actually reaches its effective
-// date, or immediately for cancellations with no future effective date.
-const PLAN_FREE = { plan: 'free', analyses_limit: 5 };
+// Applied once a scheduled cancellation actually reaches its effective date,
+// immediately for cancellations with no future effective date, when a
+// subscription is paused (dunning exhausted), or as a fallback when a
+// Paddle event's price ID doesn't resolve to a known plan. Per Wissely's
+// permanent subscription model there is no separate "free" tier — an
+// account with no active paid subscription is simply on Trial: 20
+// analyses, no time expiration.
+const PLAN_TRIAL = { plan: 'trial', analyses_limit: 20 };
 
 // ── AI PROMPTS ────────────────────────────────────────────────────────────────
 
@@ -330,6 +351,32 @@ function generateSecureToken() {
 
 // Legacy alias kept for internal call-site consistency
 const generateResetToken = generateSecureToken;
+
+// Generates a new API key: a prefixed, high-entropy bearer token.
+// Returns both the full raw key (shown to the user exactly once) and a
+// short display prefix (prefix + first N chars of the secret) that is safe
+// to store and show in the UI for identification — it does not materially
+// reduce the entropy of the remaining hidden portion of the secret.
+function generateApiKey() {
+  const chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes  = crypto.getRandomValues(new Uint8Array(API_KEY_SECRET_LENGTH));
+  const secret = Array.from(bytes).map(b => chars[b % chars.length]).join('');
+  const fullKey       = `${API_KEY_PREFIX}${secret}`;
+  const displayPrefix = `${API_KEY_PREFIX}${secret.slice(0, API_KEY_DISPLAY_PREFIX_CHARS)}`;
+  return { fullKey, displayPrefix };
+}
+
+// Validates a user-supplied API key name. Returns a human-readable error
+// string, or null when valid.
+function validateApiKeyName(name) {
+  if (typeof name !== 'string') return 'name must be a string';
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return 'name must not be empty';
+  if (trimmed.length > MAX_API_KEY_NAME_LENGTH) {
+    return `name must be ${MAX_API_KEY_NAME_LENGTH} characters or fewer`;
+  }
+  return null;
+}
 
 // Password policy — enforced on /register and /reset-password. Returns an
 // array of human-readable validation errors (empty array = valid).
@@ -521,6 +568,28 @@ async function checkRateLimit(request, env, key) {
   }
 }
 
+// Per-API-key sliding-window limiter — separate bucket from the per-IP
+// limiter above, since many legitimate API calls can share one server IP
+// (or one key can be used from many IPs). Same fail-open behavior on KV
+// errors so a KV outage never takes API access offline.
+async function checkApiKeyRateLimit(env, keyId) {
+  if (!env.RATE_LIMIT_KV) return false;
+  const window = Math.floor(Date.now() / 1000 / API_RATE_LIMIT_WINDOW_SECONDS);
+  const kvKey  = `rl:api_key:${keyId}:${window}`;
+
+  try {
+    const raw   = await env.RATE_LIMIT_KV.get(kvKey);
+    const count = raw ? parseInt(raw, 10) : 0;
+    if (count >= API_RATE_LIMIT_MAX_REQUESTS) return true;
+    await env.RATE_LIMIT_KV.put(kvKey, String(count + 1), {
+      expirationTtl: API_RATE_LIMIT_WINDOW_SECONDS * 2
+    });
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ── ANALYZE CONCURRENCY LOCK ──────────────────────────────────────────────────
 // Best-effort per-user lock preventing two /analyze requests from the same
 // account from running concurrently. KV has no compare-and-swap primitive in
@@ -644,35 +713,53 @@ async function authenticateSession(request, env) {
   return session;
 }
 
-// ── QUOTA / TRIAL ACCESS FLAGS ────────────────────────────────────────────────
-// Sessions are NEVER invalidated because a trial ended or a quota was
-// exhausted (see authenticateSession() above — the only conditions that
-// clear a session are logout, real session expiry, or an invalid cookie).
-// Instead, every authenticated surface (/me, /analyze) computes these two
-// soft flags and lets the user keep full access to the dashboard, history,
-// billing, and settings. Only the ability to run a NEW analysis is gated.
-//
-//   quotaExhausted   — analyses_used has reached analyses_limit for the
-//                       user's current plan/billing cycle.
-//   trialTimeExpired — trial-plan users only: the 14-day trial window has
-//                       elapsed even if they haven't used all 20 analyses.
-//                       (Business rule carried over from the original
-//                       time-boxed trial design — still surfaced as a soft
-//                       flag, never as a session/auth failure.)
-//
-// trialExpired is only meaningful for plan === 'trial' and is true once
-// either condition applies. upgradeRequired applies to every plan and is
-// true whenever the user cannot currently run a new analysis for any reason.
+// Trial is NOT time-based.
+// Trial users receive 20 lifetime analyses.
+// If they still have remaining analyses, they can return months or years later
+// and continue using them.
+// Only analyses_used >= analyses_limit blocks new analyses.
+// Billing-cycle resets apply ONLY to paid subscriptions.
 function computeAccessFlags(user) {
-  const now = Date.now();
   const quotaExhausted = Number(user.analyses_used) >= Number(user.analyses_limit);
-  const trialTimeExpired = user.plan === 'trial' && !!user.trial_end &&
-    now > new Date(user.trial_end).getTime();
 
-  const trialExpired    = user.plan === 'trial' && (quotaExhausted || trialTimeExpired);
-  const upgradeRequired = quotaExhausted || trialTimeExpired;
+  const trialExpired    = user.plan === 'trial' && quotaExhausted;
+  const upgradeRequired = quotaExhausted;
 
-  return { upgradeRequired, trialExpired, quotaExhausted, trialTimeExpired };
+  return { upgradeRequired, trialExpired, quotaExhausted };
+}
+
+// ── API KEY AUTHENTICATION ────────────────────────────────────────────────────
+// Bearer-token authentication for programmatic API access. Mirrors the
+// session-lookup pattern above: the raw key never reaches the database —
+// only its SHA-256 hash is compared. API access is gated to the Pro plan
+// at USE time (not just at key-creation time), so a downgrade or
+// cancellation immediately revokes API access even for keys that were
+// never explicitly deleted.
+//
+// Returns null on any failure (missing header, malformed key, unknown
+// hash, revoked key, or non-Pro plan) — callers respond with a generic
+// 401, never distinguishing the reason, so key enumeration gains no signal.
+async function authenticateApiKey(request, env) {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+
+  const rawKey = authHeader.slice(7).trim();
+  if (!rawKey || rawKey.length > MAX_API_KEY_LENGTH || !rawKey.startsWith(API_KEY_PREFIX)) {
+    return null;
+  }
+
+  const keyHash = await hashToken(rawKey);
+
+  const row = await env.DB.prepare(
+    'SELECT k.id AS key_id, k.revoked_at, ' +
+    'u.id AS user_id, u.email, u.plan, u.analyses_used, u.analyses_limit, u.trial_end ' +
+    'FROM api_keys k JOIN users u ON k.user_id = u.id WHERE k.key_hash = ?'
+  ).bind(keyHash).first();
+
+  if (!row || row.revoked_at) return null;
+  if (row.plan !== 'pro') return null; // API access requires an active Pro subscription
+
+  return row;
 }
 
 // ── CSRF PROTECTION ───────────────────────────────────────────────────────────
@@ -1285,7 +1372,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
     // First period for this subscription: usage starts fresh and the period
     // start is recorded so subsequent renewals can be detected.
     case 'subscription.created': {
-      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      const { plan, analyses_limit } = planConfig ?? PLAN_TRIAL;
       const periodStart = data?.current_billing_period?.starts_at ?? null;
       if (userId) {
         await env.DB.prepare(
@@ -1311,7 +1398,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
     // reset unconditionally (there is nothing to "compare against" yet for
     // this subscription's billing cycle).
     case 'subscription.activated': {
-      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      const { plan, analyses_limit } = planConfig ?? PLAN_TRIAL;
       const periodStart = data?.current_billing_period?.starts_at ?? null;
       await env.DB.prepare(
         'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ?, scheduled_downgrade_at = NULL, ' +
@@ -1340,7 +1427,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
     // scheduled_change (e.g. the cancellation being reversed) clears the
     // pending downgrade.
     case 'subscription.updated': {
-      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      const { plan, analyses_limit } = planConfig ?? PLAN_TRIAL;
       const scheduledDowngradeAt = data?.scheduled_change?.action === 'cancel'
         ? (data.scheduled_change.effective_at ?? null)
         : null;
@@ -1399,23 +1486,23 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
         await log('paddle_subscription_canceled_scheduled', { subscriptionId, effectiveAt });
       } else {
         await env.DB.prepare(
-          'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ?, scheduled_downgrade_at = NULL ' +
+          'UPDATE users SET plan = ?, analyses_limit = ?, analyses_used = 0, subscription_status = ?, scheduled_downgrade_at = NULL ' +
           'WHERE paddle_subscription_id = ?'
-        ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, 'canceled', subscriptionId).run();
+        ).bind(PLAN_TRIAL.plan, PLAN_TRIAL.analyses_limit, 'canceled', subscriptionId).run();
         await log('paddle_subscription_canceled', { subscriptionId });
       }
       break;
     }
 
-    // ── Billing paused (dunning exhausted) — revert to free tier ────────────
+    // ── Billing paused (dunning exhausted) — revert to Trial ────────────────
     // Unlike a scheduled cancellation, a pause means collection has already
     // failed repeatedly — there is no future paid period being protected, so
-    // access is revoked immediately.
+    // access is downgraded immediately.
     case 'subscription.paused': {
       await env.DB.prepare(
-        'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ?, scheduled_downgrade_at = NULL ' +
+        'UPDATE users SET plan = ?, analyses_limit = ?, analyses_used = 0, subscription_status = ?, scheduled_downgrade_at = NULL ' +
         'WHERE paddle_subscription_id = ?'
-      ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, 'paused', subscriptionId).run();
+      ).bind(PLAN_TRIAL.plan, PLAN_TRIAL.analyses_limit, 'paused', subscriptionId).run();
       await log('paddle_subscription_paused', { subscriptionId });
       break;
     }
@@ -1427,7 +1514,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
     // CASE used for renewals applies here too, so usage only resets if
     // Paddle reports an actual new billing period alongside the resume.
     case 'subscription.resumed': {
-      const { plan, analyses_limit } = planConfig ?? PLAN_FREE;
+      const { plan, analyses_limit } = planConfig ?? PLAN_TRIAL;
       const periodStart = data?.current_billing_period?.starts_at ?? null;
       await env.DB.prepare(
         'UPDATE users SET plan = ?, analyses_limit = ?, subscription_status = ?, scheduled_downgrade_at = NULL, ' +
@@ -1617,10 +1704,10 @@ async function downgradeExpiredCancellations(env) {
   const now = new Date().toISOString();
   try {
     const r = await env.DB.prepare(
-      "UPDATE users SET plan = ?, analyses_limit = ?, scheduled_downgrade_at = NULL " +
+      "UPDATE users SET plan = ?, analyses_limit = ?, analyses_used = 0, scheduled_downgrade_at = NULL " +
       "WHERE scheduled_downgrade_at IS NOT NULL AND scheduled_downgrade_at < ? " +
       "AND subscription_status = 'canceled'"
-    ).bind(PLAN_FREE.plan, PLAN_FREE.analyses_limit, now).run();
+    ).bind(PLAN_TRIAL.plan, PLAN_TRIAL.analyses_limit, now).run();
     console.log(`[Cron] Expired cancellations downgraded: ${r.meta.changes}`);
   } catch (err) {
     console.error('[Cron] Downgrade of expired cancellations failed:', err.message);
@@ -1628,6 +1715,153 @@ async function downgradeExpiredCancellations(env) {
 }
 
 // ── MAIN FETCH HANDLER ────────────────────────────────────────────────────────
+
+// ── ANALYZE EXECUTION (shared by session and API-key auth) ───────────────────
+// Contains the full quota-gated Anthropic call pipeline. Called by both the
+// browser-facing /analyze endpoint (session + CSRF auth) and the
+// programmatic /api/v1/analyze endpoint (API-key auth), so both consume the
+// exact same monthly analyses_used/analyses_limit quota and share identical
+// validation, concurrency-locking, and rollback behavior.
+//
+// `actor` shape: { user_id, plan, analyses_used, analyses_limit, authMethod,
+// apiKeyId? } — apiKeyId is only present (and only used) for authMethod
+// === 'api_key', to record last_used_at on successful completion.
+async function performAnalyze(request, env, requestId, actor) {
+  const preFlightFlags = computeAccessFlags({
+    plan:           actor.plan,
+    analyses_used:  actor.analyses_used,
+    analyses_limit: actor.analyses_limit
+  });
+  if (preFlightFlags.upgradeRequired) {
+    return createResponse(request, {
+      upgradeRequired: true,
+      trialExpired:    preFlightFlags.trialExpired,
+      error:           'Analysis limit reached.'
+    }, 403);
+  }
+
+  const { body, error: parseError, tooLarge } = await parseJsonBody(request, MAX_AI_PAYLOAD_BYTES + 4096);
+  if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+  if (!body?.messages) return createResponse(request, { error: 'Missing messages field' }, 400);
+
+  // Structural validation — role/content shape, counts, per-message
+  // length — independent of the raw byte-size gate below.
+  const messagesError = validateMessagesPayload(body.messages);
+  if (messagesError) return createResponse(request, { error: messagesError }, 400);
+
+  const toolError = validateToolField(body.tool);
+  if (toolError) return createResponse(request, { error: toolError }, 400);
+
+  // Payload size gate — checked before quota is consumed
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(body.messages)).length;
+  if (payloadBytes > MAX_AI_PAYLOAD_BYTES) {
+    console.warn('[Analyze] Payload too large:', payloadBytes, 'bytes, user:', actor.user_id, { requestId });
+    return createResponse(request, {
+      error: 'Payload too large. Please reduce the size of your input and try again.'
+    }, 413);
+  }
+
+  // Concurrency guard — see acquireAnalysisLock() for why this is a
+  // defense-in-depth layer rather than the sole source of correctness.
+  const lockAcquired = await acquireAnalysisLock(env, actor.user_id);
+  if (!lockAcquired) {
+    return createResponse(request, {
+      error: 'An analysis is already in progress for your account. Please wait for it to finish.'
+    }, 429);
+  }
+
+  try {
+    // Atomic quota gate — single UPDATE prevents over-consumption under concurrent requests
+    const allocation = await env.DB.prepare(
+      'UPDATE users SET analyses_used = analyses_used + 1 ' +
+      'WHERE id = ? AND analyses_used < analyses_limit'
+    ).bind(actor.user_id).run();
+
+    if (allocation.meta.changes === 0) {
+      // Race-condition backstop: the pre-flight check above passed, but a
+      // concurrent request consumed the last unit of quota first. Same
+      // soft-failure contract as the pre-flight check — no session/key
+      // impact, just "come back after upgrading/renewing".
+      return createResponse(request, {
+        upgradeRequired: true,
+        trialExpired:    actor.plan === 'trial',
+        error:           'Analysis limit reached.'
+      }, 403);
+    }
+
+    // Quota has been consumed — roll back on any downstream failure
+    try {
+      const result = await fetchAnthropicWithRetry(env, {
+        model:     'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system:    buildSystemPrompt(body.tool || 'unknown'),
+        messages:  body.messages
+      });
+
+      if (result.ok) {
+        const updatedUser = await env.DB.prepare(
+          'SELECT id, email, plan, analyses_used, analyses_limit, trial_end FROM users WHERE id = ?'
+        ).bind(actor.user_id).first();
+
+        // Let the caller know immediately if THIS analysis was the one that
+        // exhausted the quota, so it can react without a separate /me poll.
+        const postFlightFlags = computeAccessFlags(updatedUser);
+        updatedUser.upgradeRequired = postFlightFlags.upgradeRequired;
+
+        const report = validateAIReport(extractAIReport(result.text));
+
+        if (actor.authMethod === 'api_key' && actor.apiKeyId) {
+          try {
+            await env.DB.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?')
+              .bind(new Date().toISOString(), actor.apiKeyId).run();
+          } catch (err) {
+            console.warn('[ApiKey] last_used_at update failed:', err.message);
+          }
+        }
+
+        await writeAuditLog(env, {
+          requestId,
+          userId:    actor.user_id,
+          ip:        getClientIp(request),
+          eventType: actor.authMethod === 'api_key' ? 'api_analysis_completed' : 'analysis_completed',
+          result:    'success',
+          metadata:  {
+            tool:       body.tool || 'unknown',
+            authMethod: actor.authMethod,
+            ...(actor.apiKeyId ? { apiKeyId: actor.apiKeyId } : {})
+          }
+        });
+
+        return createResponse(request, { success: true, data: report, user: updatedUser });
+      }
+
+      // Non-OK Anthropic response — roll back. Raw provider error text
+      // (result.text) is deliberately never included in the response or in
+      // metadata sent back to the client — only a generic message is
+      // surfaced, with detail confined to server logs.
+      await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
+        .bind(actor.user_id).run();
+      console.error('[Analyze] Anthropic non-OK:', result.status, { requestId });
+      return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
+
+    } catch (apiError) {
+      // Roll back quota on timeout or network failure
+      await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
+        .bind(actor.user_id).run();
+
+      if (apiError.name === 'AbortError') {
+        console.warn('[Analyze] Anthropic timed out', { requestId, userId: actor.user_id });
+        return createResponse(request, { error: 'Analysis timed out. Please try again.' }, 504);
+      }
+
+      // Never leak raw upstream exception details to the client.
+      console.error('[Analyze] Upstream fetch failed:', apiError.message, { requestId });
+      return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
+    }
+  } finally {
+    await releaseAnalysisLock(env, actor.user_id);
+  }
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -1642,7 +1876,7 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin':      getAllowedOrigin(request),
-          'Access-Control-Allow-Methods':     'GET, POST, OPTIONS',
+          'Access-Control-Allow-Methods':     'GET, POST, PATCH, DELETE, OPTIONS',
           'Access-Control-Allow-Headers':     'Content-Type, Authorization, X-CSRF-Token',
           'Access-Control-Allow-Credentials': 'true',
           'Access-Control-Max-Age':           '86400',
@@ -1797,7 +2031,6 @@ export default {
 
         const userId       = crypto.randomUUID();
         const { hash, salt } = await hashPassword(password);
-        const trialEnd     = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
         const now          = new Date().toISOString();
 
         const rawVerifyToken    = generateSecureToken();
@@ -1807,8 +2040,17 @@ export default {
         await env.DB.prepare(
           'INSERT INTO users (id, email, password_hash, password_salt, plan, analyses_used, analyses_limit, ' +
           'trial_end, created_at, email_verified, email_verification_token, email_verification_expires) ' +
-          'VALUES (?, ?, ?, ?, ?, 0, 20, ?, ?, 0, ?, ?)'
-        ).bind(userId, email, hash, salt, 'trial', trialEnd, now, hashedVerifyToken, verifyExpires).run();
+          'VALUES (?, ?, ?, ?, ?, 0, 20, NULL, ?, 0, ?, ?)'
+        ).bind(
+          userId,
+          email,
+          hash,
+          salt,
+          'trial',
+          now,
+          hashedVerifyToken,
+          verifyExpires
+        ).run();
 
         await writeAuditLog(env, {
           requestId, userId, ip: getClientIp(request),
@@ -2260,7 +2502,9 @@ export default {
       // Quota/trial exhaustion is NEVER an authentication failure here — it
       // is surfaced as a 403 with { upgradeRequired: true } so the frontend
       // can disable the Run Analysis button while leaving the session,
-      // dashboard, history, and billing fully intact.
+      // dashboard, history, and billing fully intact. Core logic lives in
+      // performAnalyze() so this endpoint and /api/v1/analyze (API-key auth)
+      // share identical quota, validation, and Anthropic-call behavior.
       if (path === '/analyze' && request.method === 'POST') {
         const session = await authenticateSession(request, env);
         if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
@@ -2291,115 +2535,205 @@ export default {
           return createResponse(request, { error: 'Invalid or missing security token' }, 403);
         }
 
-        const { body, error: parseError, tooLarge } = await parseJsonBody(request, MAX_AI_PAYLOAD_BYTES + 4096);
+        return performAnalyze(request, env, requestId, {
+          user_id:        session.user_id,
+          plan:           session.plan,
+          analyses_used:  session.analyses_used,
+          analyses_limit: session.analyses_limit,
+          authMethod:     'session'
+        });
+      }
+
+      // ── API v1: ANALYZE (API-key auth, Pro plan only) ────────────────────
+      // Same underlying analysis pipeline and quota as /analyze above, but
+      // authenticated via `Authorization: Bearer <key>` instead of a session
+      // cookie. Bearer-token auth is not subject to CSRF (browsers never
+      // auto-attach it), so no CSRF check applies here. Counts against the
+      // same monthly analyses_used/analyses_limit quota as the web app.
+      if (path === '/api/v1/analyze' && request.method === 'POST') {
+        if (await checkRateLimit(request, env, 'api-analyze')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const keyAuth = await authenticateApiKey(request, env);
+        if (!keyAuth) {
+          return createResponse(request, { error: 'Invalid or unauthorized API key' }, 401);
+        }
+
+        if (await checkApiKeyRateLimit(env, keyAuth.key_id)) {
+          return createResponse(request, { error: 'API rate limit exceeded. Please slow down.' }, 429);
+        }
+
+        return performAnalyze(request, env, requestId, {
+          user_id:        keyAuth.user_id,
+          plan:           keyAuth.plan,
+          analyses_used:  keyAuth.analyses_used,
+          analyses_limit: keyAuth.analyses_limit,
+          authMethod:     'api_key',
+          apiKeyId:       keyAuth.key_id
+        });
+      }
+
+      // ── API v1: CREATE KEY (Pro plan only) ────────────────────────────────
+      if (path === '/api/v1/keys' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/api/v1/keys' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'api-keys-create')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        if (session.plan !== 'pro') {
+          return createResponse(request, {
+            error:           'API access is available on the Pro plan.',
+            upgradeRequired: true
+          }, 403);
+        }
+
+        const { body, error: parseError, tooLarge } = await parseJsonBody(request);
         if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
-        if (!body?.messages) return createResponse(request, { error: 'Missing messages field' }, 400);
 
-        // Structural validation — role/content shape, counts, per-message
-        // length — independent of the raw byte-size gate below.
-        const messagesError = validateMessagesPayload(body.messages);
-        if (messagesError) return createResponse(request, { error: messagesError }, 400);
+        const nameError = validateApiKeyName(body?.name);
+        if (nameError) return createResponse(request, { error: nameError }, 400);
+        const name = body.name.trim();
 
-        const toolError = validateToolField(body.tool);
-        if (toolError) return createResponse(request, { error: toolError }, 400);
+        const countRow = await env.DB.prepare(
+          'SELECT COUNT(*) AS n FROM api_keys WHERE user_id = ? AND revoked_at IS NULL'
+        ).bind(session.user_id).first();
 
-        // Payload size gate — checked before quota is consumed
-        const payloadBytes = new TextEncoder().encode(JSON.stringify(body.messages)).length;
-        if (payloadBytes > MAX_AI_PAYLOAD_BYTES) {
-          console.warn('[Analyze] Payload too large:', payloadBytes, 'bytes, user:', session.user_id, { requestId });
+        if ((countRow?.n ?? 0) >= MAX_API_KEYS_PER_USER) {
           return createResponse(request, {
-            error: 'Payload too large. Please reduce the size of your input and try again.'
-          }, 413);
+            error: `Maximum of ${MAX_API_KEYS_PER_USER} active API keys reached. Revoke an existing key first.`
+          }, 400);
         }
 
-        // Concurrency guard — see acquireAnalysisLock() for why this is a
-        // defense-in-depth layer rather than the sole source of correctness.
-        const lockAcquired = await acquireAnalysisLock(env, session.user_id);
-        if (!lockAcquired) {
-          return createResponse(request, {
-            error: 'An analysis is already in progress for your account. Please wait for it to finish.'
-          }, 429);
+        const { fullKey, displayPrefix } = generateApiKey();
+        const keyHash    = await hashToken(fullKey);
+        const keyId      = crypto.randomUUID();
+        const createdAt  = new Date().toISOString();
+
+        await env.DB.prepare(
+          'INSERT INTO api_keys (id, user_id, name, key_hash, key_prefix, created_at, last_used_at, revoked_at) ' +
+          'VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)'
+        ).bind(keyId, session.user_id, name, keyHash, displayPrefix, createdAt).run();
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'api_key_created', result: 'success',
+          metadata: { keyId, name }
+        });
+
+        // The full raw key is returned exactly once, here, and is never
+        // retrievable again — only key_prefix is stored for identification.
+        return createResponse(request, {
+          id:         keyId,
+          name,
+          key:        fullKey,
+          key_prefix: displayPrefix,
+          created_at: createdAt
+        }, 201);
+      }
+
+      // ── API v1: LIST KEYS ──────────────────────────────────────────────────
+      if (path === '/api/v1/keys' && request.method === 'GET') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const rows = await env.DB.prepare(
+          'SELECT id, name, key_prefix, created_at, last_used_at, revoked_at ' +
+          'FROM api_keys WHERE user_id = ? ORDER BY created_at DESC'
+        ).bind(session.user_id).all();
+
+        return createResponse(request, { keys: rows.results ?? [] }, 200);
+      }
+
+      // ── API v1: RENAME / REVOKE KEY ───────────────────────────────────────
+      const apiKeyIdMatch = path.match(/^\/api\/v1\/keys\/([0-9a-fA-F-]{36})$/);
+      if (apiKeyIdMatch && (request.method === 'PATCH' || request.method === 'DELETE')) {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/api/v1/keys/:id' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
         }
 
-        try {
-          // Atomic quota gate — single UPDATE prevents over-consumption under concurrent requests
-          const allocation = await env.DB.prepare(
-            'UPDATE users SET analyses_used = analyses_used + 1 ' +
-            'WHERE id = ? AND analyses_used < analyses_limit'
-          ).bind(session.user_id).run();
+        if (await checkRateLimit(request, env, 'api-keys-modify')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
 
-          if (allocation.meta.changes === 0) {
-            // Race-condition backstop: the pre-flight check above passed,
-            // but a concurrent request consumed the last unit of quota
-            // first. Same soft-failure contract as the pre-flight check —
-            // no session impact, just "come back after upgrading/renewing".
-            return createResponse(request, {
-              upgradeRequired: true,
-              trialExpired:    session.plan === 'trial',
-              error:           'Analysis limit reached.'
-            }, 403);
+        const keyId = apiKeyIdMatch[1];
+
+        if (request.method === 'PATCH') {
+          const { body, error: parseError, tooLarge } = await parseJsonBody(request);
+          if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+
+          const nameError = validateApiKeyName(body?.name);
+          if (nameError) return createResponse(request, { error: nameError }, 400);
+          const name = body.name.trim();
+
+          const result = await env.DB.prepare(
+            'UPDATE api_keys SET name = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL'
+          ).bind(name, keyId, session.user_id).run();
+
+          if (result.meta.changes === 0) {
+            return createResponse(request, { error: 'API key not found' }, 404);
           }
 
-          // Quota has been consumed — roll back on any downstream failure
-          try {
-            const result = await fetchAnthropicWithRetry(env, {
-              model:     'claude-sonnet-4-6',
-              max_tokens: 1000,
-              system:    buildSystemPrompt(body.tool || 'unknown'),
-              messages:  body.messages
-            });
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'api_key_renamed', result: 'success', metadata: { keyId, name }
+          });
 
-            if (result.ok) {
-              const updatedUser = await env.DB.prepare(
-                'SELECT id, email, plan, analyses_used, analyses_limit, trial_end FROM users WHERE id = ?'
-              ).bind(session.user_id).first();
-
-              // Let the frontend know immediately if THIS analysis was the
-              // one that exhausted the quota, so it can disable the Run
-              // Analysis button without waiting for a separate /me poll.
-              const postFlightFlags = computeAccessFlags(updatedUser);
-              updatedUser.upgradeRequired = postFlightFlags.upgradeRequired;
-
-              const report = validateAIReport(extractAIReport(result.text));
-
-              await writeAuditLog(env, {
-                requestId,
-                userId:    session.user_id,
-                ip:        getClientIp(request),
-                eventType: 'analysis_completed',
-                result:    'success',
-                metadata:  { tool: body.tool || 'unknown' }
-              });
-
-              return createResponse(request, { success: true, data: report, user: updatedUser });
-            }
-
-            // Non-OK Anthropic response — roll back. Raw provider error text
-            // (result.text) is deliberately never included in the response
-            // or in metadata sent back to the client — only a generic
-            // message is surfaced, with detail confined to server logs.
-            await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
-              .bind(session.user_id).run();
-            console.error('[Analyze] Anthropic non-OK:', result.status, { requestId });
-            return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
-
-          } catch (apiError) {
-            // Roll back quota on timeout or network failure
-            await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
-              .bind(session.user_id).run();
-
-            if (apiError.name === 'AbortError') {
-              console.warn('[Analyze] Anthropic timed out', { requestId, userId: session.user_id });
-              return createResponse(request, { error: 'Analysis timed out. Please try again.' }, 504);
-            }
-
-            // Never leak raw upstream exception details to the client.
-            console.error('[Analyze] Upstream fetch failed:', apiError.message, { requestId });
-            return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
-          }
-        } finally {
-          await releaseAnalysisLock(env, session.user_id);
+          return createResponse(request, { success: true, id: keyId, name }, 200);
         }
+
+        // DELETE — soft-revoke. The row is retained (name/prefix/audit
+        // history preserved) but immediately stops authenticating.
+        const revokedAt = new Date().toISOString();
+        const result = await env.DB.prepare(
+          'UPDATE api_keys SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL'
+        ).bind(revokedAt, keyId, session.user_id).run();
+
+        if (result.meta.changes === 0) {
+          return createResponse(request, { error: 'API key not found' }, 404);
+        }
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'api_key_revoked', result: 'success', metadata: { keyId }
+        });
+
+        return createResponse(request, { success: true, id: keyId, revoked_at: revokedAt }, 200);
       }
 
       // ── RESEND VERIFICATION ───────────────────────────────────────────────
@@ -2862,6 +3196,24 @@ function buildPasswordResetEmailHtml(resetLink) {
 //      metadata   TEXT
 //    );
 //
+// 3b. API keys table — powers Pro-plan API Access (see authenticateApiKey,
+//     performAnalyze, and the /api/v1/keys* and /api/v1/analyze routes):
+//    CREATE TABLE IF NOT EXISTS api_keys (
+//      id           TEXT PRIMARY KEY,          -- crypto.randomUUID()
+//      user_id      TEXT NOT NULL,
+//      name         TEXT NOT NULL,
+//      key_hash     TEXT NOT NULL UNIQUE,       -- SHA-256 hex of the raw key (hashToken)
+//      key_prefix   TEXT NOT NULL,              -- e.g. "wsk_live_AbCd1234" — display only
+//      created_at   TEXT NOT NULL,
+//      last_used_at TEXT,                       -- NULL until first successful use
+//      revoked_at   TEXT,                       -- NULL = active; soft-revoke, never hard-deleted
+//      FOREIGN KEY (user_id) REFERENCES users(id)
+//    );
+//
+//    The raw key itself (API_KEY_PREFIX + random secret, see generateApiKey)
+//    is never stored — only its SHA-256 hash. It is returned to the client
+//    exactly once, in the POST /api/v1/keys response body, at creation time.
+//
 // 4. Indexes — apply all; IF NOT EXISTS makes them safe to re-run:
 //    CREATE INDEX IF NOT EXISTS idx_users_email                ON users(email);
 //    CREATE INDEX IF NOT EXISTS idx_sessions_user_id           ON sessions(user_id);
@@ -2875,6 +3227,8 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp       ON audit_logs(timestamp);
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id         ON audit_logs(user_id);
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type      ON audit_logs(event_type);
+//    CREATE INDEX IF NOT EXISTS idx_api_keys_user_id           ON api_keys(user_id);
+//    CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash          ON api_keys(key_hash);
 //
 // 5. Cloudflare cron triggers (wrangler.toml) — TWO triggers are required:
 //    [triggers]
