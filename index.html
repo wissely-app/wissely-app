@@ -409,6 +409,7 @@ textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gol
           <div class="dropdown-usage-text" id="dropdownTrialText" style="display:none; color: var(--gold);"></div>
         </div>
         <a href="billing.html" class="dropdown-link">💳 Billing Settings</a>
+        <a href="api-keys.html" class="dropdown-link" id="dropdownApiKeysLink" style="display:none;">🔑 API Keys</a>
         <a href="upgrade.html" class="dropdown-link upgrade-highlight" id="dropdownUpgradeLink">⭐ Upgrade Plan</a>
         <div class="dropdown-divider"></div>
         <button class="dropdown-logout-btn" id="dropdownLogoutBtn">🚪 Logout</button>
@@ -616,43 +617,57 @@ const API_BASE_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev';
 const TOOLS = [
   {
     icon:"🔍", label:"Invoice Analyzer", desc:"Extract every detail instantly",
-    placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544",
-    prompt: function(t, localFields){
-      var hint = '';
-      if (localFields && Object.keys(localFields).length) {
-        hint = "\n\nFields already extracted locally (verify against the text below, correct any that are wrong, fill in any left as null): " + JSON.stringify(localFields);
-      }
-      return "You are a financial expert. Return a concise Invoice Summary. Use only these fields, one per line, in this exact order: Vendor Name, Customer Name, Invoice Number, Invoice Date, Due Date, Currency, Subtotal, Tax, Total Amount, Line Items, Issues Found, Recommended Action, Confidence. For Currency, output the 3-letter code (USD, EUR, GBP, CAD, AUD, LKR, INR, etc). For Line Items, output every distinct line item found on one line, separated by semicolons, formatted as 'Name | Qty | Unit Price | Line Total' for each (e.g. Line Items: Laptop | 2 | 999.00 | 1998.00; Mouse | 1 | 25.00 | 25.00); if none can be identified, output 'Line Items: none detected'. For Confidence, output your own estimated extraction confidence as percentages on one line formatted exactly as 'Confidence: Vendor=NN, InvoiceNumber=NN, Amount=NN, Overall=NN'. Extract data correctly. Flag any issues, including missing fields, duplicate invoice numbers, mismatched totals, or a due date before the invoice date. Keep response under 220 words. Do not use asterisks or markdown. Output exactly as: Field: Value." + hint + "\nText: " + t;
-    }
+    placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"
   },
   {
     icon:"🗂️", label:"Expense Clarity", desc:"Sort expenses for tax",
-    placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500",
-    prompt: function(t){ return "Act as a tax accountant. Categorize these business expenses for IRS filing. For each item list: Category, Tax Deductible (Yes/No), and a 5-word deduction rule. Group and calculate total spending per category. Finish with a 1-sentence cash-saving tip. Strict limit: 150 words. Do not use asterisks, hashes, or markdown symbols. Raw text only: " + t; }
+    placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500"
   },
   {
     icon:"📊", label:"Finance Report", desc:"A clear summary you can read",
-    placeholder:"Paste your financial data here...\n\nExample:\nRevenue: $12,400\nExpenses: $8,900\nUnpaid invoices: $3,200\nRent: $2,100\nTax paid: $0",
-    prompt: function(t){ return "Act as a small business CFO. Write a brief executive performance overview. State total revenue, expenses, and net profit margin. Highlight the single largest operational expense and the single greatest cash risk. Provide 3 clear, practical action steps for the owner this week. Strict limit: 150 words. Do not use asterisks, hashes, or markdown symbols. Raw text only: " + t; }
+    placeholder:"Paste your financial data here...\n\nExample:\nRevenue: $12,400\nExpenses: $8,900\nUnpaid invoices: $3,200\nRent: $2,100\nTax paid: $0"
   },
   {
     icon:"📧", label:"Payment Request", desc:"Get paid faster",
-    placeholder:"Paste invoice details here...\n\nExample:\nClient: ABC Corp\nInvoice: $3,500\nDays overdue: 15\nProject: Website redesign",
-    prompt: function(t){ return "You are a professional business communicator. Write a firm but polite payment follow-up email with subject line. Sound human. Include payment details and a call to action. No markdown symbols. Plain text only. Info: " + t; }
+    placeholder:"Paste invoice details here...\n\nExample:\nClient: ABC Corp\nInvoice: $3,500\nDays overdue: 15\nProject: Website redesign"
   },
   {
     icon:"🚨", label:"Fraud Detection", desc:"Catch errors early",
-    placeholder:"Paste invoices or transactions here...\n\nExample:\nInvoice A: $2,500 - Supplier X - May 1\nInvoice B: $2,500 - Supplier X - May 1\nInvoice C: $8,999 - Unknown Vendor",
-    prompt: function(t){ return "Act as a forensic auditor. Inspect this data for financial anomalies, duplicate billing, pricing inconsistencies, or missing validation attributes. List each detected anomaly as: Issue, Risk Level (High/Medium/Low), and Quick Fix. If no issues exist, state that the data appears clear. Strict limit: 150 words. Do not use asterisks, hashes, or markdown symbols. Raw text only: " + t; }
+    placeholder:"Paste invoices or transactions here...\n\nExample:\nInvoice A: $2,500 - Supplier X - May 1\nInvoice B: $2,500 - Supplier X - May 1\nInvoice C: $8,999 - Unknown Vendor"
   },
   {
     icon:"📈", label:"Cash Flow Forecast", desc:"30, 60, 90 day picture",
-    placeholder:"Paste your financial data here...\n\nExample:\nCurrent balance: $18,500\nMonthly expenses: $6,200\nExpected payments: $12,000\nOverdue invoices: $4,500",
-    prompt: function(t){ return "You are a financial forecaster. Give a clear, highly concise 30, 60 and 90 day cash flow forecast. Tell the owner if they will have enough cash, when the risk points are, and give exactly 3 bulleted action items. Keep the entire response under 200 words so it does not get cut off. Specific numbers. Plain English. No markdown symbols. Text: " + t; }
+    placeholder:"Paste your financial data here...\n\nExample:\nCurrent balance: $18,500\nMonthly expenses: $6,200\nExpected payments: $12,000\nOverdue invoices: $4,500"
   }
 ];
 
+// Maps each TOOLS[] entry to the tool identifier the backend's
+// AI_TOOL_PROMPTS registry expects in body.tool (see worker.js). The backend
+// now owns all task-specific prompt authoring and output-schema enforcement,
+// so the frontend no longer builds its own instruction text — it just tells
+// the backend which tool is active and sends the raw input.
+const TOOL_IDS = [
+  'invoice-analyzer',
+  'expense-clarity',
+  'finance-report',
+  'payment-request',
+  'fraud-detection',
+  'cash-flow-forecast'
+];
+
+// Builds the user-message content sent to /analyze. The backend's system
+// prompt fully specifies the task and the required JSON output schema, so
+// this only needs to carry the raw input — plus, for the Invoice Analyzer,
+// the locally regex-extracted field hints so the AI can verify/correct them.
+function buildAnalyzeMessage(text, toolIndex, localFields) {
+  if (toolIndex === 0 && localFields && Object.keys(localFields).length) {
+    return `${text}\n\nFields already extracted locally (verify against the text below, correct any that are wrong, fill in any left as null): ${JSON.stringify(localFields)}`;
+  }
+  return text;
+}
+
 let currentTool = 0;
+let currentReport = null; // the structured JSON report object from the last successful /analyze call
 let analysisHistory = [];
 let outputText = "";
 let isQuotaExhausted = false;
@@ -674,6 +689,20 @@ const ALLOWED_UPLOAD_TYPES = {
 
 // Task 12: dedupe in-flight/loaded <script> tags so libraries are only ever fetched once
 const _loadedScripts = {};
+
+// The backend requires X-CSRF-Token on state-changing requests (/analyze,
+// /logout, etc). The token is issued once, in the /login response body, and
+// is expected to be persisted by the auth flow under this key — same key
+// used by api-keys.html. If it isn't present (e.g. this key isn't set by
+// auth.html yet), requests are sent without it, which is today's behavior.
+function getCsrfToken() {
+  try {
+    return localStorage.getItem('wissely_csrf_token') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function loadScriptOnce(src) {
   if (_loadedScripts[src]) return _loadedScripts[src];
   _loadedScripts[src] = new Promise((resolve, reject) => {
@@ -781,6 +810,8 @@ function initLocalStorageHistory() {
           icon: String(item.icon || ''),
           preview: String(item.preview || '').slice(0, 100),
           output: String(item.output || '').slice(0, 5000),
+          report: (item.report && typeof item.report === 'object') ? item.report : null,
+          invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber) : undefined,
           analysisId: String(item.analysisId || ''),
           timestamp: String(item.timestamp || '')
         };
@@ -804,6 +835,8 @@ function syncHistoryToStorage() {
       icon: String(item.icon || ''),
       preview: String(item.preview || '').slice(0, 100),
       output: String(item.output || '').slice(0, 5000),
+      report: (item.report && typeof item.report === 'object') ? item.report : null,
+      invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber) : undefined,
       analysisId: String(item.analysisId || ''),
       timestamp: String(item.timestamp || '')
     }));
@@ -948,9 +981,12 @@ function updateQuotaUI(user) {
   document.getElementById('featPredictiveItem').textContent = (rawPlan === 'growth' || rawPlan === 'pro') ? '✓ 90-Day Predictions' : '✕ 90-Day Predictions';
   
   const dropdownUpgradeLink = document.getElementById('dropdownUpgradeLink');
+  const dropdownApiKeysLink = document.getElementById('dropdownApiKeysLink');
   const widgetUpgradeBtn = document.getElementById('widgetUpgradeBtn');
   const sidebarPremiumWidget = document.getElementById('sidebarPremiumWidget');
-  
+
+  if (dropdownApiKeysLink) dropdownApiKeysLink.style.display = (rawPlan === 'pro') ? 'flex' : 'none';
+
   if (rawPlan === 'pro') {
     if (dropdownUpgradeLink) dropdownUpgradeLink.style.display = 'none';
     if (widgetUpgradeBtn) widgetUpgradeBtn.style.display = 'none';
@@ -1007,7 +1043,11 @@ function updateQuotaUI(user) {
 // Task 4: Logout uses replace() so back button can't return to dashboard
 async function triggerLogout() {
   try {
-    await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
+    await fetch(`${API_BASE_URL}/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': getCsrfToken() }
+    });
   } catch (e) {}
   analysisHistory = [];
   try {
@@ -1081,16 +1121,6 @@ function cleanOutput(text) {
   return safeText.trim();
 }
 
-function extractFlexible(text, labels) {
-  const list = labels.split('|');
-  for(let j=0; j<list.length; j++){
-    const r = new RegExp('(?:\\*\\*)?' + list[j] + '(?:\\*\\*)?\\s*[:\\-]?\\s*([^\\n]+)', 'i');
-    const m = text.match(r);
-    if(m && m[1]) return m[1].replace(/[\*\#]/g, '').trim();
-  }
-  return '—';
-}
-
 // ─── Task 4: Local regex-based invoice pre-extraction ───────────────────────
 // Runs BEFORE the AI call. If a field is found locally, we pass it to the AI
 // as a verified hint instead of asking the model to find it from raw text,
@@ -1134,16 +1164,6 @@ function extractInvoiceFieldsRegex(text) {
 
 // ─── Smart currency detection + consistent formatting ───────────────────────
 const CURRENCY_SYMBOLS = { USD:'$', EUR:'€', GBP:'£', CAD:'$', AUD:'$', LKR:'Rs', INR:'₹', JPY:'¥' };
-function detectCurrencyCode(text) {
-  if (!text) return 'USD';
-  const codeMatch = text.match(/\b(USD|EUR|GBP|CAD|AUD|LKR|INR|JPY)\b/i);
-  if (codeMatch) return codeMatch[1].toUpperCase();
-  if (/€/.test(text)) return 'EUR';
-  if (/£/.test(text)) return 'GBP';
-  if (/₹/.test(text)) return 'INR';
-  if (/\$/.test(text)) return 'USD';
-  return 'USD';
-}
 function formatCurrencyValue(rawValue, currencyCode) {
   if (!rawValue || rawValue === '—') return '—';
   const code = (currencyCode || 'USD').toUpperCase();
@@ -1154,49 +1174,6 @@ function formatCurrencyValue(rawValue, currencyCode) {
   if (isNaN(num)) return rawValue;
   const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return symbol ? `${code} ${symbol}${formatted}` : `${code} ${formatted}`;
-}
-
-// ─── Line item extraction (from AI "Line Items: a | b | c | d; ..." field) ──
-function parseLineItemsFromOutput(text) {
-  const raw = extractFlexible(text, 'Line Items');
-  if (!raw || raw === '—' || /none detected/i.test(raw)) return [];
-  return raw.split(';').map(row => {
-    const cells = row.split('|').map(c => c.trim()).filter(c => c.length);
-    if (cells.length < 2) return null;
-    return {
-      item: cells[0] || '—',
-      qty: cells[1] || '—',
-      unitPrice: cells[2] || '—',
-      total: cells[3] || '—'
-    };
-  }).filter(Boolean).slice(0, 25);
-}
-
-// ─── Confidence score parsing (from AI "Confidence: Vendor=NN, ..." field), with
-// a local heuristic fallback so the UI never shows blanks if the model omits it.
-function parseConfidenceFromOutput(text, detectedFieldCount) {
-  const raw = extractFlexible(text, 'Confidence');
-  const result = { vendor: null, invoiceNumber: null, amount: null, overall: null };
-  if (raw && raw !== '—') {
-    const pairs = raw.match(/(\w+)\s*=\s*(\d{1,3})/g) || [];
-    pairs.forEach(p => {
-      const m = p.match(/(\w+)\s*=\s*(\d{1,3})/);
-      if (!m) return;
-      const key = m[1].toLowerCase();
-      const val = Math.max(0, Math.min(100, parseInt(m[2], 10)));
-      if (key === 'vendor') result.vendor = val;
-      else if (key === 'invoicenumber') result.invoiceNumber = val;
-      else if (key === 'amount') result.amount = val;
-      else if (key === 'overall') result.overall = val;
-    });
-  }
-  // Fallback heuristic based on how many of the 8 core fields were detected.
-  const fallback = Math.round((Math.max(0, detectedFieldCount || 0) / 8) * 100);
-  if (result.vendor === null) result.vendor = fallback;
-  if (result.invoiceNumber === null) result.invoiceNumber = fallback;
-  if (result.amount === null) result.amount = fallback;
-  if (result.overall === null) result.overall = Math.round((result.vendor + result.invoiceNumber + result.amount) / 3);
-  return result;
 }
 
 // ─── Invoice validation engine ───────────────────────────────────────────────
@@ -1225,7 +1202,7 @@ function runInvoiceValidation(fieldsObj) {
   }
 
   if (!isBlank(invoice) && Array.isArray(analysisHistory)) {
-    const dup = analysisHistory.some(h => h && h.toolIndex === 0 && h.output && extractFlexible(h.output, 'Invoice Number|Invoice #') === invoice);
+    const dup = analysisHistory.some(h => h && h.toolIndex === 0 && h.invoiceNumber && h.invoiceNumber === invoice);
     if (dup) warnings.push(`Invoice number ${invoice} appears to be a duplicate of one already in this session's history.`);
   }
 
@@ -1280,7 +1257,7 @@ function exportCSV() {
   let csvContent = "";
   
   if (currentTool === 0) {
-    const data = extractInvoiceReportData(outputText);
+    const data = extractInvoiceReportData(currentReport);
     const csvCell = (v) => `"${String(v).replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`;
 
     const headers = ["Vendor", "Customer", "Invoice Number", "Invoice Date", "Due Date", "Currency", "Subtotal", "Tax", "Grand Total", "Field Coverage", "Overall Confidence", "Verification Status", "Issues", "Recommendation"];
@@ -1352,10 +1329,13 @@ async function generate() {
   try {
     const res = await fetch(`${API_BASE_URL}/analyze`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken()},
       credentials: 'include',
       signal: controller.signal,
-      body: JSON.stringify({messages:[{role:'user',content:TOOLS[currentTool].prompt(input, lastLocalInvoiceFields)}]})
+      body: JSON.stringify({
+        tool: TOOL_IDS[currentTool],
+        messages: [{role:'user', content: buildAnalyzeMessage(input, currentTool, lastLocalInvoiceFields)}]
+      })
     });
     clearTimeout(timeoutId);
 
@@ -1368,16 +1348,19 @@ async function generate() {
     if (!contentType || !contentType.includes("application/json")) throw new Error("Server did not return valid JSON data payload.");
 
     const data = await res.json();
-    if(data.error) throw new Error(data.error.message || 'API processing failure');
-    
-    outputText = data.data?.content?.[0]?.text || data.content?.[0]?.text || (Array.isArray(data.content) ? data.content.map(b => b.text || '').join('\n') : "No output available.");
+
+    // The backend returns the AI's structured JSON report directly as
+    // `data.data` (see worker.js validateAIReport) — not a raw provider
+    // envelope, so it's stored as-is rather than text-extracted.
+    currentReport = data.data || null;
+    outputText = renderReportAsPlainText(currentReport);
     currentAnalysisDate = new Date().toLocaleDateString();
     document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
     currentAnalysisId = "WLY-" + Date.now().toString().slice(-4) + Math.floor(10 + Math.random() * 90);
     lastAnalysisDurationMs = performance.now() - generationStartTime;
 
     if(currentTool === 0) {
-      renderInvoiceCards(outputText);
+      renderInvoiceCards(currentReport);
     } else {
       document.getElementById('outputText').innerHTML = cleanOutput(outputText);
     }
@@ -1419,6 +1402,8 @@ async function generate() {
         icon: TOOLS[currentTool].icon, 
         preview: slicePreview, 
         output: outputText,
+        report: currentReport,
+        invoiceNumber: (currentTool === 0 && currentReport) ? extractInvoiceReportData(currentReport).invoice : undefined,
         analysisId: currentAnalysisId,
         timestamp: currentAnalysisDate
       };
@@ -1505,6 +1490,7 @@ function showHistory(i) {
   if (typeof targetToolIndex !== 'number' || targetToolIndex < 0 || targetToolIndex >= TOOLS.length) return;
   
   outputText = analysisHistory[i].output;
+  currentReport = analysisHistory[i].report || null;
   currentTool = targetToolIndex;
   for(let b = 0; b < toolButtonsCollection.length; b++) { 
     toolButtonsCollection[b].classList.toggle('active', b === targetToolIndex); 
@@ -1520,7 +1506,7 @@ function showHistory(i) {
   currentAnalysisDate = analysisHistory[i].timestamp || '';
 
   if(currentTool === 0) {
-    renderInvoiceCards(outputText);
+    renderInvoiceCards(currentReport);
   } else {
     document.getElementById('outputText').innerHTML = cleanOutput(outputText);
   }
@@ -1563,23 +1549,59 @@ function triggerCopyFeedback(btn) {
 
 // ─── Shared invoice field extraction, reused by the dashboard card, the
 // browser Print view, and the downloadable Premium PDF so all three stay
-// in sync with a single source of truth.
-function extractInvoiceReportData(text) {
-  const vendor = extractFlexible(text, 'Vendor Name|Vendor|From');
-  const customer = extractFlexible(text, 'Customer Name|Customer|To');
-  const invoice = extractFlexible(text, 'Invoice Number|Invoice #');
-  const invDate = extractFlexible(text, 'Invoice Date|Date');
-  const due = extractFlexible(text, 'Due Date|Due');
-  const currency = (function(){
-    const raw = extractFlexible(text, 'Currency');
-    return (raw && raw !== '—') ? raw.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) : detectCurrencyCode(text);
-  })();
-  const subtotal = extractFlexible(text, 'Subtotal');
-  const tax = extractFlexible(text, 'Tax');
-  const amount = extractFlexible(text, 'Total Amount|TOTAL|Total');
-  const issues = extractFlexible(text, 'Issues Found|Issues');
-  const action = extractFlexible(text, 'Recommended Action|Recommendations|Action');
-  const lineItems = parseLineItemsFromOutput(text);
+// in sync with a single source of truth. Consumes the structured JSON
+// report returned by the backend (see worker.js validateAIReport) — the
+// AI's optional fields (invoice/vendor/customer/totals/dates) aren't under
+// a strict schema, so this defensively checks several reasonable shapes
+// before falling back to '—', exactly like the old field-per-line parser did.
+function extractInvoiceReportData(report) {
+  report = report || {};
+  const inv      = report.invoice  || {};
+  const vendor   = report.vendor   || inv.vendor   || {};
+  const customer = report.customer || inv.customer || {};
+  const totals   = report.totals   || inv.totals   || {};
+  const dates    = report.dates    || inv.dates     || {};
+
+  const pick = (...vals) => {
+    for (const v of vals) {
+      if (v !== undefined && v !== null && v !== '') return String(v);
+    }
+    return '—';
+  };
+
+  const vendorName   = pick(vendor.name, typeof vendor === 'string' ? vendor : null, inv.vendorName);
+  const customerName = pick(customer.name, typeof customer === 'string' ? customer : null, inv.customerName);
+  const invoiceNum   = pick(inv.number, inv.invoiceNumber, report.invoiceNumber);
+  const invDate      = pick(dates.invoiceDate, inv.date, inv.invoiceDate, report.invoiceDate);
+  const due          = pick(dates.dueDate, inv.dueDate, report.dueDate);
+  const currency     = pick(report.currency, totals.currency, inv.currency, 'USD').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'USD';
+  const subtotal     = pick(totals.subtotal, inv.subtotal, report.subtotal);
+  const tax          = pick(totals.tax, inv.tax, report.tax);
+  const amount       = pick(totals.total, totals.grandTotal, inv.total, report.total);
+
+  const lineItemsRaw = report.lineItems || inv.lineItems || totals.lineItems || [];
+  const lineItems = Array.isArray(lineItemsRaw) ? lineItemsRaw.slice(0, 25).map(li => ({
+    item:      pick(li.description, li.name, li.item),
+    qty:       pick(li.quantity, li.qty),
+    unitPrice: pick(li.unitPrice, li.price),
+    total:     pick(li.total, li.lineTotal, li.subtotal)
+  })) : [];
+
+  const issues = (Array.isArray(report.findings) && report.findings.length)
+    ? report.findings.map(f => `${f.title}: ${f.detail}`).join(' | ')
+    : (Array.isArray(report.risks) && report.risks.length)
+        ? report.risks.map(r => `[${r.level}] ${r.description}`).join(' | ')
+        : 'No issues detected.';
+
+  const action = (Array.isArray(report.recommendations) && report.recommendations.length)
+    ? report.recommendations.map(r => r.action).filter(Boolean).join(' • ')
+    : 'No action needed.';
+
+  // The new schema reports one overall confidence score (0-100), not a
+  // per-field breakdown — mirrored across all four cells so the existing
+  // confidence-grid UI (4 cells: Vendor/Invoice#/Amount/Overall) still works.
+  const overallConfidence = Number.isFinite(report.confidence) ? Math.max(0, Math.min(100, report.confidence)) : 0;
+  const confidence = { vendor: overallConfidence, invoiceNumber: overallConfidence, amount: overallConfidence, overall: overallConfidence };
 
   function isValidField(val) {
     if (!val || val === '—') return false;
@@ -1588,20 +1610,49 @@ function extractInvoiceReportData(text) {
   }
 
   let fields = 0;
-  [vendor, customer, invoice, invDate, due, amount, issues, action].forEach(v => { if (isValidField(v)) fields++; });
-  const fieldCoverage = Math.round((fields / 8) * 100);
+  [vendorName, customerName, invoiceNum, invDate, due, amount].forEach(v => { if (isValidField(v)) fields++; });
+  const fieldCoverage = Math.round((fields / 6) * 100);
 
-  const confidence = parseConfidenceFromOutput(text, fields);
-  const warnings = runInvoiceValidation({ vendor, customer, invoice, invDate, due, amount, tax, subtotal });
-  const verified = confidence.overall >= 90 && warnings.length === 0;
+  const warnings = runInvoiceValidation({ vendor: vendorName, customer: customerName, invoice: invoiceNum, invDate, due, amount, tax, subtotal });
+  const verified = overallConfidence >= 90 && warnings.length === 0;
 
   return {
-    vendor, customer, invoice, invDate, due, currency, subtotal, tax, amount, issues, action,
+    vendor: vendorName, customer: customerName, invoice: invoiceNum, invDate, due, currency, subtotal, tax, amount, issues, action,
     lineItems, fields, fieldCoverage, confidence, warnings, verified,
     amountFormatted: formatCurrencyValue(amount, currency),
     subtotalFormatted: formatCurrencyValue(subtotal, currency),
     taxFormatted: formatCurrencyValue(tax, currency)
   };
+}
+
+// Renders the structured JSON report as readable plain text — used for the
+// non-Invoice-Analyzer tools' display, copy-to-clipboard, and CSV/history
+// text storage, in place of the old raw AI plain-text blob.
+function renderReportAsPlainText(report) {
+  if (!report) return 'No output available.';
+  const lines = [];
+  if (report.title) lines.push(report.title);
+  if (report.summary) lines.push('', report.summary);
+  if (Array.isArray(report.metrics) && report.metrics.length) {
+    lines.push('', 'Key Metrics:');
+    report.metrics.forEach(m => lines.push(`- ${m.label}: ${m.value}${m.unit ? ' ' + m.unit : ''}`));
+  }
+  if (Array.isArray(report.findings) && report.findings.length) {
+    lines.push('', 'Findings:');
+    report.findings.forEach(f => lines.push(`- ${f.title}: ${f.detail}`));
+  }
+  if (Array.isArray(report.risks) && report.risks.length) {
+    lines.push('', 'Risks:');
+    report.risks.forEach(r => lines.push(`- [${r.level}] ${r.description}`));
+  }
+  if (Array.isArray(report.recommendations) && report.recommendations.length) {
+    lines.push('', 'Recommendations:');
+    report.recommendations.forEach(r => lines.push(`- [${r.priority}] ${r.action}`));
+  }
+  if (typeof report.confidence === 'number') {
+    lines.push('', `Confidence: ${report.confidence}%`);
+  }
+  return lines.join('\n').trim() || 'No output available.';
 }
 
 function buildLineItemsTableHTML(data) {
@@ -1668,8 +1719,8 @@ function buildReportMetaHTML() {
    </div>`;
 }
 
-function renderInvoiceCards(text){
- const data = extractInvoiceReportData(text);
+function renderInvoiceCards(report){
+ const data = extractInvoiceReportData(report);
  const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
 
  document.getElementById('outputText').innerHTML = `
@@ -1682,7 +1733,7 @@ function renderInvoiceCards(text){
    <div class="big-amount">${escapeHTML(data.amountFormatted)}</div>
    <div class="completeness-score-card">
       <div class="completeness-score-value">${data.fieldCoverage}%</div>
-      <div><strong>Field Coverage</strong><br><small>${data.fields} of 8 key invoice fields detected</small></div>
+      <div><strong>Field Coverage</strong><br><small>${data.fields} of 6 key invoice fields detected</small></div>
    </div>
    ${buildConfidenceHTML(data)}
    <div class="premium-data-grid">
@@ -1703,8 +1754,8 @@ function renderInvoiceCards(text){
  </div>`;
 }
 
-function buildPremiumPDFReport(text) {
-  const data = extractInvoiceReportData(text);
+function buildPremiumPDFReport(report) {
+  const data = extractInvoiceReportData(report);
   const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
 
   return `
@@ -1739,7 +1790,7 @@ function buildPremiumPDFReport(text) {
 
 function exportPDF() {
   if (!outputText || !outputText.trim()) { showToast('No active data profile to print.', 'error'); return; }
-  let content = (currentTool === 0) ? buildPremiumPDFReport(outputText) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+  let content = (currentTool === 0) ? buildPremiumPDFReport(currentReport) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
 
   const frame = document.getElementById('wissely-print-frame');
   if (!frame) {
@@ -2146,7 +2197,7 @@ async function downloadPremiumPDF() {
     await ensureJsPdf();
     const { jsPDF } = window.jspdf;
 
-    const content = (currentTool === 0) ? buildPremiumPDFReport(outputText) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+    const content = (currentTool === 0) ? buildPremiumPDFReport(currentReport) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
 
     const container = document.createElement('div');
     container.style.position = 'fixed';
