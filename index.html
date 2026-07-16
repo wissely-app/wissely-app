@@ -409,7 +409,10 @@ textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gol
           <div class="dropdown-usage-text" id="dropdownTrialText" style="display:none; color: var(--gold);"></div>
         </div>
         <a href="billing.html" class="dropdown-link">💳 Billing Settings</a>
+        <a href="support.html" class="dropdown-link">💬 Support</a>
+        <a href="team.html" class="dropdown-link" id="dropdownTeamLink" style="display:none;">👥 Team</a>
         <a href="api-keys.html" class="dropdown-link" id="dropdownApiKeysLink" style="display:none;">🔑 API Keys</a>
+        <a href="webhooks.html" class="dropdown-link" id="dropdownWebhooksLink" style="display:none;">🔌 Webhooks</a>
         <a href="upgrade.html" class="dropdown-link upgrade-highlight" id="dropdownUpgradeLink">⭐ Upgrade Plan</a>
         <div class="dropdown-divider"></div>
         <button class="dropdown-logout-btn" id="dropdownLogoutBtn">🚪 Logout</button>
@@ -982,10 +985,22 @@ function updateQuotaUI(user) {
   
   const dropdownUpgradeLink = document.getElementById('dropdownUpgradeLink');
   const dropdownApiKeysLink = document.getElementById('dropdownApiKeysLink');
+  const dropdownWebhooksLink = document.getElementById('dropdownWebhooksLink');
+  const dropdownTeamLink = document.getElementById('dropdownTeamLink');
   const widgetUpgradeBtn = document.getElementById('widgetUpgradeBtn');
   const sidebarPremiumWidget = document.getElementById('sidebarPremiumWidget');
 
-  if (dropdownApiKeysLink) dropdownApiKeysLink.style.display = (rawPlan === 'pro') ? 'flex' : 'none';
+  // API Keys and Webhooks are owner-only administrative capabilities — a
+  // team member's `plan` reads 'pro' too (shared-quota overlay from /me),
+  // but they must never see these links, only the actual Pro subscriber
+  // who owns the team.
+  if (dropdownApiKeysLink) dropdownApiKeysLink.style.display = (rawPlan === 'pro' && !user.isTeamMember) ? 'flex' : 'none';
+  if (dropdownWebhooksLink) dropdownWebhooksLink.style.display = (rawPlan === 'pro' && !user.isTeamMember) ? 'flex' : 'none';
+
+  // Team Seats, unlike API Keys, is relevant to BOTH owners (to manage their
+  // team) and members (to see whose team they're on) — and since a member's
+  // overlaid `plan` already reads 'pro', this one check naturally covers both.
+  if (dropdownTeamLink) dropdownTeamLink.style.display = (rawPlan === 'pro') ? 'flex' : 'none';
 
   if (rawPlan === 'pro') {
     if (dropdownUpgradeLink) dropdownUpgradeLink.style.display = 'none';
