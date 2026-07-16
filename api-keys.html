@@ -141,7 +141,12 @@ async function init() {
   }
   const me = await meRes.json();
 
-  if (me.user?.plan !== 'pro') {
+  // API keys are an owner-only capability. A team member's `plan` field
+  // reads 'pro' too (shared-quota overlay), so this must check their own
+  // actual plan and team status, not the overlaid value — otherwise a
+  // member would see the create-key form only to have it rejected
+  // server-side with a confusing error.
+  if (me.user?.isTeamMember || (me.user?.ownPlan ?? me.user?.plan) !== 'pro') {
     renderUpgradePrompt();
     return;
   }
