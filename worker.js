@@ -131,6 +131,31 @@ const MAX_API_KEYS_PER_USER        = 10;
 const API_RATE_LIMIT_WINDOW_SECONDS = 60;
 const API_RATE_LIMIT_MAX_REQUESTS   = 20;
 
+// Support Tickets — backs the "Dedicated Support" plan feature. Every plan
+// can submit a ticket; Pro tickets are auto-flagged high-priority so the
+// person triaging support@wissely.com sees them distinctly. Anonymous
+// (logged-out) submissions are allowed since billing/login issues are
+// exactly when someone can't sign in to ask for help.
+const SUPPORT_SUBJECT_MAX_LENGTH = 150;
+const SUPPORT_MESSAGE_MAX_LENGTH = 5000;
+const SUPPORT_MESSAGE_MIN_LENGTH = 10;
+
+// Webhooks — powers the "Custom integrations" Pro-plan feature. Owner-only,
+// same as API keys (gated on own_plan, not the team-quota overlay). One
+// delivery attempt plus one retry; no persistent retry queue in v1.
+const MAX_WEBHOOKS_PER_USER = 5;
+const WEBHOOK_TIMEOUT_MS    = 8000;
+const WEBHOOK_MAX_RETRIES   = 1;
+
+// Team Seats — Pro plan only. 10 total seats including the owner (so up to
+// 9 invited members). Members share the owner's monthly analysis pool
+// (see authenticateSession's overlay) but get no other Pro entitlement —
+// no API keys, no invites, no billing access. Invite tokens follow the
+// same shape as password-reset tokens: high-entropy, hashed at rest, short
+// expiry.
+const MAX_TEAM_SEATS         = 10; // owner + up to 9 members
+const TEAM_INVITE_EXPIRY_MS  = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 // ── SECURITY HEADERS ─────────────────────────────────────────────────────────
 // Applied to every response. Worker returns JSON only, so CSP allows nothing.
 
@@ -376,6 +401,84 @@ function validateApiKeyName(name) {
     return `name must be ${MAX_API_KEY_NAME_LENGTH} characters or fewer`;
   }
   return null;
+}
+
+// Validates a support ticket submission. `email` is only required when
+// there's no session (anonymous submission) — the caller passes null when
+// a session already supplies it.
+function validateSupportTicket({ subject, message, email }) {
+  if (typeof subject !== 'string' || subject.trim().length === 0) {
+    return 'subject is required';
+  }
+  if (subject.trim().length > SUPPORT_SUBJECT_MAX_LENGTH) {
+    return `subject must be ${SUPPORT_SUBJECT_MAX_LENGTH} characters or fewer`;
+  }
+  if (typeof message !== 'string' || message.trim().length < SUPPORT_MESSAGE_MIN_LENGTH) {
+    return `message must be at least ${SUPPORT_MESSAGE_MIN_LENGTH} characters`;
+  }
+  if (message.trim().length > SUPPORT_MESSAGE_MAX_LENGTH) {
+    return `message must be ${SUPPORT_MESSAGE_MAX_LENGTH} characters or fewer`;
+  }
+  if (email !== null) {
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return 'a valid email address is required';
+    }
+  }
+  return null;
+}
+
+// Validates an email address for a team invite. Kept separate from
+// validateSupportTicket's inline check since invites have their own error
+// message and don't share the rest of that function's fields.
+function validateInviteEmail(email) {
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return 'a valid email address is required';
+  }
+  return null;
+}
+
+// Basic SSRF-conscious validation for webhook destination URLs. This is a
+// first line of defense (hostname/literal-IP pattern matching), not a
+// complete guarantee — it does not resolve DNS or defend against
+// DNS-rebinding attacks (a hostname that resolves to a private IP only at
+// request time). A production hardening pass would also re-validate the
+// resolved IP immediately before each delivery.
+function validateWebhookUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return 'Invalid URL';
+  }
+  if (parsed.protocol !== 'https:') return 'Webhook URL must use https://';
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+    return 'Webhook URL cannot point to a local or internal address';
+  }
+  const blockedPatterns = [
+    /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./,
+    /^169\.254\./,           // link-local, and cloud metadata (169.254.169.254)
+    /^0\.0\.0\.0$/, /^::1$/, /^fc00:/i, /^fe80:/i, /^\[::1\]$/
+  ];
+  if (blockedPatterns.some(p => p.test(hostname))) {
+    return 'Webhook URL cannot point to a private or internal address';
+  }
+  if (url.length > 2048) return 'Webhook URL is too long';
+  return null;
+}
+
+// Signs an outgoing webhook payload. Same header convention as Paddle's own
+// webhooks ("ts=<unix>; h1=<hex>", signing "<ts>:<rawBody>") so customers
+// already familiar with that verification pattern recognize it immediately.
+async function signWebhookPayload(secret, rawBody) {
+  const ts  = Math.floor(Date.now() / 1000);
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`${ts}:${rawBody}`));
+  return `ts=${ts}; h1=${bufToHex(sig)}`;
 }
 
 // Password policy — enforced on /register and /reset-password. Returns an
@@ -696,7 +799,7 @@ async function authenticateSession(request, env) {
 
   const session = await env.DB.prepare(
     'SELECT s.id AS session_id, s.expires_at, s.csrf_token, ' +
-    'u.id AS user_id, u.email, u.plan, u.analyses_used, u.analyses_limit, u.trial_end ' +
+    'u.id AS user_id, u.email, u.plan, u.analyses_used, u.analyses_limit, u.trial_end, u.team_owner_id ' +
     'FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.id = ?'
   ).bind(sessionHash).first();
 
@@ -708,6 +811,33 @@ async function authenticateSession(request, env) {
     // Expired — clean up asynchronously so this path stays fast
     await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionHash).run();
     return null;
+  }
+
+  // Team membership: analysis quota is drawn from the team owner's shared
+  // pool, but feature access (creating API keys, sending invites, billing)
+  // always follows the member's OWN plan. `own_plan` preserves that value;
+  // `plan` / `analyses_used` / `analyses_limit` are overlaid from the owner
+  // so every existing quota check (computeAccessFlags, performAnalyze, /me)
+  // keeps working for team members without touching each call site — but
+  // any Pro-*feature* gate (not quota) must check `own_plan`, not `plan`.
+  session.own_plan       = session.plan;
+  session.billing_user_id = session.user_id;
+
+  if (session.team_owner_id) {
+    const owner = await env.DB.prepare(
+      'SELECT plan, analyses_used, analyses_limit FROM users WHERE id = ?'
+    ).bind(session.team_owner_id).first();
+
+    if (owner) {
+      session.plan            = owner.plan;
+      session.analyses_used   = owner.analyses_used;
+      session.analyses_limit  = owner.analyses_limit;
+      session.billing_user_id = session.team_owner_id;
+    } else {
+      // Owner account no longer exists — fail safe by detaching rather than
+      // leaving this member permanently unable to draw any quota at all.
+      session.team_owner_id = null;
+    }
   }
 
   return session;
@@ -1132,6 +1262,62 @@ async function verifyPaddleSignature(secret, rawBody, signatureHeader) {
   );
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`${ts}:${rawBody}`));
   return safeCompare(bufToHex(sig), h1);
+}
+
+// ── WEBHOOK DELIVERY ──────────────────────────────────────────────────────────
+// Fire-and-forget from the caller's perspective (always invoked via
+// ctx.waitUntil, never awaited inline in the /analyze response path) — a
+// slow or dead customer endpoint must never add latency to an analysis
+// request. One retry on failure; delivery status is recorded on the
+// endpoint row for visibility in the Webhooks page, but there is no
+// persistent retry queue in v1 — a customer's endpoint being down at
+// delivery time means that specific event is simply missed.
+async function deliverWebhooks(env, ownerId, eventType, data) {
+  let endpoints;
+  try {
+    endpoints = await env.DB.prepare(
+      "SELECT id, url, secret FROM webhook_endpoints WHERE user_id = ? AND status = 'active'"
+    ).bind(ownerId).all();
+  } catch (err) {
+    console.warn('[Webhooks] Failed to load endpoints:', err.message);
+    return;
+  }
+
+  const rows = endpoints.results ?? [];
+  if (!rows.length) return;
+
+  const body = JSON.stringify({ event: eventType, data, timestamp: new Date().toISOString() });
+
+  await Promise.all(rows.map(async (endpoint) => {
+    const signature = await signWebhookPayload(endpoint.secret, body);
+    let delivered = false;
+
+    for (let attempt = 0; attempt <= WEBHOOK_MAX_RETRIES && !delivered; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT_MS);
+      try {
+        const res = await fetch(endpoint.url, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Wissely-Signature': signature },
+          body,
+          signal:  controller.signal
+        });
+        delivered = res.ok;
+      } catch {
+        delivered = false;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    try {
+      await env.DB.prepare(
+        'UPDATE webhook_endpoints SET last_delivery_at = ?, last_delivery_status = ? WHERE id = ?'
+      ).bind(new Date().toISOString(), delivered ? 'success' : 'failed', endpoint.id).run();
+    } catch (err) {
+      console.warn('[Webhooks] Failed to record delivery status:', err.message);
+    }
+  }));
 }
 
 // ── PADDLE IDEMPOTENCY (lock + done markers) ─────────────────────────────────
@@ -1726,7 +1912,7 @@ async function downgradeExpiredCancellations(env) {
 // `actor` shape: { user_id, plan, analyses_used, analyses_limit, authMethod,
 // apiKeyId? } — apiKeyId is only present (and only used) for authMethod
 // === 'api_key', to record last_used_at on successful completion.
-async function performAnalyze(request, env, requestId, actor) {
+async function performAnalyze(request, env, ctx, requestId, actor) {
   const preFlightFlags = computeAccessFlags({
     plan:           actor.plan,
     analyses_used:  actor.analyses_used,
@@ -1739,6 +1925,13 @@ async function performAnalyze(request, env, requestId, actor) {
       error:           'Analysis limit reached.'
     }, 403);
   }
+
+  // Quota lives on the billing owner's row — for a solo user that's just
+  // their own id; for a team member it's the team owner's id (see
+  // authenticateSession's overlay). Locking, audit logs, and API-key
+  // last_used_at still use actor.user_id, since those track who actually
+  // acted, not who's paying.
+  const billingUserId = actor.billing_user_id || actor.user_id;
 
   const { body, error: parseError, tooLarge } = await parseJsonBody(request, MAX_AI_PAYLOAD_BYTES + 4096);
   if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
@@ -1775,7 +1968,7 @@ async function performAnalyze(request, env, requestId, actor) {
     const allocation = await env.DB.prepare(
       'UPDATE users SET analyses_used = analyses_used + 1 ' +
       'WHERE id = ? AND analyses_used < analyses_limit'
-    ).bind(actor.user_id).run();
+    ).bind(billingUserId).run();
 
     if (allocation.meta.changes === 0) {
       // Race-condition backstop: the pre-flight check above passed, but a
@@ -1801,7 +1994,7 @@ async function performAnalyze(request, env, requestId, actor) {
       if (result.ok) {
         const updatedUser = await env.DB.prepare(
           'SELECT id, email, plan, analyses_used, analyses_limit, trial_end FROM users WHERE id = ?'
-        ).bind(actor.user_id).first();
+        ).bind(billingUserId).first();
 
         // Let the caller know immediately if THIS analysis was the one that
         // exhausted the quota, so it can react without a separate /me poll.
@@ -1809,6 +2002,16 @@ async function performAnalyze(request, env, requestId, actor) {
         updatedUser.upgradeRequired = postFlightFlags.upgradeRequired;
 
         const report = validateAIReport(extractAIReport(result.text));
+
+        // Fire-and-forget — never let a slow/dead customer endpoint add
+        // latency here. Fires for the billing owner (whoever's Pro plan
+        // this is), not the acting user, matching API keys' "owner-level
+        // developer feature" model — a team member triggering an analysis
+        // still notifies the owner's registered webhooks, not their own.
+        ctx.waitUntil(deliverWebhooks(env, billingUserId, 'analysis.completed', {
+          tool: body.tool || 'unknown',
+          report
+        }));
 
         if (actor.authMethod === 'api_key' && actor.apiKeyId) {
           try {
@@ -1828,7 +2031,8 @@ async function performAnalyze(request, env, requestId, actor) {
           metadata:  {
             tool:       body.tool || 'unknown',
             authMethod: actor.authMethod,
-            ...(actor.apiKeyId ? { apiKeyId: actor.apiKeyId } : {})
+            ...(actor.apiKeyId ? { apiKeyId: actor.apiKeyId } : {}),
+            ...(billingUserId !== actor.user_id ? { billingUserId } : {})
           }
         });
 
@@ -1840,14 +2044,14 @@ async function performAnalyze(request, env, requestId, actor) {
       // metadata sent back to the client — only a generic message is
       // surfaced, with detail confined to server logs.
       await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
-        .bind(actor.user_id).run();
+        .bind(billingUserId).run();
       console.error('[Analyze] Anthropic non-OK:', result.status, { requestId });
       return createResponse(request, { error: 'Analysis service unavailable. Please try again.' }, 502);
 
     } catch (apiError) {
       // Roll back quota on timeout or network failure
       await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
-        .bind(actor.user_id).run();
+        .bind(billingUserId).run();
 
       if (apiError.name === 'AbortError') {
         console.warn('[Analyze] Anthropic timed out', { requestId, userId: actor.user_id });
@@ -2364,7 +2568,9 @@ export default {
           analyses_used:   session.analyses_used,
           analyses_limit:  session.analyses_limit,
           trial_end:       session.trial_end,
-          upgradeRequired: flags.upgradeRequired
+          upgradeRequired: flags.upgradeRequired,
+          ownPlan:         session.own_plan,
+          isTeamMember:    !!session.team_owner_id
         };
 
         return createResponse(request, {
@@ -2464,7 +2670,7 @@ export default {
         // Block redundant checkouts — a user already on the requested plan
         // (with an active/trialing subscription) gains nothing from a new
         // transaction and Paddle would simply create a duplicate subscription.
-        if (session.plan === plan) {
+        if (session.own_plan === plan) {
           return createResponse(request, {
             error: `You are already subscribed to the ${plan} plan.`
           }, 409);
@@ -2535,12 +2741,13 @@ export default {
           return createResponse(request, { error: 'Invalid or missing security token' }, 403);
         }
 
-        return performAnalyze(request, env, requestId, {
-          user_id:        session.user_id,
-          plan:           session.plan,
-          analyses_used:  session.analyses_used,
-          analyses_limit: session.analyses_limit,
-          authMethod:     'session'
+        return performAnalyze(request, env, ctx, requestId, {
+          user_id:          session.user_id,
+          plan:             session.plan,
+          analyses_used:    session.analyses_used,
+          analyses_limit:   session.analyses_limit,
+          billing_user_id:  session.billing_user_id,
+          authMethod:       'session'
         });
       }
 
@@ -2564,7 +2771,7 @@ export default {
           return createResponse(request, { error: 'API rate limit exceeded. Please slow down.' }, 429);
         }
 
-        return performAnalyze(request, env, requestId, {
+        return performAnalyze(request, env, ctx, requestId, {
           user_id:        keyAuth.user_id,
           plan:           keyAuth.plan,
           analyses_used:  keyAuth.analyses_used,
@@ -2600,7 +2807,7 @@ export default {
           return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
         }
 
-        if (session.plan !== 'pro') {
+        if (session.own_plan !== 'pro') {
           return createResponse(request, {
             error:           'API access is available on the Pro plan.',
             upgradeRequired: true
@@ -2734,6 +2941,527 @@ export default {
         });
 
         return createResponse(request, { success: true, id: keyId, revoked_at: revokedAt }, 200);
+      }
+
+      // ── SUPPORT: CREATE TICKET ────────────────────────────────────────────
+      // Available to every plan, logged in or not — billing/login problems
+      // are exactly when someone can't authenticate to ask for help. Pro
+      // tickets are auto-flagged high-priority; everything else is 'normal'.
+      // CSRF only applies when a session cookie is present (an anonymous
+      // POST has no session to forge), so anonymous submissions instead lean
+      // on tighter per-IP rate limiting to control abuse.
+      if (path === '/support/tickets' && request.method === 'POST') {
+        const session = await authenticateSession(request, env); // null is fine here — anonymous allowed
+
+        if (session) {
+          const csrfValid = await validateCsrfToken(request, env, requestId);
+          if (!csrfValid) {
+            await writeAuditLog(env, {
+              requestId, userId: session.user_id, ip: getClientIp(request),
+              eventType: 'csrf_validation_failed', result: 'failure',
+              metadata: { path: '/support/tickets' }
+            });
+            await trackSecurityFailure(env, request, {
+              kvPrefix:       'csrf_fail',
+              windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+              threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+              alertEventType: 'csrf_repeated_failure',
+              requestId
+            });
+            return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+          }
+        }
+
+        if (await checkRateLimit(request, env, session ? 'support-ticket' : 'support-ticket-anon')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError, tooLarge } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+
+        const email = session ? session.email : (body?.email || '').trim().toLowerCase();
+        const ticketError = validateSupportTicket({
+          subject: body?.subject,
+          message: body?.message,
+          email:   session ? null : email
+        });
+        if (ticketError) return createResponse(request, { error: ticketError }, 400);
+
+        const plan     = session ? session.own_plan : 'none';
+        const priority = plan === 'pro' ? 'high' : 'normal';
+        const ticket = {
+          id:        crypto.randomUUID(),
+          user_id:   session ? session.user_id : null,
+          email,
+          plan,
+          priority,
+          subject:   body.subject.trim(),
+          message:   body.message.trim(),
+          created_at: new Date().toISOString()
+        };
+
+        await env.DB.prepare(
+          'INSERT INTO support_tickets (id, user_id, email, plan, priority, subject, message, status, created_at) ' +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)"
+        ).bind(ticket.id, ticket.user_id, ticket.email, ticket.plan, ticket.priority, ticket.subject, ticket.message, ticket.created_at).run();
+
+        ctx.waitUntil(sendEmailWithRetry(env, {
+          to:      'support@wissely.com',
+          subject: `${priority === 'high' ? '[PRIORITY] ' : ''}${ticket.subject}`,
+          html:    buildSupportTicketNotificationHtml(ticket),
+          text:    `${priority === 'high' ? 'PRIORITY — PRO CUSTOMER\n' : ''}From: ${ticket.email} (${ticket.plan})\nTicket: ${ticket.id}\n\n${ticket.message}`,
+          logTag:  'SupportTicketNotify'
+        }));
+        ctx.waitUntil(sendEmailWithRetry(env, {
+          to:      ticket.email,
+          subject: 'We received your message — Wissely Support',
+          html:    buildSupportTicketConfirmationEmailHtml(ticket),
+          text:    `Thanks for reaching out. We'll reply to ${ticket.email} ${priority === 'high' ? 'within 4 business hours' : 'within 1-2 business days'}.\n\nReference: ${ticket.id}`,
+          logTag:  'SupportTicketConfirm'
+        }));
+
+        await writeAuditLog(env, {
+          requestId, userId: ticket.user_id, ip: getClientIp(request),
+          eventType: 'support_ticket_created', result: 'success',
+          metadata: { ticketId: ticket.id, priority }
+        });
+
+        return createResponse(request, { id: ticket.id, priority, created_at: ticket.created_at }, 201);
+      }
+
+      // ── SUPPORT: LIST OWN TICKETS ──────────────────────────────────────────
+      if (path === '/support/tickets' && request.method === 'GET') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const rows = await env.DB.prepare(
+          'SELECT id, subject, priority, status, created_at FROM support_tickets ' +
+          'WHERE user_id = ? ORDER BY created_at DESC LIMIT 20'
+        ).bind(session.user_id).all();
+
+        return createResponse(request, { tickets: rows.results ?? [] }, 200);
+      }
+
+      // ── TEAM: SEND INVITE (Owner only, Pro plan only) ─────────────────────
+      // Gated on own_plan, not the overlaid plan — a team member (whose
+      // effective `plan` looks like 'pro' via the shared-quota overlay)
+      // must never be able to invite others; only the actual Pro subscriber
+      // who owns the team can.
+      if (path === '/team/invites' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/team/invites' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'team-invite')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        if (session.own_plan !== 'pro') {
+          return createResponse(request, {
+            error:           'Team seats are available on the Pro plan.',
+            upgradeRequired: true
+          }, 403);
+        }
+        if (session.team_owner_id) {
+          // A team member can't own/invite their own sub-team — no nesting.
+          return createResponse(request, { error: 'Only the team owner can send invites.' }, 403);
+        }
+
+        const { body, error: parseError, tooLarge } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+
+        const emailError = validateInviteEmail(body?.email);
+        if (emailError) return createResponse(request, { error: emailError }, 400);
+        const inviteEmail = body.email.trim().toLowerCase();
+
+        if (inviteEmail === session.email.toLowerCase()) {
+          return createResponse(request, { error: 'You cannot invite yourself.' }, 400);
+        }
+
+        // Seat count = the owner (1) + accepted members + still-pending invites,
+        // so a burst of unaccepted invites can't be used to oversell seats.
+        const seatCountRow = await env.DB.prepare(
+          'SELECT ' +
+          '(SELECT COUNT(*) FROM users WHERE team_owner_id = ?) + ' +
+          "(SELECT COUNT(*) FROM team_invites WHERE owner_id = ? AND status = 'pending' AND expires_at > ?) + 1 AS seatCount"
+        ).bind(session.user_id, session.user_id, new Date().toISOString()).first();
+
+        if ((seatCountRow?.seatCount ?? 1) >= MAX_TEAM_SEATS) {
+          return createResponse(request, {
+            error: `Your team is at its ${MAX_TEAM_SEATS}-seat limit. Remove a member or cancel a pending invite first.`
+          }, 400);
+        }
+
+        const alreadyMember = await env.DB.prepare(
+          'SELECT id FROM users WHERE email = ? AND team_owner_id = ?'
+        ).bind(inviteEmail, session.user_id).first();
+        if (alreadyMember) {
+          return createResponse(request, { error: 'This person is already on your team.' }, 400);
+        }
+
+        const rawToken  = generateSecureToken();
+        const tokenHash = await hashToken(rawToken);
+        const inviteId  = crypto.randomUUID();
+        const createdAt = new Date().toISOString();
+        const expiresAt = new Date(Date.now() + TEAM_INVITE_EXPIRY_MS).toISOString();
+
+        // Revoke any prior pending invite to the same email before creating
+        // a fresh one, so re-inviting doesn't leave stale duplicate tokens.
+        await env.DB.prepare(
+          "UPDATE team_invites SET status = 'revoked' WHERE owner_id = ? AND email = ? AND status = 'pending'"
+        ).bind(session.user_id, inviteEmail).run();
+
+        await env.DB.prepare(
+          'INSERT INTO team_invites (id, owner_id, email, token_hash, status, created_at, expires_at) ' +
+          "VALUES (?, ?, ?, ?, 'pending', ?, ?)"
+        ).bind(inviteId, session.user_id, inviteEmail, tokenHash, createdAt, expiresAt).run();
+
+        const acceptLink = `https://app.wissely.com/team.html?invite=${rawToken}`;
+        ctx.waitUntil(sendEmailWithRetry(env, {
+          to:      inviteEmail,
+          subject: `${session.email} invited you to join their Wissely team`,
+          html:    buildTeamInviteEmailHtml(session.email, acceptLink),
+          text:    `${session.email} invited you to join their Wissely team. Accept: ${acceptLink} (expires in 7 days)`,
+          logTag:  'TeamInvite'
+        }));
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'team_invite_sent', result: 'success',
+          metadata: { inviteId, email: inviteEmail }
+        });
+
+        return createResponse(request, { id: inviteId, email: inviteEmail, expires_at: expiresAt }, 201);
+      }
+
+      // ── TEAM: LIST MEMBERS + PENDING INVITES (Owner only) ──────────────────
+      if (path === '/team/members' && request.method === 'GET') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        if (session.own_plan !== 'pro' || session.team_owner_id) {
+          return createResponse(request, { members: [], invites: [] }, 200);
+        }
+
+        const members = await env.DB.prepare(
+          'SELECT id, email FROM users WHERE team_owner_id = ? ORDER BY email ASC'
+        ).bind(session.user_id).all();
+
+        const invites = await env.DB.prepare(
+          "SELECT id, email, created_at, expires_at FROM team_invites " +
+          "WHERE owner_id = ? AND status = 'pending' AND expires_at > ? ORDER BY created_at DESC"
+        ).bind(session.user_id, new Date().toISOString()).all();
+
+        return createResponse(request, {
+          members: members.results ?? [],
+          invites: invites.results ?? [],
+          seatLimit: MAX_TEAM_SEATS
+        }, 200);
+      }
+
+      // ── TEAM: ACCEPT INVITE ────────────────────────────────────────────────
+      // Requires an existing, logged-in session — this deliberately does not
+      // create accounts. Someone without a Wissely account yet registers
+      // first, then revisits the same invite link to accept.
+      if (path === '/team/invites/accept' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/team/invites/accept' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'team-invite-accept')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError, tooLarge } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+
+        const rawToken = typeof body?.token === 'string' ? body.token.trim() : '';
+        if (!rawToken || rawToken.length > MAX_API_KEY_LENGTH) {
+          return createResponse(request, { error: 'Invalid or expired invitation.' }, 400);
+        }
+
+        const tokenHash = await hashToken(rawToken);
+        const invite = await env.DB.prepare(
+          "SELECT id, owner_id, email, status, expires_at FROM team_invites WHERE token_hash = ?"
+        ).bind(tokenHash).first();
+
+        if (!invite || invite.status !== 'pending' || new Date(invite.expires_at).getTime() < Date.now()) {
+          return createResponse(request, { error: 'Invalid or expired invitation.' }, 400);
+        }
+        if (invite.email.toLowerCase() !== session.email.toLowerCase()) {
+          return createResponse(request, { error: 'This invitation was sent to a different email address.' }, 403);
+        }
+        if (invite.owner_id === session.user_id) {
+          return createResponse(request, { error: 'You cannot join your own team.' }, 400);
+        }
+        if (session.team_owner_id) {
+          return createResponse(request, { error: 'You are already on a team. Leave your current team first.' }, 400);
+        }
+
+        // Re-check the seat limit at accept time too — invites can sit
+        // pending for up to 7 days, during which the team could have filled up.
+        const seatCountRow = await env.DB.prepare(
+          'SELECT (SELECT COUNT(*) FROM users WHERE team_owner_id = ?) + 1 AS seatCount'
+        ).bind(invite.owner_id).first();
+        if ((seatCountRow?.seatCount ?? 1) >= MAX_TEAM_SEATS) {
+          return createResponse(request, { error: 'This team is now full.' }, 400);
+        }
+
+        await env.DB.batch([
+          env.DB.prepare('UPDATE users SET team_owner_id = ? WHERE id = ?').bind(invite.owner_id, session.user_id),
+          env.DB.prepare("UPDATE team_invites SET status = 'accepted' WHERE id = ?").bind(invite.id)
+        ]);
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'team_invite_accepted', result: 'success',
+          metadata: { ownerId: invite.owner_id, inviteId: invite.id }
+        });
+
+        return createResponse(request, { success: true, ownerId: invite.owner_id }, 200);
+      }
+
+      // ── TEAM: REMOVE MEMBER (Owner only) ───────────────────────────────────
+      // Soft — just detaches team_owner_id. The member's own account and
+      // their own (untouched, never-drawn-from-while-on-the-team) quota are
+      // unaffected, so removal never leaves anyone in a broken state.
+      const teamMemberIdMatch = path.match(/^\/team\/members\/([0-9a-fA-F-]{36})$/);
+      if (teamMemberIdMatch && request.method === 'DELETE') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/team/members/:id' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'team-member-remove')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+        if (session.own_plan !== 'pro' || session.team_owner_id) {
+          return createResponse(request, { error: 'Only the team owner can remove members.' }, 403);
+        }
+
+        const memberId = teamMemberIdMatch[1];
+        const result = await env.DB.prepare(
+          'UPDATE users SET team_owner_id = NULL WHERE id = ? AND team_owner_id = ?'
+        ).bind(memberId, session.user_id).run();
+
+        if (result.meta.changes === 0) {
+          return createResponse(request, { error: 'Team member not found.' }, 404);
+        }
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'team_member_removed', result: 'success',
+          metadata: { memberId }
+        });
+
+        return createResponse(request, { success: true }, 200);
+      }
+
+      // ── WEBHOOKS: CREATE ENDPOINT (Owner only, Pro plan only) ──────────────
+      // Owner-only, same reasoning as API keys: gated on own_plan, not the
+      // team-quota overlay, so a team member's effective 'pro' plan doesn't
+      // let them register endpoints that would receive the owner's data.
+      if (path === '/webhooks' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/webhooks' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'webhooks-create')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        if (session.own_plan !== 'pro' || session.team_owner_id) {
+          return createResponse(request, {
+            error:           'Custom integrations are available on the Pro plan.',
+            upgradeRequired: true
+          }, 403);
+        }
+
+        const { body, error: parseError, tooLarge } = await parseJsonBody(request);
+        if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+
+        const urlError = validateWebhookUrl(body?.url || '');
+        if (urlError) return createResponse(request, { error: urlError }, 400);
+
+        const countRow = await env.DB.prepare(
+          "SELECT COUNT(*) AS n FROM webhook_endpoints WHERE user_id = ? AND status = 'active'"
+        ).bind(session.user_id).first();
+        if ((countRow?.n ?? 0) >= MAX_WEBHOOKS_PER_USER) {
+          return createResponse(request, {
+            error: `Maximum of ${MAX_WEBHOOKS_PER_USER} active webhooks reached. Remove one first.`
+          }, 400);
+        }
+
+        const webhookId = crypto.randomUUID();
+        const secret    = generateSecureToken();
+        const createdAt = new Date().toISOString();
+
+        await env.DB.prepare(
+          "INSERT INTO webhook_endpoints (id, user_id, url, secret, status, created_at) VALUES (?, ?, ?, ?, 'active', ?)"
+        ).bind(webhookId, session.user_id, body.url.trim(), secret, createdAt).run();
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'webhook_created', result: 'success',
+          metadata: { webhookId }
+        });
+
+        // The signing secret is returned exactly once, here, and is never
+        // retrievable again — same one-time-reveal contract as API keys.
+        return createResponse(request, { id: webhookId, url: body.url.trim(), secret, created_at: createdAt }, 201);
+      }
+
+      // ── WEBHOOKS: LIST ──────────────────────────────────────────────────────
+      if (path === '/webhooks' && request.method === 'GET') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const rows = await env.DB.prepare(
+          'SELECT id, url, status, created_at, last_delivery_at, last_delivery_status ' +
+          'FROM webhook_endpoints WHERE user_id = ? ORDER BY created_at DESC'
+        ).bind(session.user_id).all();
+
+        return createResponse(request, { webhooks: rows.results ?? [] }, 200);
+      }
+
+      // ── WEBHOOKS: REMOVE ────────────────────────────────────────────────────
+      const webhookIdMatch = path.match(/^\/webhooks\/([0-9a-fA-F-]{36})$/);
+      if (webhookIdMatch && request.method === 'DELETE') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/webhooks/:id' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'webhooks-modify')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const webhookId = webhookIdMatch[1];
+        const result = await env.DB.prepare(
+          'DELETE FROM webhook_endpoints WHERE id = ? AND user_id = ?'
+        ).bind(webhookId, session.user_id).run();
+
+        if (result.meta.changes === 0) {
+          return createResponse(request, { error: 'Webhook not found' }, 404);
+        }
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'webhook_removed', result: 'success',
+          metadata: { webhookId }
+        });
+
+        return createResponse(request, { success: true }, 200);
+      }
+
+      // ── STATUS: PUBLIC SYSTEM STATUS ──────────────────────────────────────
+      // Public, no auth — this is what sla.html/status.html and any
+      // customer checking on an incident reads. Backed by the same
+      // RATE_LIMIT_KV binding as everything else (no new KV namespace
+      // needed to ship this) under a dedicated key prefix. There is no
+      // admin UI in v1 — status is updated by editing the KV value
+      // directly from the Cloudflare dashboard. Defaults to "operational"
+      // with no incidents if the key has never been set, so the page never
+      // breaks before anyone's configured it.
+      if (path === '/status' && request.method === 'GET') {
+        if (await checkRateLimit(request, env, 'status')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        let current = { status: 'operational', components: { api: 'operational', dashboard: 'operational', ai_analysis: 'operational' }, message: null, updatedAt: null };
+        let incidents = [];
+        try {
+          const raw = await env.RATE_LIMIT_KV.get('status:current');
+          if (raw) current = { ...current, ...JSON.parse(raw) };
+        } catch (err) {
+          console.warn('[Status] Failed to read status:current:', err.message);
+        }
+        try {
+          const raw = await env.RATE_LIMIT_KV.get('status:incidents');
+          if (raw) incidents = JSON.parse(raw);
+        } catch (err) {
+          console.warn('[Status] Failed to read status:incidents:', err.message);
+        }
+
+        return createResponse(request, { ...current, incidents: Array.isArray(incidents) ? incidents.slice(0, 20) : [] }, 200);
       }
 
       // ── RESEND VERIFICATION ───────────────────────────────────────────────
@@ -2957,6 +3685,17 @@ export default {
   }
 };
 
+// Escapes user-supplied text before interpolating into HTML email bodies —
+// ticket subject/message are free text and must never be trusted as markup.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── EMAIL TEMPLATE BUILDERS ───────────────────────────────────────────────────
 // Shared between /register (isResend=false) and /resend-verification (isResend=true).
 
@@ -3061,6 +3800,136 @@ function buildVerificationEmailHtml(verifyLink, isResend) {
         </table>
       </td>
     </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// Internal notification sent to support@wissely.com for every new ticket.
+// Pro-plan tickets render with a gold "PRIORITY" banner so whoever is
+// triaging the inbox sees the distinction at a glance — this, plus the
+// faster response-time promise in the user's confirmation email below, is
+// what makes "Dedicated Support" a real, checkable feature rather than a
+// label with nothing behind it.
+function buildSupportTicketNotificationHtml(ticket) {
+  const isPriority = ticket.priority === 'high';
+  const priorityBanner = isPriority
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+         <tr><td style="background-color:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);border-radius:10px;padding:12px 18px;">
+           <p style="margin:0;font-size:12px;font-family:'Courier New',monospace;letter-spacing:1px;color:#e8c97a;font-weight:700;">&#9679; PRIORITY — PRO PLAN CUSTOMER</p>
+         </td></tr>
+       </table>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>New support ticket</title></head>
+<body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+        <tr><td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px 40px 36px;">
+            <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">New Support Ticket</p>
+            ${priorityBanner}
+            <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:26px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.2;">${escapeHtml(ticket.subject)}</h1>
+            <p style="margin:0 0 20px;font-size:13px;color:rgba(255,255,255,0.5);font-family:'Courier New',monospace;">From ${escapeHtml(ticket.email)} · Plan: ${escapeHtml(ticket.plan)} · Ticket ${escapeHtml(ticket.id)}</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+              <tr><td style="background-color:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:18px;">
+                <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.8);line-height:1.7;white-space:pre-wrap;">${escapeHtml(ticket.message)}</p>
+              </td></tr>
+            </table>
+          </td></tr></table>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+// Confirmation sent to the person who submitted the ticket. The response-time
+// promise is concrete and differs by priority, so "Dedicated Support" is a
+// commitment the customer can actually hold Wissely to, not just a word on
+// the pricing page.
+function buildSupportTicketConfirmationEmailHtml(ticket) {
+  const responseTime = ticket.priority === 'high'
+    ? 'within 4 business hours'
+    : 'within 1-2 business days';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>We received your message</title></head>
+<body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+        <tr><td style="padding-bottom:28px;" align="center">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="width:32px;height:32px;background-color:#2d4a3e;border-radius:7px;text-align:center;vertical-align:middle;"><span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8c97a;line-height:32px;">W</span></td>
+            <td style="padding-left:10px;vertical-align:middle;"><span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fefefc;letter-spacing:-0.5px;">Wissely</span></td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px 40px 36px;">
+            <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Support Request Received</p>
+            <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:30px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.15;">We've got your<br/><em style="font-style:italic;color:#e8c97a;">message.</em></h1>
+            <p style="margin:0 0 24px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;">Thanks for reaching out. Our team will reply to <strong style="color:rgba(255,255,255,0.85);">${escapeHtml(ticket.email)}</strong> ${responseTime}.</p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+              <tr><td style="background-color:rgba(45,74,62,0.25);border:1px solid rgba(45,74,62,0.45);border-left:3px solid #c9a84c;border-radius:10px;padding:14px 18px;">
+                <p style="margin:0 0 4px;font-size:11px;color:#e8c97a;font-family:'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;">${escapeHtml(ticket.subject)}</p>
+                <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.55);line-height:1.6;white-space:pre-wrap;">${escapeHtml(ticket.message.slice(0, 280))}${ticket.message.length > 280 ? '…' : ''}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.35);line-height:1.7;">Reference: ${escapeHtml(ticket.id)}</p>
+          </td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">&copy; ${new Date().getFullYear()} Wissely. All rights reserved.</p>
+          </td></tr></table>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+// Sent to the person being invited to a Pro team. If they don't already
+// have a Wissely account, the accept link takes them to registration first;
+// authenticateSession has no bearing here since there's no session yet.
+function buildTeamInviteEmailHtml(inviterEmail, acceptLink) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>You've been invited to a Wissely team</title></head>
+<body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+        <tr><td style="padding-bottom:28px;" align="center">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="width:32px;height:32px;background-color:#2d4a3e;border-radius:7px;text-align:center;vertical-align:middle;"><span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8c97a;line-height:32px;">W</span></td>
+            <td style="padding-left:10px;vertical-align:middle;"><span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fefefc;letter-spacing:-0.5px;">Wissely</span></td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px 40px 36px;">
+            <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">Team Invitation</p>
+            <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:30px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.15;">You're invited to<br/><em style="font-style:italic;color:#e8c97a;">join a team.</em></h1>
+            <p style="margin:0 0 28px;font-size:14px;color:rgba(255,255,255,0.6);line-height:1.85;"><strong style="color:rgba(255,255,255,0.85);">${escapeHtml(inviterEmail)}</strong> has invited you to join their Wissely team, with shared access to Pro-plan analyses.</p>
+            <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td style="background-color:#c9a84c;border-radius:100px;">
+              <a href="${acceptLink}" style="display:inline-block;padding:14px 32px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;">Accept invitation</a>
+            </td></tr></table>
+            <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;">This invitation expires in 7 days. If you don't have a Wissely account yet, you'll be asked to create one first — then click this link again to join the team.</p>
+          </td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">&copy; ${new Date().getFullYear()} Wissely. If you weren't expecting this, you can safely ignore this email.</p>
+          </td></tr></table>
+        </td></tr>
+      </table>
+    </td></tr>
   </table>
 </body>
 </html>`;
@@ -3214,6 +4083,52 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    is never stored — only its SHA-256 hash. It is returned to the client
 //    exactly once, in the POST /api/v1/keys response body, at creation time.
 //
+// 3c. Support tickets table — powers the "Dedicated Support" plan feature
+//     (see validateSupportTicket and the /support/tickets routes):
+//    CREATE TABLE IF NOT EXISTS support_tickets (
+//      id          TEXT PRIMARY KEY,          -- crypto.randomUUID()
+//      user_id     TEXT,                      -- NULL for unauthenticated submissions
+//      email       TEXT NOT NULL,
+//      plan        TEXT NOT NULL DEFAULT 'none',
+//      priority    TEXT NOT NULL DEFAULT 'normal', -- 'high' (Pro) | 'normal'
+//      subject     TEXT NOT NULL,
+//      message     TEXT NOT NULL,
+//      status      TEXT NOT NULL DEFAULT 'open',    -- 'open' | 'closed'
+//      created_at  TEXT NOT NULL,
+//      FOREIGN KEY (user_id) REFERENCES users(id)
+//    );
+//
+// 3d. Team Seats — powers the "10 team seats" Pro-plan feature (see
+//     authenticateSession's own_plan/billing_user_id overlay and the
+//     /team/* routes). NOTE: unlike the rest of this block, "ALTER TABLE
+//     ADD COLUMN" is not safe to re-run — apply it exactly once.
+//    ALTER TABLE users ADD COLUMN team_owner_id TEXT REFERENCES users(id);
+//
+//    CREATE TABLE IF NOT EXISTS team_invites (
+//      id          TEXT PRIMARY KEY,          -- crypto.randomUUID()
+//      owner_id    TEXT NOT NULL,
+//      email       TEXT NOT NULL,
+//      token_hash  TEXT NOT NULL UNIQUE,      -- SHA-256 hex of the raw invite token
+//      status      TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'accepted' | 'revoked'
+//      created_at  TEXT NOT NULL,
+//      expires_at  TEXT NOT NULL,
+//      FOREIGN KEY (owner_id) REFERENCES users(id)
+//    );
+//
+// 3e. Webhooks — powers the "Custom integrations" Pro-plan feature (see
+//     deliverWebhooks, validateWebhookUrl, and the /webhooks routes):
+//    CREATE TABLE IF NOT EXISTS webhook_endpoints (
+//      id                   TEXT PRIMARY KEY,          -- crypto.randomUUID()
+//      user_id              TEXT NOT NULL,
+//      url                  TEXT NOT NULL,
+//      secret               TEXT NOT NULL,             -- retrievable plaintext; used as the HMAC key, see migration 0005 for why
+//      status               TEXT NOT NULL DEFAULT 'active', -- 'active' | 'disabled'
+//      created_at           TEXT NOT NULL,
+//      last_delivery_at     TEXT,
+//      last_delivery_status TEXT,                       -- 'success' | 'failed'
+//      FOREIGN KEY (user_id) REFERENCES users(id)
+//    );
+//
 // 4. Indexes — apply all; IF NOT EXISTS makes them safe to re-run:
 //    CREATE INDEX IF NOT EXISTS idx_users_email                ON users(email);
 //    CREATE INDEX IF NOT EXISTS idx_sessions_user_id           ON sessions(user_id);
@@ -3229,6 +4144,14 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type      ON audit_logs(event_type);
 //    CREATE INDEX IF NOT EXISTS idx_api_keys_user_id           ON api_keys(user_id);
 //    CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash          ON api_keys(key_hash);
+//    CREATE INDEX IF NOT EXISTS idx_support_tickets_user_id    ON support_tickets(user_id);
+//    CREATE INDEX IF NOT EXISTS idx_support_tickets_priority   ON support_tickets(priority, status);
+//    CREATE INDEX IF NOT EXISTS idx_support_tickets_created    ON support_tickets(created_at);
+//    CREATE INDEX IF NOT EXISTS idx_users_team_owner_id        ON users(team_owner_id);
+//    CREATE INDEX IF NOT EXISTS idx_team_invites_owner_id      ON team_invites(owner_id);
+//    CREATE INDEX IF NOT EXISTS idx_team_invites_token_hash    ON team_invites(token_hash);
+//    CREATE INDEX IF NOT EXISTS idx_team_invites_email         ON team_invites(email);
+//    CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_user_id  ON webhook_endpoints(user_id);
 //
 // 5. Cloudflare cron triggers (wrangler.toml) — TWO triggers are required:
 //    [triggers]
