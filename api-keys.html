@@ -93,7 +93,7 @@ function toast(msg) {
 }
 
 function getCsrfToken() {
-  // Set at login by the app's auth flow — see /login response `csrfToken`.
+  // Set at login by the app's auth flow - see /login response `csrfToken`.
   return localStorage.getItem('wissely_csrf_token') || '';
 }
 
@@ -143,7 +143,7 @@ async function init() {
 
   // API keys are an owner-only capability. A team member's `plan` field
   // reads 'pro' too (shared-quota overlay), so this must check their own
-  // actual plan and team status, not the overlaid value — otherwise a
+  // actual plan and team status, not the overlaid value - otherwise a
   // member would see the create-key form only to have it rejected
   // server-side with a confusing error.
   if (me.user?.isTeamMember || (me.user?.ownPlan ?? me.user?.plan) !== 'pro') {
@@ -178,9 +178,9 @@ function renderKeyManager() {
         <input id="newKeyName" type="text" maxlength="64" placeholder="Key name" />
         <button class="btn" id="createKeyBtn">Create key</button>
       </div>
-      <div class="form-note">Up to 10 active keys. The full key is shown once — copy it somewhere safe.</div>
+      <div class="form-note">Up to 10 active keys. The full key is shown once - copy it somewhere safe.</div>
       <div class="reveal-box" id="revealBox">
-        <div class="reveal-label">Your new API key — save it now</div>
+        <div class="reveal-label">Your new API key - save it now</div>
         <div class="reveal-key" id="revealKeyText"></div>
         <div class="reveal-warn">This is the only time the full key will be shown. If you lose it, revoke it and create a new one.</div>
         <button class="btn btn-ghost copy-btn" id="copyKeyBtn" style="color:#fff;border-color:rgba(255,255,255,0.3)">Copy to clipboard</button>
@@ -256,7 +256,7 @@ async function loadKeys() {
 async function createKey() {
   const input = document.getElementById('newKeyName');
   const btn = document.getElementById('createKeyBtn');
-  if (btn.disabled) return; // already in flight — guards against Enter key-repeat firing duplicate requests
+  if (btn.disabled) return; // already in flight - guards against Enter key-repeat firing duplicate requests
 
   const name = input.value.trim();
   if (!name) { toast('Give your key a name first'); return; }

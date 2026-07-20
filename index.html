@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Wissely — Your Finances, Finally Clear</title>
+<title>Wissely - Your Finances, Finally Clear</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <!-- pdf.js, tesseract.js and jsPDF are lazy-loaded on first use (see ensurePdfJs / ensureTesseract / ensureJsPdf) to reduce initial page weight -->
 <style>
@@ -647,7 +647,7 @@ const TOOLS = [
 // Maps each TOOLS[] entry to the tool identifier the backend's
 // AI_TOOL_PROMPTS registry expects in body.tool (see worker.js). The backend
 // now owns all task-specific prompt authoring and output-schema enforcement,
-// so the frontend no longer builds its own instruction text — it just tells
+// so the frontend no longer builds its own instruction text - it just tells
 // the backend which tool is active and sends the raw input.
 const TOOL_IDS = [
   'invoice-analyzer',
@@ -660,7 +660,7 @@ const TOOL_IDS = [
 
 // Builds the user-message content sent to /analyze. The backend's system
 // prompt fully specifies the task and the required JSON output schema, so
-// this only needs to carry the raw input — plus, for the Invoice Analyzer,
+// this only needs to carry the raw input - plus, for the Invoice Analyzer,
 // the locally regex-extracted field hints so the AI can verify/correct them.
 function buildAnalyzeMessage(text, toolIndex, localFields) {
   if (toolIndex === 0 && localFields && Object.keys(localFields).length) {
@@ -695,7 +695,7 @@ const _loadedScripts = {};
 
 // The backend requires X-CSRF-Token on state-changing requests (/analyze,
 // /logout, etc). The token is issued once, in the /login response body, and
-// is expected to be persisted by the auth flow under this key — same key
+// is expected to be persisted by the auth flow under this key - same key
 // used by api-keys.html. If it isn't present (e.g. this key isn't set by
 // auth.html yet), requests are sent without it, which is today's behavior.
 function getCsrfToken() {
@@ -762,11 +762,11 @@ async function handleAuthResponse(res) {
       window.location.replace('upgrade.html');
       return false;
     }
-    // Quota-exhaustion 403 — let caller handle via updateQuotaUI
+    // Quota-exhaustion 403 - let caller handle via updateQuotaUI
     return true;
   }
 
-  return true; // 200, 2xx — proceed normally
+  return true; // 200, 2xx - proceed normally
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -869,13 +869,13 @@ function getFriendlyErrorMessage(err, context) {
   const msg = String(err.message || '');
 
   if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
-    return 'Network issue — check your connection and try again.';
+    return 'Network issue - check your connection and try again.';
   }
   if (/401/.test(msg) || context === 'auth') return 'Your session has expired. Please sign in again.';
   if (/403/.test(msg) || context === 'quota') return 'Your analysis quota is exhausted. Upgrade your plan to continue.';
   if (/500|502|503|504/.test(msg)) return 'Wissely servers are temporarily unavailable. Please try again shortly.';
   if (context === 'ocr') return 'OCR could not read this image clearly. Try a sharper photo or better lighting.';
-  if (context === 'pdf') return 'This PDF could not be processed — it may be corrupted, scanned as an image, or password-protected.';
+  if (context === 'pdf') return 'This PDF could not be processed - it may be corrupted, scanned as an image, or password-protected.';
   if (context === 'camera') return 'Camera access was denied or unavailable. You can upload a photo instead.';
   if (context === 'empty') return 'No readable text was found in that file. Try pasting the text manually.';
   if (context === 'file-type') return 'Unsupported file type. Please upload a PDF, JPG, JPEG or PNG.';
@@ -990,7 +990,7 @@ function updateQuotaUI(user) {
   const widgetUpgradeBtn = document.getElementById('widgetUpgradeBtn');
   const sidebarPremiumWidget = document.getElementById('sidebarPremiumWidget');
 
-  // API Keys and Webhooks are owner-only administrative capabilities — a
+  // API Keys and Webhooks are owner-only administrative capabilities - a
   // team member's `plan` reads 'pro' too (shared-quota overlay from /me),
   // but they must never see these links, only the actual Pro subscriber
   // who owns the team.
@@ -998,7 +998,7 @@ function updateQuotaUI(user) {
   if (dropdownWebhooksLink) dropdownWebhooksLink.style.display = (rawPlan === 'pro' && !user.isTeamMember) ? 'flex' : 'none';
 
   // Team Seats, unlike API Keys, is relevant to BOTH owners (to manage their
-  // team) and members (to see whose team they're on) — and since a member's
+  // team) and members (to see whose team they're on) - and since a member's
   // overlaid `plan` already reads 'pro', this one check naturally covers both.
   if (dropdownTeamLink) dropdownTeamLink.style.display = (rawPlan === 'pro') ? 'flex' : 'none';
 
@@ -1365,7 +1365,7 @@ async function generate() {
     const data = await res.json();
 
     // The backend returns the AI's structured JSON report directly as
-    // `data.data` (see worker.js validateAIReport) — not a raw provider
+    // `data.data` (see worker.js validateAIReport) - not a raw provider
     // envelope, so it's stored as-is rather than text-extracted.
     currentReport = data.data || null;
     outputText = renderReportAsPlainText(currentReport);
@@ -1565,7 +1565,7 @@ function triggerCopyFeedback(btn) {
 // ─── Shared invoice field extraction, reused by the dashboard card, the
 // browser Print view, and the downloadable Premium PDF so all three stay
 // in sync with a single source of truth. Consumes the structured JSON
-// report returned by the backend (see worker.js validateAIReport) — the
+// report returned by the backend (see worker.js validateAIReport) - the
 // AI's optional fields (invoice/vendor/customer/totals/dates) aren't under
 // a strict schema, so this defensively checks several reasonable shapes
 // before falling back to '—', exactly like the old field-per-line parser did.
@@ -1613,7 +1613,7 @@ function extractInvoiceReportData(report) {
     : 'No action needed.';
 
   // The new schema reports one overall confidence score (0-100), not a
-  // per-field breakdown — mirrored across all four cells so the existing
+  // per-field breakdown - mirrored across all four cells so the existing
   // confidence-grid UI (4 cells: Vendor/Invoice#/Amount/Overall) still works.
   const overallConfidence = Number.isFinite(report.confidence) ? Math.max(0, Math.min(100, report.confidence)) : 0;
   const confidence = { vendor: overallConfidence, invoiceNumber: overallConfidence, amount: overallConfidence, overall: overallConfidence };
@@ -1640,7 +1640,7 @@ function extractInvoiceReportData(report) {
   };
 }
 
-// Renders the structured JSON report as readable plain text — used for the
+// Renders the structured JSON report as readable plain text - used for the
 // non-Invoice-Analyzer tools' display, copy-to-clipboard, and CSV/history
 // text storage, in place of the old raw AI plain-text blob.
 function renderReportAsPlainText(report) {
