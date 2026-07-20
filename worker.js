@@ -1,32 +1,32 @@
 /**
- * Wissely Core API Worker — Enterprise Production Build
+ * Wissely Core API Worker - Enterprise Production Build
  *
  * Features:
- *   Authentication     — PBKDF2/SHA-256 passwords, hashed session IDs, HttpOnly cookies
- *   Password policy    — Minimum length + upper/lower/number/special-char enforcement
- *   Session security   — Per-session CSRF tokens, hashed session storage, 7-day expiry
- *   CSRF protection    — X-CSRF-Token header validation on every state-changing endpoint
- *   Rate limiting      — Per-IP sliding-window via Cloudflare KV
- *   Login protection   — Per-IP + per-account brute-force blocking with auto-expiry
- *   Request size caps  — Global body-size ceiling + endpoint-specific payload caps
- *   Audit logging       — Structured security event log with 90-day retention, PII-masked
- *   AI integration     — Anthropic claude-sonnet-4-6, 60s timeout, exponential-backoff retry
- *   AI validation      — Strict input validation + schema-enforced output normalisation
- *   Analyze concurrency — KV-based per-user lock backing the atomic D1 quota UPDATE
- *   Email delivery      — Resend API, background via waitUntil(), automatic retry
- *   Paddle Billing v2   — HMAC-SHA256 webhook verification, lock-based idempotency
- *   Subscriptions       — Starter / Growth / Pro plans, atomic quota management,
+ *   Authentication     - PBKDF2/SHA-256 passwords, hashed session IDs, HttpOnly cookies
+ *   Password policy    - Minimum length + upper/lower/number/special-char enforcement
+ *   Session security   - Per-session CSRF tokens, hashed session storage, 7-day expiry
+ *   CSRF protection    - X-CSRF-Token header validation on every state-changing endpoint
+ *   Rate limiting      - Per-IP sliding-window via Cloudflare KV
+ *   Login protection   - Per-IP + per-account brute-force blocking with auto-expiry
+ *   Request size caps  - Global body-size ceiling + endpoint-specific payload caps
+ *   Audit logging       - Structured security event log with 90-day retention, PII-masked
+ *   AI integration     - Anthropic claude-sonnet-4-6, 60s timeout, exponential-backoff retry
+ *   AI validation      - Strict input validation + schema-enforced output normalisation
+ *   Analyze concurrency - KV-based per-user lock backing the atomic D1 quota UPDATE
+ *   Email delivery      - Resend API, background via waitUntil(), automatic retry
+ *   Paddle Billing v2   - HMAC-SHA256 webhook verification, lock-based idempotency
+ *   Subscriptions       - Starter / Growth / Pro plans, atomic quota management,
  *                         period-end-aware cancellation (no immediate downgrade),
  *                         per-user billing-cycle quota resets (no global cron reset)
- *   Soft quota gating   — Trial/quota exhaustion NEVER logs a user out or 401s;
+ *   Soft quota gating   - Trial/quota exhaustion NEVER logs a user out or 401s;
  *                         /me and /analyze return { upgradeRequired, trialExpired }
  *                         while leaving the session, dashboard, history, and
  *                         billing fully accessible
- *   Checkout            — Server-side Paddle transaction creation for hosted checkout
- *   Cleanup             — Daily stale-data purge (5 % per-request) + daily/monthly cron
- *   Security headers    — HSTS, CSP, CORP, X-Frame, Referrer, Permissions-Policy
- *   Request tracing     — X-Request-ID propagated through every log line
- *   Database            — D1 batch/atomic operations, index-aware queries
+ *   Checkout            - Server-side Paddle transaction creation for hosted checkout
+ *   Cleanup             - Daily stale-data purge (5 % per-request) + daily/monthly cron
+ *   Security headers    - HSTS, CSP, CORP, X-Frame, Referrer, Permissions-Policy
+ *   Request tracing     - X-Request-ID propagated through every log line
+ *   Database            - D1 batch/atomic operations, index-aware queries
  */
 
 'use strict';
@@ -34,7 +34,7 @@
 // ── CONFIGURATION ────────────────────────────────────────────────────────────
 
 // Production origins only. Do NOT add *.workers.dev or other development /
-// preview hosts here — if a staging origin is ever needed, wire it through a
+// preview hosts here - if a staging origin is ever needed, wire it through a
 // dedicated environment variable rather than hardcoding it into a production
 // deploy.
 const ALLOWED_ORIGINS = [
@@ -48,74 +48,74 @@ const MAX_EMAIL_LENGTH    = 254;
 const MAX_PASSWORD_LENGTH = 1024;
 const MAX_TOKEN_LENGTH    = 512;
 
-// Password policy — enforced on registration and password reset.
+// Password policy - enforced on registration and password reset.
 const PASSWORD_MIN_LENGTH = 10;
 
-// General request body ceiling — checked before JSON parsing on every route
+// General request body ceiling - checked before JSON parsing on every route
 // that accepts a body. Individual endpoints may enforce a tighter cap on top
 // of this (e.g. the AI payload limit below).
 const MAX_REQUEST_BODY_BYTES = 512 * 1024; // 512 KB
 
-// Paddle webhook payload ceiling — generous enough for large multi-item
+// Paddle webhook payload ceiling - generous enough for large multi-item
 // subscription payloads while still bounding worst-case memory/CPU use.
 const MAX_WEBHOOK_BODY_BYTES = 256 * 1024; // 256 KB
 
-// General rate limiter — 10 requests per IP per 60-second window
+// General rate limiter - 10 requests per IP per 60-second window
 const RATE_LIMIT_WINDOW_SECONDS = 60;
 const RATE_LIMIT_MAX_REQUESTS   = 10;
 
-// Failed-login protection — tracked independently from the general limiter.
+// Failed-login protection - tracked independently from the general limiter.
 // Two-key strategy: per-IP and per-email so both credential-stuffing (many
 // accounts from one IP) and targeted attacks (one account from many IPs) are caught.
 const LOGIN_FAIL_WINDOW_SECONDS = 900;  // 15-minute rolling window
 const LOGIN_BLOCK_THRESHOLD     = 10;   // failures before a block is issued
 const LOGIN_BLOCK_TTL_SECONDS   = 1800; // 30-minute block duration
 
-// CSRF-failure threshold — repeated failures from the same IP are treated as
+// CSRF-failure threshold - repeated failures from the same IP are treated as
 // a probing attack and surfaced as a high-severity audit event.
 const CSRF_FAIL_WINDOW_SECONDS  = 300;  // 5-minute window
 const CSRF_FAIL_ALERT_THRESHOLD = 5;    // failures before alert audit event
 
-// Webhook-signature-failure threshold — same pattern as CSRF monitoring.
+// Webhook-signature-failure threshold - same pattern as CSRF monitoring.
 const WEBHOOK_FAIL_WINDOW_SECONDS  = 300;
 const WEBHOOK_FAIL_ALERT_THRESHOLD = 3;
 
 // AI integration
-const MAX_AI_PAYLOAD_BYTES  = 102400; // 100 KB — rejected before quota consumed
+const MAX_AI_PAYLOAD_BYTES  = 102400; // 100 KB - rejected before quota consumed
 const MAX_MESSAGES_COUNT    = 30;     // hard cap on messages[] length
 const MAX_MESSAGE_CONTENT_LENGTH = 20000; // hard cap per message content string
 const ANTHROPIC_TIMEOUT_MS  = 60000; // 60 s
 const ANTHROPIC_MAX_RETRIES = 1;     // one retry on 429 / 5xx with backoff
 const ANTHROPIC_RETRY_DELAY = 2000;  // 2 s initial backoff (doubled on each retry)
 
-// Analyze concurrency lock — best-effort KV lock that prevents a user from
+// Analyze concurrency lock - best-effort KV lock that prevents a user from
 // firing overlapping /analyze requests. This is a defense-in-depth / cost
 // control layer; the actual quota ceiling is enforced atomically at the D1
 // layer (single UPDATE ... WHERE analyses_used < analyses_limit), which is
 // what guarantees correctness even if the KV lock is unavailable or racy.
 const ANALYZE_LOCK_TTL_SECONDS = 90; // covers worst-case Anthropic retry time
 
-// Paddle idempotency — event IDs stored in KV with a short-lived 'processing'
+// Paddle idempotency - event IDs stored in KV with a short-lived 'processing'
 // marker while being handled, then a long-lived 'done' marker once the DB
 // update has actually committed successfully.
 const PADDLE_EVENT_KV_PREFIX          = 'paddle_event:';
-const PADDLE_EVENT_TTL_SECONDS        = 86400; // 24h — 'done' marker
+const PADDLE_EVENT_TTL_SECONDS        = 86400; // 24h - 'done' marker
 const WEBHOOK_PROCESSING_LOCK_SECONDS = 60;    // 'processing' marker
 
-// Paddle checkout creation — subrequest timeout to the Paddle Transactions API
+// Paddle checkout creation - subrequest timeout to the Paddle Transactions API
 const PADDLE_CHECKOUT_TIMEOUT_MS = 10000; // 10 s
 
-// Paddle customer lookup — subrequest timeout for resolving an account from
+// Paddle customer lookup - subrequest timeout for resolving an account from
 // a webhook event when custom_data.user_id is not present.
 const PADDLE_CUSTOMER_LOOKUP_TIMEOUT_MS = 8000; // 8 s
 
-// Paddle customer portal — subrequest timeout to the Portal Sessions API.
+// Paddle customer portal - subrequest timeout to the Portal Sessions API.
 const PADDLE_PORTAL_TIMEOUT_MS = 8000; // 8 s
 
-// Audit log retention — records older than this are pruned by the monthly cron
+// Audit log retention - records older than this are pruned by the monthly cron
 const AUDIT_RETENTION_DAYS = 90;
 
-// API Access — Pro plan only. Keys are high-entropy bearer tokens, hashed
+// API Access - Pro plan only. Keys are high-entropy bearer tokens, hashed
 // with the same SHA-256 primitive already used for session IDs (hashToken).
 // The raw key is shown to the user exactly once, at creation time, and is
 // never persisted or logged in plaintext anywhere thereafter.
@@ -126,12 +126,12 @@ const MAX_API_KEY_LENGTH           = 128; // hard ceiling checked before hashing
 const MAX_API_KEY_NAME_LENGTH      = 64;
 const MAX_API_KEYS_PER_USER        = 10;
 
-// Per-API-key rate limit — independent of the general per-IP limiter, since
+// Per-API-key rate limit - independent of the general per-IP limiter, since
 // legitimate API traffic can legitimately come from a single server IP.
 const API_RATE_LIMIT_WINDOW_SECONDS = 60;
 const API_RATE_LIMIT_MAX_REQUESTS   = 20;
 
-// Support Tickets — backs the "Dedicated Support" plan feature. Every plan
+// Support Tickets - backs the "Dedicated Support" plan feature. Every plan
 // can submit a ticket; Pro tickets are auto-flagged high-priority so the
 // person triaging support@wissely.com sees them distinctly. Anonymous
 // (logged-out) submissions are allowed since billing/login issues are
@@ -140,16 +140,16 @@ const SUPPORT_SUBJECT_MAX_LENGTH = 150;
 const SUPPORT_MESSAGE_MAX_LENGTH = 5000;
 const SUPPORT_MESSAGE_MIN_LENGTH = 10;
 
-// Webhooks — powers the "Custom integrations" Pro-plan feature. Owner-only,
+// Webhooks - powers the "Custom integrations" Pro-plan feature. Owner-only,
 // same as API keys (gated on own_plan, not the team-quota overlay). One
 // delivery attempt plus one retry; no persistent retry queue in v1.
 const MAX_WEBHOOKS_PER_USER = 5;
 const WEBHOOK_TIMEOUT_MS    = 8000;
 const WEBHOOK_MAX_RETRIES   = 1;
 
-// Team Seats — Pro plan only. 10 total seats including the owner (so up to
+// Team Seats - Pro plan only. 10 total seats including the owner (so up to
 // 9 invited members). Members share the owner's monthly analysis pool
-// (see authenticateSession's overlay) but get no other Pro entitlement —
+// (see authenticateSession's overlay) but get no other Pro entitlement -
 // no API keys, no invites, no billing access. Invite tokens follow the
 // same shape as password-reset tokens: high-entropy, hashed at rest, short
 // expiry.
@@ -180,7 +180,7 @@ const PADDLE_PRICE_PLANS = {
   'pri_01kvxa5v3s82pe1fw3h71wb4e9': { plan: 'pro',     analyses_limit: 1000 },
 };
 
-// Reverse lookup — plan name to price ID, used when creating a checkout
+// Reverse lookup - plan name to price ID, used when creating a checkout
 // transaction. Built once from PADDLE_PRICE_PLANS so the two maps can never
 // drift out of sync with each other.
 const PLAN_TO_PRICE_ID = Object.entries(PADDLE_PRICE_PLANS).reduce((acc, [priceId, cfg]) => {
@@ -192,7 +192,7 @@ const PLAN_TO_PRICE_ID = Object.entries(PADDLE_PRICE_PLANS).reduce((acc, [priceI
 // immediately for cancellations with no future effective date, when a
 // subscription is paused (dunning exhausted), or as a fallback when a
 // Paddle event's price ID doesn't resolve to a known plan. Per Wissely's
-// permanent subscription model there is no separate "free" tier — an
+// permanent subscription model there is no separate "free" tier - an
 // account with no active paid subscription is simply on Trial: 20
 // analyses, no time expiration.
 const PLAN_TRIAL = { plan: 'trial', analyses_limit: 20 };
@@ -330,7 +330,7 @@ function hexToBuf(hex) {
   return new Uint8Array(pairs.map(b => parseInt(b, 16)));
 }
 
-// Constant-time comparison — prevents timing oracle attacks on token equality checks.
+// Constant-time comparison - prevents timing oracle attacks on token equality checks.
 // Both inputs are encoded to Uint8Array so Unicode characters do not bypass the check.
 function safeCompare(a, b) {
   const enc  = new TextEncoder();
@@ -342,14 +342,14 @@ function safeCompare(a, b) {
   return diff === 0;
 }
 
-// SHA-256 of an arbitrary string — used for session IDs, reset tokens, and
+// SHA-256 of an arbitrary string - used for session IDs, reset tokens, and
 // email verification tokens so raw secrets never reach the database.
 async function hashToken(token) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
   return bufToHex(buf);
 }
 
-// PBKDF2-HMAC-SHA256 password hashing — 100 000 iterations, 128-bit random salt.
+// PBKDF2-HMAC-SHA256 password hashing - 100 000 iterations, 128-bit random salt.
 // When givenSalt is provided (login path) the same salt is reused for verification.
 async function hashPassword(password, givenSalt = null) {
   const pwBuf  = new TextEncoder().encode(password);
@@ -380,7 +380,7 @@ const generateResetToken = generateSecureToken;
 // Generates a new API key: a prefixed, high-entropy bearer token.
 // Returns both the full raw key (shown to the user exactly once) and a
 // short display prefix (prefix + first N chars of the secret) that is safe
-// to store and show in the UI for identification — it does not materially
+// to store and show in the UI for identification - it does not materially
 // reduce the entropy of the remaining hidden portion of the secret.
 function generateApiKey() {
   const chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -404,7 +404,7 @@ function validateApiKeyName(name) {
 }
 
 // Validates a support ticket submission. `email` is only required when
-// there's no session (anonymous submission) — the caller passes null when
+// there's no session (anonymous submission) - the caller passes null when
 // a session already supplies it.
 function validateSupportTicket({ subject, message, email }) {
   if (typeof subject !== 'string' || subject.trim().length === 0) {
@@ -439,7 +439,7 @@ function validateInviteEmail(email) {
 
 // Basic SSRF-conscious validation for webhook destination URLs. This is a
 // first line of defense (hostname/literal-IP pattern matching), not a
-// complete guarantee — it does not resolve DNS or defend against
+// complete guarantee - it does not resolve DNS or defend against
 // DNS-rebinding attacks (a hostname that resolves to a private IP only at
 // request time). A production hardening pass would also re-validate the
 // resolved IP immediately before each delivery.
@@ -481,7 +481,7 @@ async function signWebhookPayload(secret, rawBody) {
   return `ts=${ts}; h1=${bufToHex(sig)}`;
 }
 
-// Password policy — enforced on /register and /reset-password. Returns an
+// Password policy - enforced on /register and /reset-password. Returns an
 // array of human-readable validation errors (empty array = valid).
 function validatePasswordStrength(password) {
   const errors = [];
@@ -495,7 +495,7 @@ function validatePasswordStrength(password) {
   return errors;
 }
 
-// Masks an email address for safe inclusion in logs/audit metadata —
+// Masks an email address for safe inclusion in logs/audit metadata -
 // preserves enough to correlate events without exposing the full address.
 function maskEmail(email) {
   if (typeof email !== 'string' || !email.includes('@')) return '***';
@@ -532,11 +532,11 @@ function parseCookies(request) {
   return jar;
 }
 
-// Safe JSON body parser — never throws; returns a structured result object.
+// Safe JSON body parser - never throws; returns a structured result object.
 // Enforces a hard byte ceiling on the raw body BEFORE attempting to parse it,
 // so oversized payloads are rejected cheaply rather than fully buffered and
 // then parsed. Content-Length is not trusted alone (it can be absent or
-// inaccurate for chunked bodies) — the actual decoded text length is checked.
+// inaccurate for chunked bodies) - the actual decoded text length is checked.
 async function parseJsonBody(request, maxBytes = MAX_REQUEST_BODY_BYTES) {
   const contentLength = request.headers.get('Content-Length');
   if (contentLength && !isNaN(Number(contentLength)) && Number(contentLength) > maxBytes) {
@@ -579,10 +579,10 @@ function createResponse(request, data, status = 200, extraHeaders = {}) {
 }
 
 // ── AUDIT LOGGING ─────────────────────────────────────────────────────────────
-// Structured security-event log. Never throws — a logging failure must never
+// Structured security-event log. Never throws - a logging failure must never
 // affect the API response. Accepts an optional requestId for correlation.
 // Callers are responsible for masking any PII (e.g. maskEmail()) before it
-// reaches metadata — this function does not attempt to scrub arbitrary input.
+// reaches metadata - this function does not attempt to scrub arbitrary input.
 
 async function writeAuditLog(env, {
   requestId = null,
@@ -606,7 +606,7 @@ async function writeAuditLog(env, {
       metadata ? JSON.stringify({ ...metadata, requestId }) : (requestId ? JSON.stringify({ requestId }) : null)
     ).run();
   } catch (err) {
-    // Console-only — never propagate
+    // Console-only - never propagate
     console.error('[Audit] Write failed:', err.message, { eventType, result });
   }
 }
@@ -671,7 +671,7 @@ async function checkRateLimit(request, env, key) {
   }
 }
 
-// Per-API-key sliding-window limiter — separate bucket from the per-IP
+// Per-API-key sliding-window limiter - separate bucket from the per-IP
 // limiter above, since many legitimate API calls can share one server IP
 // (or one key can be used from many IPs). Same fail-open behavior on KV
 // errors so a KV outage never takes API access offline.
@@ -696,7 +696,7 @@ async function checkApiKeyRateLimit(env, keyId) {
 // ── ANALYZE CONCURRENCY LOCK ──────────────────────────────────────────────────
 // Best-effort per-user lock preventing two /analyze requests from the same
 // account from running concurrently. KV has no compare-and-swap primitive in
-// the Workers API, so this is not a perfect distributed lock — the narrow
+// the Workers API, so this is not a perfect distributed lock - the narrow
 // race window between the initial `get` and the subsequent `put` is closed by
 // the authoritative, truly atomic guard: the D1 statement
 // `UPDATE users SET analyses_used = analyses_used + 1 WHERE analyses_used < analyses_limit`.
@@ -706,7 +706,7 @@ async function checkApiKeyRateLimit(env, keyId) {
 // "already in progress" response instead of two reports racing each other.
 
 async function acquireAnalysisLock(env, userId) {
-  if (!env.RATE_LIMIT_KV) return true; // fail-open — D1 UPDATE still protects quota
+  if (!env.RATE_LIMIT_KV) return true; // fail-open - D1 UPDATE still protects quota
   const key = `analyze_lock:${userId}`;
   try {
     const existing = await env.RATE_LIMIT_KV.get(key);
@@ -723,7 +723,7 @@ async function releaseAnalysisLock(env, userId) {
   try {
     await env.RATE_LIMIT_KV.delete(`analyze_lock:${userId}`);
   } catch {
-    // Non-fatal — the lock will simply expire via TTL
+    // Non-fatal - the lock will simply expire via TTL
   }
 }
 
@@ -794,7 +794,7 @@ async function authenticateSession(request, env) {
   const rawId     = cookies['wissely_session'];
   if (!rawId) return null;
 
-  // Hash the cookie value before querying — the DB stores only the hash
+  // Hash the cookie value before querying - the DB stores only the hash
   const sessionHash = await hashToken(rawId);
 
   const session = await env.DB.prepare(
@@ -808,7 +808,7 @@ async function authenticateSession(request, env) {
   const now = Date.now();
 
   if (now > new Date(session.expires_at).getTime()) {
-    // Expired — clean up asynchronously so this path stays fast
+    // Expired - clean up asynchronously so this path stays fast
     await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionHash).run();
     return null;
   }
@@ -818,7 +818,7 @@ async function authenticateSession(request, env) {
   // always follows the member's OWN plan. `own_plan` preserves that value;
   // `plan` / `analyses_used` / `analyses_limit` are overlaid from the owner
   // so every existing quota check (computeAccessFlags, performAnalyze, /me)
-  // keeps working for team members without touching each call site — but
+  // keeps working for team members without touching each call site - but
   // any Pro-*feature* gate (not quota) must check `own_plan`, not `plan`.
   session.own_plan       = session.plan;
   session.billing_user_id = session.user_id;
@@ -834,7 +834,7 @@ async function authenticateSession(request, env) {
       session.analyses_limit  = owner.analyses_limit;
       session.billing_user_id = session.team_owner_id;
     } else {
-      // Owner account no longer exists — fail safe by detaching rather than
+      // Owner account no longer exists - fail safe by detaching rather than
       // leaving this member permanently unable to draw any quota at all.
       session.team_owner_id = null;
     }
@@ -860,14 +860,14 @@ function computeAccessFlags(user) {
 
 // ── API KEY AUTHENTICATION ────────────────────────────────────────────────────
 // Bearer-token authentication for programmatic API access. Mirrors the
-// session-lookup pattern above: the raw key never reaches the database —
+// session-lookup pattern above: the raw key never reaches the database -
 // only its SHA-256 hash is compared. API access is gated to the Pro plan
 // at USE time (not just at key-creation time), so a downgrade or
 // cancellation immediately revokes API access even for keys that were
 // never explicitly deleted.
 //
 // Returns null on any failure (missing header, malformed key, unknown
-// hash, revoked key, or non-Pro plan) — callers respond with a generic
+// hash, revoked key, or non-Pro plan) - callers respond with a generic
 // 401, never distinguishing the reason, so key enumeration gains no signal.
 async function authenticateApiKey(request, env) {
   const authHeader = request.headers.get('Authorization');
@@ -899,7 +899,7 @@ async function authenticateApiKey(request, env) {
 //
 // Design decisions:
 //   • Per-session (not per-request) for simplicity without sacrificing security
-//   • Stored as plaintext in the DB — it is a bearer secret issued only via the
+//   • Stored as plaintext in the DB - it is a bearer secret issued only via the
 //     login response body and never stored in an accessible location client-side
 //   • Validated with safeCompare() to prevent timing attacks
 //   • Repeated failures from the same IP trigger a security-monitoring alert
@@ -926,7 +926,7 @@ async function validateCsrfToken(request, env, requestId) {
 }
 
 // ── EMAIL HELPERS ─────────────────────────────────────────────────────────────
-// All email sends are fire-and-forget via ctx.waitUntil() — the API response
+// All email sends are fire-and-forget via ctx.waitUntil() - the API response
 // is never blocked on Resend. One automatic retry on transient failure.
 
 async function sendEmailWithRetry(env, { to, subject, html, text, logTag }) {
@@ -948,7 +948,7 @@ async function sendEmailWithRetry(env, { to, subject, html, text, logTag }) {
       res = await fetch('https://api.resend.com/emails', { method: 'POST', headers, body: payload });
       if (!res.ok) {
         const errText = await res.text().catch(() => '(unreadable)');
-        console.error(`[${logTag}] Email failed after retry: ${res.status} — ${errText}`);
+        console.error(`[${logTag}] Email failed after retry: ${res.status} - ${errText}`);
       } else {
         console.log(`[${logTag}] Email delivered on retry`);
       }
@@ -962,7 +962,7 @@ async function sendEmailWithRetry(env, { to, subject, html, text, logTag }) {
 // Validates the shape of body.messages BEFORE it is ever sent to Anthropic.
 // Returns a human-readable error string, or null when the payload is valid.
 // This exists independently of the raw byte-size gate (MAX_AI_PAYLOAD_BYTES)
-// — size alone doesn't catch malformed roles, empty content, or absurdly
+// - size alone doesn't catch malformed roles, empty content, or absurdly
 // long individual messages that are technically under the byte ceiling.
 
 function validateMessagesPayload(messages) {
@@ -986,7 +986,7 @@ function validateMessagesPayload(messages) {
         return `messages[${i}].content exceeds the maximum allowed length`;
       }
     } else if (Array.isArray(m.content)) {
-      // Content-block form (e.g. text + image blocks) — validated structurally
+      // Content-block form (e.g. text + image blocks) - validated structurally
       // only; per-block payload size is still bounded by MAX_AI_PAYLOAD_BYTES.
       if (m.content.length === 0) return `messages[${i}].content must not be empty`;
       for (const block of m.content) {
@@ -1019,7 +1019,7 @@ function validateToolField(tool) {
 
 // ── AI RESPONSE EXTRACTOR ─────────────────────────────────────────────────────
 // Accepts raw AI responses from any provider format and returns a plain object.
-// Never throws — falls back to { rawText } when JSON cannot be extracted.
+// Never throws - falls back to { rawText } when JSON cannot be extracted.
 
 function extractAIReport(rawResponse) {
   const raw = typeof rawResponse === 'string'
@@ -1034,7 +1034,7 @@ function extractAIReport(rawResponse) {
     return s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   }
 
-  // Already an object — unwrap known provider envelopes
+  // Already an object - unwrap known provider envelopes
   if (typeof rawResponse === 'object' && rawResponse !== null && !Array.isArray(rawResponse)) {
     // Anthropic: { content: [{ type: 'text', text: '...' }] }
     if (Array.isArray(rawResponse.content)) {
@@ -1204,12 +1204,12 @@ async function fetchAnthropicWithRetry(env, payload) {
       // Success
       if (res.ok) return { ok: true, status: res.status, text };
 
-      // Client error — do not retry
+      // Client error - do not retry
       if (res.status >= 400 && res.status < 500) {
         return { ok: false, status: res.status, text };
       }
 
-      // Server error or rate limit — retry if attempts remain
+      // Server error or rate limit - retry if attempts remain
       lastRes  = res;
       lastText = text;
       console.warn(`[Anthropic] Attempt ${attempt + 1} failed: ${res.status}`);
@@ -1224,7 +1224,7 @@ async function fetchAnthropicWithRetry(env, payload) {
         // Surface timeout to caller
         throw err;
       }
-      // Network error — retry if attempts remain
+      // Network error - retry if attempts remain
       console.warn(`[Anthropic] Attempt ${attempt + 1} network error:`, err.message);
       if (attempt < ANTHROPIC_MAX_RETRIES) {
         const delay = ANTHROPIC_RETRY_DELAY * Math.pow(2, attempt);
@@ -1241,7 +1241,7 @@ async function fetchAnthropicWithRetry(env, payload) {
 // ── PADDLE HELPERS ────────────────────────────────────────────────────────────
 
 // Verify Paddle Billing v2 HMAC-SHA256 webhook signature.
-// Header format: "ts=<unix>; h1=<hex>"  — signed payload: "<ts>:<rawBody>"
+// Header format: "ts=<unix>; h1=<hex>"  - signed payload: "<ts>:<rawBody>"
 async function verifyPaddleSignature(secret, rawBody, signatureHeader) {
   if (!secret || !signatureHeader) return false;
 
@@ -1253,7 +1253,7 @@ async function verifyPaddleSignature(secret, rawBody, signatureHeader) {
   const { ts, h1 } = parts;
   if (!ts || !h1) return false;
 
-  // Reject webhooks older than 5 minutes — replay-attack prevention
+  // Reject webhooks older than 5 minutes - replay-attack prevention
   if (Math.abs(Date.now() / 1000 - parseInt(ts, 10)) > 300) return false;
 
   const enc = new TextEncoder();
@@ -1266,11 +1266,11 @@ async function verifyPaddleSignature(secret, rawBody, signatureHeader) {
 
 // ── WEBHOOK DELIVERY ──────────────────────────────────────────────────────────
 // Fire-and-forget from the caller's perspective (always invoked via
-// ctx.waitUntil, never awaited inline in the /analyze response path) — a
+// ctx.waitUntil, never awaited inline in the /analyze response path) - a
 // slow or dead customer endpoint must never add latency to an analysis
 // request. One retry on failure; delivery status is recorded on the
 // endpoint row for visibility in the Webhooks page, but there is no
-// persistent retry queue in v1 — a customer's endpoint being down at
+// persistent retry queue in v1 - a customer's endpoint being down at
 // delivery time means that specific event is simply missed.
 async function deliverWebhooks(env, ownerId, eventType, data) {
   let endpoints;
@@ -1322,10 +1322,10 @@ async function deliverWebhooks(env, ownerId, eventType, data) {
 
 // ── PADDLE IDEMPOTENCY (lock + done markers) ─────────────────────────────────
 // Three states per event ID, stored in KV:
-//   (missing) — never seen
-//   'processing' — currently being handled (short TTL, self-heals if a worker
+//   (missing) - never seen
+//   'processing' - currently being handled (short TTL, self-heals if a worker
 //                   invocation dies mid-flight)
-//   'done'        — DB updates committed successfully (long TTL)
+//   'done'        - DB updates committed successfully (long TTL)
 //
 // KV has no atomic compare-and-swap, so two deliveries arriving within the
 // same few milliseconds could theoretically both pass the initial check. In
@@ -1358,7 +1358,7 @@ async function deletePaddleEventState(eventId, env) {
   try {
     await env.RATE_LIMIT_KV.delete(`${PADDLE_EVENT_KV_PREFIX}${eventId}`);
   } catch {
-    // Non-fatal — the 'processing' marker will simply expire via TTL
+    // Non-fatal - the 'processing' marker will simply expire via TTL
   }
 }
 
@@ -1383,7 +1383,7 @@ function resolvePaddlePlan(items) {
 // resolve the Wissely account without any extra round trip.
 //
 // success_url / cancel_url are passed via Paddle's `checkout.url` field as a
-// single base return URL — Paddle's hosted checkout appends its own status
+// single base return URL - Paddle's hosted checkout appends its own status
 // query params to whichever URL is supplied. Since Paddle Billing only
 // supports one configured return URL per transaction (not separate success
 // and cancel destinations), PADDLE_CHECKOUT_SUCCESS_URL is used as that base
@@ -1394,7 +1394,7 @@ function resolvePaddlePlan(items) {
 // existing deployments keep working without a config change.
 //
 // Returns { ok: true, checkoutUrl } on success, or { ok: false, status, message }
-// on any failure — the caller decides how to surface this to the client.
+// on any failure - the caller decides how to surface this to the client.
 async function createPaddleCheckoutTransaction(env, { priceId, userId, userEmail }) {
   const apiBase = env.PADDLE_API_BASE || 'https://api.paddle.com';
 
@@ -1465,7 +1465,7 @@ async function createPaddleCheckoutTransaction(env, { priceId, userId, userEmail
 // custom_data.user_id was not present on the event payload (e.g. events
 // triggered directly from the Paddle dashboard, or older transactions
 // created before custom_data was attached).
-// Never throws — returns null on any failure so callers can fall back further.
+// Never throws - returns null on any failure so callers can fall back further.
 async function fetchPaddleCustomerEmail(env, customerId) {
   if (!customerId || !env.PADDLE_API_KEY) return null;
   const apiBase = env.PADDLE_API_BASE || 'https://api.paddle.com';
@@ -1499,12 +1499,12 @@ async function fetchPaddleCustomerEmail(env, customerId) {
 
 // Resolves the Wissely user ID for an inbound Paddle webhook event.
 // Resolution order:
-//   1. data.custom_data.user_id — attached at checkout creation, present on
+//   1. data.custom_data.user_id - attached at checkout creation, present on
 //      almost every event for transactions initiated through Wissely.
-//   2. Paddle customer email lookup — fallback for events where custom_data
+//   2. Paddle customer email lookup - fallback for events where custom_data
 //      is missing (e.g. manually created subscriptions, dashboard actions),
 //      resolved against the local users table by email.
-// Returns null if no user can be resolved — callers must handle that case
+// Returns null if no user can be resolved - callers must handle that case
 // without throwing, since Paddle webhooks must always receive a 200.
 async function resolveWebhookUserId(env, data) {
   const directUserId = data?.custom_data?.user_id;
@@ -1527,12 +1527,12 @@ async function resolveWebhookUserId(env, data) {
 
 // ── PADDLE EVENT PROCESSOR ────────────────────────────────────────────────────
 // Handles all Paddle Billing v2 subscription lifecycle events.
-// Always returns — never throws — so the webhook handler can always return 200.
+// Always returns - never throws - so the webhook handler can always return 200.
 //
 // Cancellation handling: Paddle cancellations are frequently scheduled for
 // the end of the current billing period rather than taking effect
 // immediately. `data.scheduled_change` (present on subscription.updated) and
-// the effective date carried on subscription.canceled are both honored — the
+// the effective date carried on subscription.canceled are both honored - the
 // user's plan/quota is left untouched until that date actually arrives. A
 // `scheduled_downgrade_at` column tracks the pending date, and the daily cron
 // (downgradeExpiredCancellations) performs the actual downgrade once it has
@@ -1554,7 +1554,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
 
   switch (eventType) {
 
-    // ── New subscription created — grant access immediately ──────────────────
+    // ── New subscription created - grant access immediately ──────────────────
     // First period for this subscription: usage starts fresh and the period
     // start is recorded so subsequent renewals can be detected.
     case 'subscription.created': {
@@ -1573,13 +1573,13 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
           'analyses_used = 0, current_period_starts_at = ? WHERE paddle_customer_id = ?'
         ).bind(plan, analyses_limit, subscriptionId, status, periodStart, customerId).run();
       } else {
-        console.warn('[Paddle] subscription.created — no resolvable user, skipped');
+        console.warn('[Paddle] subscription.created - no resolvable user, skipped');
       }
       await log('paddle_subscription_created', { plan, subscriptionId });
       break;
     }
 
-    // ── Trial-to-paid conversion — apply billing plan at payment time ────────
+    // ── Trial-to-paid conversion - apply billing plan at payment time ────────
     // This is the start of the user's first real paid period, so usage is
     // reset unconditionally (there is nothing to "compare against" yet for
     // this subscription's billing cycle).
@@ -1595,19 +1595,19 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
       break;
     }
 
-    // ── Plan change or renewal — reconfirm plan/quota and reset usage on a
+    // ── Plan change or renewal - reconfirm plan/quota and reset usage on a
     //    per-user basis when THIS subscription's billing period has rolled
     //    over ─────────────────────────────────────────────────────────────
     // Paddle fires subscription.updated on every renewal with a fresh
     // current_billing_period. Comparing the incoming period start against
     // the value stored on the row (in the same statement, via CASE) lets
-    // each account reset exactly on its own Paddle billing date — there is
+    // each account reset exactly on its own Paddle billing date - there is
     // no global cron involved. If current_billing_period is absent (e.g. a
     // plan-only change) the CASE simply leaves analyses_used untouched.
     //
     // If Paddle has a pending cancellation scheduled
     // (scheduled_change.action === 'cancel'), that effective date is
-    // recorded but the plan/quota are left alone — the account keeps full
+    // recorded but the plan/quota are left alone - the account keeps full
     // access until the scheduled date actually arrives (see
     // subscription.canceled / downgradeExpiredCancellations). Any other
     // scheduled_change (e.g. the cancellation being reversed) clears the
@@ -1643,7 +1643,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
           periodStart, periodStart, periodStart, subscriptionId
         ).run();
       } else {
-        console.warn('[Paddle] subscription.updated — no resolvable user, skipped');
+        console.warn('[Paddle] subscription.updated - no resolvable user, skipped');
       }
       await log('paddle_subscription_updated', { plan, status, subscriptionId, scheduledDowngradeAt, periodStart });
       break;
@@ -1680,9 +1680,9 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
       break;
     }
 
-    // ── Billing paused (dunning exhausted) — revert to Trial ────────────────
+    // ── Billing paused (dunning exhausted) - revert to Trial ────────────────
     // Unlike a scheduled cancellation, a pause means collection has already
-    // failed repeatedly — there is no future paid period being protected, so
+    // failed repeatedly - there is no future paid period being protected, so
     // access is downgraded immediately.
     case 'subscription.paused': {
       await env.DB.prepare(
@@ -1694,9 +1694,9 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
     }
 
     // ── Subscription reactivated from pause, or a scheduled cancellation
-    //    was reversed — restore plan and clear any pending downgrade ────────
+    //    was reversed - restore plan and clear any pending downgrade ────────
     // Resuming mid-period does not by itself grant a fresh quota (the user
-    // hasn't started a new paid period yet) — the same period-comparison
+    // hasn't started a new paid period yet) - the same period-comparison
     // CASE used for renewals applies here too, so usage only resets if
     // Paddle reports an actual new billing period alongside the resume.
     case 'subscription.resumed': {
@@ -1713,8 +1713,8 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
       break;
     }
 
-    // ── Paddle-managed trial — update status flag only ───────────────────────
-    // Do not alter analyses_limit — that is set when the trial converts.
+    // ── Paddle-managed trial - update status flag only ───────────────────────
+    // Do not alter analyses_limit - that is set when the trial converts.
     case 'subscription.trialing': {
       await env.DB.prepare(
         'UPDATE users SET subscription_status = ? WHERE paddle_subscription_id = ?'
@@ -1722,7 +1722,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
       break;
     }
 
-    // ── Payment past due — flag only; do not strip access yet ────────────────
+    // ── Payment past due - flag only; do not strip access yet ────────────────
     // Access is stripped when subscription.paused or subscription.canceled fires.
     case 'subscription.past_due': {
       await env.DB.prepare(
@@ -1735,7 +1735,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
       break;
     }
 
-    // ── Successful payment — secondary safety-net confirmation ───────────────
+    // ── Successful payment - secondary safety-net confirmation ───────────────
     // subscription.updated fires for renewals too; this event provides a hard
     // confirmation of active status after every real payment, and acts as a
     // backstop that resets usage for the new period even if
@@ -1762,7 +1762,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
       break;
     }
 
-    // ── Payment failed — log for monitoring; Paddle handles dunning ──────────
+    // ── Payment failed - log for monitoring; Paddle handles dunning ──────────
     case 'transaction.payment_failed': {
       const txnSubId = data?.subscription_id;
       if (txnSubId) {
@@ -1785,7 +1785,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
 // and returns the URL the frontend should redirect the user to.
 //
 // Paddle's Customer Portal allows subscribers to view invoices, update payment
-// methods, and manage or cancel their own subscription — replacing any need for
+// methods, and manage or cancel their own subscription - replacing any need for
 // a bespoke cancel/manage flow on the Wissely side.
 //
 // API reference:
@@ -1796,7 +1796,7 @@ async function processPaddleEvent(eventType, data, env, request, requestId) {
 // enforces this server-side). No URL should be cached or reused across requests.
 //
 // Returns { ok: true, portalUrl } on success, or { ok: false, status, message }
-// on any failure — the caller decides how to surface the error to the client.
+// on any failure - the caller decides how to surface the error to the client.
 
 async function createPaddlePortalSession(env, customerId) {
   if (!customerId) {
@@ -1821,7 +1821,7 @@ async function createPaddlePortalSession(env, customerId) {
           'Authorization': `Bearer ${env.PADDLE_API_KEY}`,
           'Content-Type':  'application/json'
         },
-        // Empty body — Paddle generates a full-access portal session by default.
+        // Empty body - Paddle generates a full-access portal session by default.
         // Optionally accepts { subscription_ids: [...] } to scope the session.
         body: JSON.stringify({}),
         signal: controller.signal
@@ -1862,7 +1862,7 @@ async function createPaddlePortalSession(env, customerId) {
 }
 
 // ── STALE-DATA CLEANUP ────────────────────────────────────────────────────────
-// Runs on ~5 % of all requests via waitUntil() — no impact on response latency.
+// Runs on ~5 % of all requests via waitUntil() - no impact on response latency.
 // Deletes expired sessions, reset tokens, and verification tokens in one batch.
 
 async function runInlineCleanup(env) {
@@ -1910,7 +1910,7 @@ async function downgradeExpiredCancellations(env) {
 // validation, concurrency-locking, and rollback behavior.
 //
 // `actor` shape: { user_id, plan, analyses_used, analyses_limit, authMethod,
-// apiKeyId? } — apiKeyId is only present (and only used) for authMethod
+// apiKeyId? } - apiKeyId is only present (and only used) for authMethod
 // === 'api_key', to record last_used_at on successful completion.
 async function performAnalyze(request, env, ctx, requestId, actor) {
   const preFlightFlags = computeAccessFlags({
@@ -1926,7 +1926,7 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
     }, 403);
   }
 
-  // Quota lives on the billing owner's row — for a solo user that's just
+  // Quota lives on the billing owner's row - for a solo user that's just
   // their own id; for a team member it's the team owner's id (see
   // authenticateSession's overlay). Locking, audit logs, and API-key
   // last_used_at still use actor.user_id, since those track who actually
@@ -1937,15 +1937,15 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
   if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
   if (!body?.messages) return createResponse(request, { error: 'Missing messages field' }, 400);
 
-  // Structural validation — role/content shape, counts, per-message
-  // length — independent of the raw byte-size gate below.
+  // Structural validation - role/content shape, counts, per-message
+  // length - independent of the raw byte-size gate below.
   const messagesError = validateMessagesPayload(body.messages);
   if (messagesError) return createResponse(request, { error: messagesError }, 400);
 
   const toolError = validateToolField(body.tool);
   if (toolError) return createResponse(request, { error: toolError }, 400);
 
-  // Payload size gate — checked before quota is consumed
+  // Payload size gate - checked before quota is consumed
   const payloadBytes = new TextEncoder().encode(JSON.stringify(body.messages)).length;
   if (payloadBytes > MAX_AI_PAYLOAD_BYTES) {
     console.warn('[Analyze] Payload too large:', payloadBytes, 'bytes, user:', actor.user_id, { requestId });
@@ -1954,7 +1954,7 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
     }, 413);
   }
 
-  // Concurrency guard — see acquireAnalysisLock() for why this is a
+  // Concurrency guard - see acquireAnalysisLock() for why this is a
   // defense-in-depth layer rather than the sole source of correctness.
   const lockAcquired = await acquireAnalysisLock(env, actor.user_id);
   if (!lockAcquired) {
@@ -1964,7 +1964,7 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
   }
 
   try {
-    // Atomic quota gate — single UPDATE prevents over-consumption under concurrent requests
+    // Atomic quota gate - single UPDATE prevents over-consumption under concurrent requests
     const allocation = await env.DB.prepare(
       'UPDATE users SET analyses_used = analyses_used + 1 ' +
       'WHERE id = ? AND analyses_used < analyses_limit'
@@ -1973,7 +1973,7 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
     if (allocation.meta.changes === 0) {
       // Race-condition backstop: the pre-flight check above passed, but a
       // concurrent request consumed the last unit of quota first. Same
-      // soft-failure contract as the pre-flight check — no session/key
+      // soft-failure contract as the pre-flight check - no session/key
       // impact, just "come back after upgrading/renewing".
       return createResponse(request, {
         upgradeRequired: true,
@@ -1982,10 +1982,10 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
       }, 403);
     }
 
-    // Quota has been consumed — roll back on any downstream failure
+    // Quota has been consumed - roll back on any downstream failure
     try {
       const result = await fetchAnthropicWithRetry(env, {
-        model:     'claude-sonnet-4-6',
+        model:     'claude-sonnet-5',
         max_tokens: 1000,
         system:    buildSystemPrompt(body.tool || 'unknown'),
         messages:  body.messages
@@ -2003,10 +2003,10 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
 
         const report = validateAIReport(extractAIReport(result.text));
 
-        // Fire-and-forget — never let a slow/dead customer endpoint add
+        // Fire-and-forget - never let a slow/dead customer endpoint add
         // latency here. Fires for the billing owner (whoever's Pro plan
         // this is), not the acting user, matching API keys' "owner-level
-        // developer feature" model — a team member triggering an analysis
+        // developer feature" model - a team member triggering an analysis
         // still notifies the owner's registered webhooks, not their own.
         ctx.waitUntil(deliverWebhooks(env, billingUserId, 'analysis.completed', {
           tool: body.tool || 'unknown',
@@ -2039,9 +2039,9 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
         return createResponse(request, { success: true, data: report, user: updatedUser });
       }
 
-      // Non-OK Anthropic response — roll back. Raw provider error text
+      // Non-OK Anthropic response - roll back. Raw provider error text
       // (result.text) is deliberately never included in the response or in
-      // metadata sent back to the client — only a generic message is
+      // metadata sent back to the client - only a generic message is
       // surfaced, with detail confined to server logs.
       await env.DB.prepare('UPDATE users SET analyses_used = analyses_used - 1 WHERE id = ?')
         .bind(billingUserId).run();
@@ -2091,7 +2091,7 @@ export default {
     }
 
     try {
-      // Probabilistic inline cleanup — fires on ~5 % of requests, never blocks
+      // Probabilistic inline cleanup - fires on ~5 % of requests, never blocks
       if (Math.random() < 0.05) {
         ctx.waitUntil(runInlineCleanup(env));
       }
@@ -2121,7 +2121,7 @@ export default {
           return createResponse(request, { error: 'Payload too large' }, 413);
         }
 
-        // Raw body must be captured before any other parsing — the HMAC is
+        // Raw body must be captured before any other parsing - the HMAC is
         // computed over the exact bytes received, not a re-serialised object.
         const rawBody = await request.text();
         if (new TextEncoder().encode(rawBody).length > MAX_WEBHOOK_BODY_BYTES) {
@@ -2130,7 +2130,7 @@ export default {
 
         const signatureHeader = request.headers.get('Paddle-Signature');
 
-        // Step 1 — Verify HMAC-SHA256 signature and replay window
+        // Step 1 - Verify HMAC-SHA256 signature and replay window
         const isValid = await verifyPaddleSignature(
           env.PADDLE_WEBHOOK_SECRET, rawBody, signatureHeader
         );
@@ -2141,7 +2141,7 @@ export default {
             eventType: 'paddle_webhook_signature_invalid',
             result:    'failure'
           });
-          // Track for security monitoring — alert on repeated failures from one IP
+          // Track for security monitoring - alert on repeated failures from one IP
           await trackSecurityFailure(env, request, {
             kvPrefix:        'webhook_sig_fail',
             windowSeconds:   WEBHOOK_FAIL_WINDOW_SECONDS,
@@ -2149,18 +2149,18 @@ export default {
             alertEventType:  'paddle_webhook_signature_repeated_failure',
             requestId
           });
-          // 400 — Paddle treats 4xx as permanent failure and does not retry
+          // 400 - Paddle treats 4xx as permanent failure and does not retry
           return createResponse(request, { error: 'Invalid webhook signature' }, 400);
         }
 
-        // Step 2 — Parse payload
+        // Step 2 - Parse payload
         let event;
         try { event = JSON.parse(rawBody); }
         catch { return createResponse(request, { error: 'Invalid JSON payload' }, 400); }
 
         const { event_id: eventId, event_type: eventType, data } = event;
 
-        // Step 3 — Idempotency: reject duplicates, defer concurrent-in-flight
+        // Step 3 - Idempotency: reject duplicates, defer concurrent-in-flight
         // deliveries of the same event, and only mark an event 'done' after
         // its DB updates have actually committed (see Step 5).
         const eventState = await getPaddleEventState(eventId, env);
@@ -2170,7 +2170,7 @@ export default {
         }
         if (eventState === 'processing') {
           console.log(`[Paddle] Event already being processed, deferring: ${eventId} (${eventType})`);
-          // 202 signals "accepted but not yet complete" — Paddle will retry
+          // 202 signals "accepted but not yet complete" - Paddle will retry
           // on its normal backoff schedule, by which time processing will
           // have either finished (next attempt hits 'done') or the lock will
           // have expired (next attempt reprocesses safely).
@@ -2178,11 +2178,11 @@ export default {
         }
         await setPaddleEventState(eventId, env, 'processing', WEBHOOK_PROCESSING_LOCK_SECONDS);
 
-        // Step 4 — Process
+        // Step 4 - Process
         try {
           await processPaddleEvent(eventType, data, env, request, requestId);
         } catch (err) {
-          // Log but always return 200 — Paddle must not retry internal failures.
+          // Log but always return 200 - Paddle must not retry internal failures.
           // The 'processing' marker is explicitly cleared (rather than left to
           // expire) so a manual dashboard re-delivery can reprocess immediately.
           console.error('[Paddle] processPaddleEvent threw:', err.message, { requestId, eventType, eventId });
@@ -2196,7 +2196,7 @@ export default {
           return createResponse(request, { received: true }, 200);
         }
 
-        // Step 5 — Mark processed. Awaited (not waitUntil) so the 'done'
+        // Step 5 - Mark processed. Awaited (not waitUntil) so the 'done'
         // marker is durably written before Paddle can possibly redeliver.
         await setPaddleEventState(eventId, env, 'done', PADDLE_EVENT_TTL_SECONDS);
         console.log(`[Paddle] Event processed: ${eventId} (${eventType})`, { requestId });
@@ -2294,7 +2294,7 @@ export default {
 
         const ip = getClientIp(request);
 
-        // Brute-force block — checked before any DB work
+        // Brute-force block - checked before any DB work
         if (await checkLoginBlock(request, env, email)) {
           await writeAuditLog(env, {
             requestId, ip, eventType: 'login_blocked', result: 'failure',
@@ -2552,7 +2552,7 @@ export default {
       }
 
       // ── ME ────────────────────────────────────────────────────────────────
-      // Always 200 for an authenticated user — regardless of trial status or
+      // Always 200 for an authenticated user - regardless of trial status or
       // quota exhaustion. A missing/invalid/expired session cookie is a real
       // authentication failure (401); an exhausted trial or quota is not.
       if (path === '/me' && request.method === 'GET') {
@@ -2625,9 +2625,9 @@ export default {
       // Creates a Paddle Billing v2 hosted-checkout transaction for the
       // requested plan and returns the URL the frontend should redirect to.
       // No price IDs or Paddle credentials are exposed to the client at any
-      // point — the price ID is resolved server-side from PLAN_TO_PRICE_ID,
+      // point - the price ID is resolved server-side from PLAN_TO_PRICE_ID,
       // which is itself derived from the existing PADDLE_PRICE_PLANS map.
-      // Billing must remain reachable regardless of trial/quota state — an
+      // Billing must remain reachable regardless of trial/quota state - an
       // expired trial or exhausted quota is precisely when a user is most
       // likely to want to check out, so no upgrade-required gate applies here.
       if (path === '/create-checkout' && request.method === 'POST') {
@@ -2667,7 +2667,7 @@ export default {
           }, 400);
         }
 
-        // Block redundant checkouts — a user already on the requested plan
+        // Block redundant checkouts - a user already on the requested plan
         // (with an active/trialing subscription) gains nothing from a new
         // transaction and Paddle would simply create a duplicate subscription.
         if (session.own_plan === plan) {
@@ -2705,7 +2705,7 @@ export default {
       }
 
       // ── ANALYZE ───────────────────────────────────────────────────────────
-      // Quota/trial exhaustion is NEVER an authentication failure here — it
+      // Quota/trial exhaustion is NEVER an authentication failure here - it
       // is surfaced as a 403 with { upgradeRequired: true } so the frontend
       // can disable the Run Analysis button while leaving the session,
       // dashboard, history, and billing fully intact. Core logic lives in
@@ -2848,7 +2848,7 @@ export default {
         });
 
         // The full raw key is returned exactly once, here, and is never
-        // retrievable again — only key_prefix is stored for identification.
+        // retrievable again - only key_prefix is stored for identification.
         return createResponse(request, {
           id:         keyId,
           name,
@@ -2924,7 +2924,7 @@ export default {
           return createResponse(request, { success: true, id: keyId, name }, 200);
         }
 
-        // DELETE — soft-revoke. The row is retained (name/prefix/audit
+        // DELETE - soft-revoke. The row is retained (name/prefix/audit
         // history preserved) but immediately stops authenticating.
         const revokedAt = new Date().toISOString();
         const result = await env.DB.prepare(
@@ -2944,14 +2944,14 @@ export default {
       }
 
       // ── SUPPORT: CREATE TICKET ────────────────────────────────────────────
-      // Available to every plan, logged in or not — billing/login problems
+      // Available to every plan, logged in or not - billing/login problems
       // are exactly when someone can't authenticate to ask for help. Pro
       // tickets are auto-flagged high-priority; everything else is 'normal'.
       // CSRF only applies when a session cookie is present (an anonymous
       // POST has no session to forge), so anonymous submissions instead lean
       // on tighter per-IP rate limiting to control abuse.
       if (path === '/support/tickets' && request.method === 'POST') {
-        const session = await authenticateSession(request, env); // null is fine here — anonymous allowed
+        const session = await authenticateSession(request, env); // null is fine here - anonymous allowed
 
         if (session) {
           const csrfValid = await validateCsrfToken(request, env, requestId);
@@ -3009,12 +3009,12 @@ export default {
           to:      'support@wissely.com',
           subject: `${priority === 'high' ? '[PRIORITY] ' : ''}${ticket.subject}`,
           html:    buildSupportTicketNotificationHtml(ticket),
-          text:    `${priority === 'high' ? 'PRIORITY — PRO CUSTOMER\n' : ''}From: ${ticket.email} (${ticket.plan})\nTicket: ${ticket.id}\n\n${ticket.message}`,
+          text:    `${priority === 'high' ? 'PRIORITY - PRO CUSTOMER\n' : ''}From: ${ticket.email} (${ticket.plan})\nTicket: ${ticket.id}\n\n${ticket.message}`,
           logTag:  'SupportTicketNotify'
         }));
         ctx.waitUntil(sendEmailWithRetry(env, {
           to:      ticket.email,
-          subject: 'We received your message — Wissely Support',
+          subject: 'We received your message - Wissely Support',
           html:    buildSupportTicketConfirmationEmailHtml(ticket),
           text:    `Thanks for reaching out. We'll reply to ${ticket.email} ${priority === 'high' ? 'within 4 business hours' : 'within 1-2 business days'}.\n\nReference: ${ticket.id}`,
           logTag:  'SupportTicketConfirm'
@@ -3043,7 +3043,7 @@ export default {
       }
 
       // ── TEAM: SEND INVITE (Owner only, Pro plan only) ─────────────────────
-      // Gated on own_plan, not the overlaid plan — a team member (whose
+      // Gated on own_plan, not the overlaid plan - a team member (whose
       // effective `plan` looks like 'pro' via the shared-quota overlay)
       // must never be able to invite others; only the actual Pro subscriber
       // who owns the team can.
@@ -3079,7 +3079,7 @@ export default {
           }, 403);
         }
         if (session.team_owner_id) {
-          // A team member can't own/invite their own sub-team — no nesting.
+          // A team member can't own/invite their own sub-team - no nesting.
           return createResponse(request, { error: 'Only the team owner can send invites.' }, 403);
         }
 
@@ -3176,7 +3176,7 @@ export default {
       }
 
       // ── TEAM: ACCEPT INVITE ────────────────────────────────────────────────
-      // Requires an existing, logged-in session — this deliberately does not
+      // Requires an existing, logged-in session - this deliberately does not
       // create accounts. Someone without a Wissely account yet registers
       // first, then revisits the same invite link to accept.
       if (path === '/team/invites/accept' && request.method === 'POST') {
@@ -3230,7 +3230,7 @@ export default {
           return createResponse(request, { error: 'You are already on a team. Leave your current team first.' }, 400);
         }
 
-        // Re-check the seat limit at accept time too — invites can sit
+        // Re-check the seat limit at accept time too - invites can sit
         // pending for up to 7 days, during which the team could have filled up.
         const seatCountRow = await env.DB.prepare(
           'SELECT (SELECT COUNT(*) FROM users WHERE team_owner_id = ?) + 1 AS seatCount'
@@ -3254,7 +3254,7 @@ export default {
       }
 
       // ── TEAM: REMOVE MEMBER (Owner only) ───────────────────────────────────
-      // Soft — just detaches team_owner_id. The member's own account and
+      // Soft - just detaches team_owner_id. The member's own account and
       // their own (untouched, never-drawn-from-while-on-the-team) quota are
       // unaffected, so removal never leaves anyone in a broken state.
       const teamMemberIdMatch = path.match(/^\/team\/members\/([0-9a-fA-F-]{36})$/);
@@ -3370,7 +3370,7 @@ export default {
         });
 
         // The signing secret is returned exactly once, here, and is never
-        // retrievable again — same one-time-reveal contract as API keys.
+        // retrievable again - same one-time-reveal contract as API keys.
         return createResponse(request, { id: webhookId, url: body.url.trim(), secret, created_at: createdAt }, 201);
       }
 
@@ -3433,11 +3433,11 @@ export default {
       }
 
       // ── STATUS: PUBLIC SYSTEM STATUS ──────────────────────────────────────
-      // Public, no auth — this is what sla.html/status.html and any
+      // Public, no auth - this is what sla.html/status.html and any
       // customer checking on an incident reads. Backed by the same
       // RATE_LIMIT_KV binding as everything else (no new KV namespace
       // needed to ship this) under a dedicated key prefix. There is no
-      // admin UI in v1 — status is updated by editing the KV value
+      // admin UI in v1 - status is updated by editing the KV value
       // directly from the Cloudflare dashboard. Defaults to "operational"
       // with no incidents if the key has never been set, so the page never
       // breaks before anyone's configured it.
@@ -3476,7 +3476,7 @@ export default {
         const { email } = body ?? {};
         if (!email) return createResponse(request, { error: 'Email required' }, 400);
 
-        // Enumeration-safe response — always returned
+        // Enumeration-safe response - always returned
         const safeResponse = createResponse(request, {
           success: true,
           message: 'If the account exists and is not yet verified, a new verification email has been sent.'
@@ -3515,7 +3515,7 @@ export default {
       // and returns the single-use portal URL for the frontend to redirect to.
       // The portal lets subscribers manage payment methods, view invoices, and
       // cancel or change their subscription without any additional Wissely UI.
-      // Billing must remain reachable regardless of trial/quota state — a
+      // Billing must remain reachable regardless of trial/quota state - a
       // canceled or expired-trial user still needs to manage payment
       // methods and view invoices, so no upgrade-required gate applies here.
       if (path === '/billing-portal' && request.method === 'POST') {
@@ -3562,7 +3562,7 @@ export default {
         }
 
         if (!customerId) {
-          // User has never completed a Paddle checkout — no portal session exists.
+          // User has never completed a Paddle checkout - no portal session exists.
           await writeAuditLog(env, {
             requestId, userId: session.user_id, ip,
             eventType: 'billing_portal_no_customer', result: 'failure',
@@ -3607,15 +3607,15 @@ export default {
 
   // ── CRON: Daily + monthly maintenance ─────────────────────────────────────
   // Requires TWO Cloudflare cron triggers configured in wrangler.toml:
-  //   "0 0 * * *"   — daily: downgrades accounts whose scheduled cancellation
+  //   "0 0 * * *"   - daily: downgrades accounts whose scheduled cancellation
   //                   date has passed (see downgradeExpiredCancellations).
-  //   "0 0 1 * *"   — monthly, 1st of month: token/session/audit-log cleanup.
+  //   "0 0 1 * *"   - monthly, 1st of month: token/session/audit-log cleanup.
   // event.cron identifies which trigger fired. The UTC date guard on the
   // monthly branch is kept as a secondary safety net against a misconfigured
   // trigger schedule.
   //
   // IMPORTANT: There is intentionally NO global "reset every user's usage"
-  // job anywhere in this file. Quota resets are entirely event-driven —
+  // job anywhere in this file. Quota resets are entirely event-driven -
   // each account's analyses_used is reset only when Paddle reports that
   // THAT account's own subscription has rolled into a new billing period
   // (see the current_period_starts_at comparisons in processPaddleEvent()).
@@ -3625,7 +3625,7 @@ export default {
     const cronExpr = event.cron;
     const today     = new Date();
 
-    // ── Daily job — expire scheduled subscription downgrades ─────────────────
+    // ── Daily job - expire scheduled subscription downgrades ─────────────────
     if (cronExpr === '0 0 * * *') {
       console.log('[Cron] Daily maintenance starting');
       await downgradeExpiredCancellations(env);
@@ -3633,10 +3633,10 @@ export default {
       return;
     }
 
-    // ── Monthly job — stale-data cleanup only (no usage reset — see note above) ──
+    // ── Monthly job - stale-data cleanup only (no usage reset - see note above) ──
     if (cronExpr === '0 0 1 * *') {
       if (today.getUTCDate() !== 1) {
-        console.log('[Cron] Monthly maintenance skipped — not the 1st (UTC)');
+        console.log('[Cron] Monthly maintenance skipped - not the 1st (UTC)');
         return;
       }
 
@@ -3650,7 +3650,7 @@ export default {
       } catch (err) { console.error('[Cron] Reset token cleanup failed:', err.message); }
 
       // ── Clear expired email verification tokens ───────────────────────────────
-      // Preserves the account row — users can request a fresh link at any time.
+      // Preserves the account row - users can request a fresh link at any time.
       try {
         const r = await env.DB.prepare(
           'UPDATE users SET email_verification_token = NULL, email_verification_expires = NULL ' +
@@ -3677,7 +3677,7 @@ export default {
       return;
     }
 
-    // Unknown/unconfigured cron string — run the daily downgrade job as a
+    // Unknown/unconfigured cron string - run the daily downgrade job as a
     // safe default so cancellations never silently pile up if only one
     // trigger was ever configured.
     console.warn('[Cron] Unrecognised cron expression, running daily job as fallback:', cronExpr);
@@ -3685,7 +3685,7 @@ export default {
   }
 };
 
-// Escapes user-supplied text before interpolating into HTML email bodies —
+// Escapes user-supplied text before interpolating into HTML email bodies -
 // ticket subject/message are free text and must never be trusted as markup.
 function escapeHtml(str) {
   return String(str)
@@ -3807,7 +3807,7 @@ function buildVerificationEmailHtml(verifyLink, isResend) {
 
 // Internal notification sent to support@wissely.com for every new ticket.
 // Pro-plan tickets render with a gold "PRIORITY" banner so whoever is
-// triaging the inbox sees the distinction at a glance — this, plus the
+// triaging the inbox sees the distinction at a glance - this, plus the
 // faster response-time promise in the user's confirmation email below, is
 // what makes "Dedicated Support" a real, checkable feature rather than a
 // label with nothing behind it.
@@ -3816,7 +3816,7 @@ function buildSupportTicketNotificationHtml(ticket) {
   const priorityBanner = isPriority
     ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
          <tr><td style="background-color:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);border-radius:10px;padding:12px 18px;">
-           <p style="margin:0;font-size:12px;font-family:'Courier New',monospace;letter-spacing:1px;color:#e8c97a;font-weight:700;">&#9679; PRIORITY — PRO PLAN CUSTOMER</p>
+           <p style="margin:0;font-size:12px;font-family:'Courier New',monospace;letter-spacing:1px;color:#e8c97a;font-weight:700;">&#9679; PRIORITY - PRO PLAN CUSTOMER</p>
          </td></tr>
        </table>`
     : '';
@@ -3922,7 +3922,7 @@ function buildTeamInviteEmailHtml(inviterEmail, acceptLink) {
             <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td style="background-color:#c9a84c;border-radius:100px;">
               <a href="${acceptLink}" style="display:inline-block;padding:14px 32px;font-size:14px;font-weight:600;color:#0c0c0a;text-decoration:none;">Accept invitation</a>
             </td></tr></table>
-            <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;">This invitation expires in 7 days. If you don't have a Wissely account yet, you'll be asked to create one first — then click this link again to join the team.</p>
+            <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.4);line-height:1.7;">This invitation expires in 7 days. If you don't have a Wissely account yet, you'll be asked to create one first - then click this link again to join the team.</p>
           </td></tr></table>
           <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
             <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">&copy; ${new Date().getFullYear()} Wissely. If you weren't expecting this, you can safely ignore this email.</p>
@@ -4036,14 +4036,14 @@ function buildPasswordResetEmailHtml(resetLink) {
 // ── SCHEMA MIGRATION REFERENCE ────────────────────────────────────────────────
 // Apply to Cloudflare D1 before deploying this worker version.
 //
-// 1. sessions table — add csrf_token column if not present:
+// 1. sessions table - add csrf_token column if not present:
 //    ALTER TABLE sessions ADD COLUMN csrf_token TEXT;
 //
 //    NOTE: sessions.id now stores a SHA-256 hex hash of the raw session token.
 //    All existing sessions will be invalidated on deploy (users must log in again).
-//    No schema change is required — the column type (TEXT) is unchanged.
+//    No schema change is required - the column type (TEXT) is unchanged.
 //
-// 2. users table — add the columns used by the period-end-aware
+// 2. users table - add the columns used by the period-end-aware
 //    cancellation flow and per-user billing-cycle quota resets:
 //    ALTER TABLE users ADD COLUMN scheduled_downgrade_at TEXT;   -- NULL = no pending downgrade
 //    ALTER TABLE users ADD COLUMN current_period_starts_at TEXT; -- NULL = no Paddle period seen yet
@@ -4052,7 +4052,7 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    Paddle billing period. It is compared against the incoming
 //    current_billing_period.starts_at / billing_period.starts_at on every
 //    relevant webhook so analyses_used is reset exactly once per renewal,
-//    on that individual user's own billing date — never globally.
+//    on that individual user's own billing date - never globally.
 //
 // 3. Audit log table:
 //    CREATE TABLE IF NOT EXISTS audit_logs (
@@ -4065,14 +4065,14 @@ function buildPasswordResetEmailHtml(resetLink) {
 //      metadata   TEXT
 //    );
 //
-// 3b. API keys table — powers Pro-plan API Access (see authenticateApiKey,
+// 3b. API keys table - powers Pro-plan API Access (see authenticateApiKey,
 //     performAnalyze, and the /api/v1/keys* and /api/v1/analyze routes):
 //    CREATE TABLE IF NOT EXISTS api_keys (
 //      id           TEXT PRIMARY KEY,          -- crypto.randomUUID()
 //      user_id      TEXT NOT NULL,
 //      name         TEXT NOT NULL,
 //      key_hash     TEXT NOT NULL UNIQUE,       -- SHA-256 hex of the raw key (hashToken)
-//      key_prefix   TEXT NOT NULL,              -- e.g. "wsk_live_AbCd1234" — display only
+//      key_prefix   TEXT NOT NULL,              -- e.g. "wsk_live_AbCd1234" - display only
 //      created_at   TEXT NOT NULL,
 //      last_used_at TEXT,                       -- NULL until first successful use
 //      revoked_at   TEXT,                       -- NULL = active; soft-revoke, never hard-deleted
@@ -4080,10 +4080,10 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    );
 //
 //    The raw key itself (API_KEY_PREFIX + random secret, see generateApiKey)
-//    is never stored — only its SHA-256 hash. It is returned to the client
+//    is never stored - only its SHA-256 hash. It is returned to the client
 //    exactly once, in the POST /api/v1/keys response body, at creation time.
 //
-// 3c. Support tickets table — powers the "Dedicated Support" plan feature
+// 3c. Support tickets table - powers the "Dedicated Support" plan feature
 //     (see validateSupportTicket and the /support/tickets routes):
 //    CREATE TABLE IF NOT EXISTS support_tickets (
 //      id          TEXT PRIMARY KEY,          -- crypto.randomUUID()
@@ -4098,10 +4098,10 @@ function buildPasswordResetEmailHtml(resetLink) {
 //      FOREIGN KEY (user_id) REFERENCES users(id)
 //    );
 //
-// 3d. Team Seats — powers the "10 team seats" Pro-plan feature (see
+// 3d. Team Seats - powers the "10 team seats" Pro-plan feature (see
 //     authenticateSession's own_plan/billing_user_id overlay and the
 //     /team/* routes). NOTE: unlike the rest of this block, "ALTER TABLE
-//     ADD COLUMN" is not safe to re-run — apply it exactly once.
+//     ADD COLUMN" is not safe to re-run - apply it exactly once.
 //    ALTER TABLE users ADD COLUMN team_owner_id TEXT REFERENCES users(id);
 //
 //    CREATE TABLE IF NOT EXISTS team_invites (
@@ -4115,7 +4115,7 @@ function buildPasswordResetEmailHtml(resetLink) {
 //      FOREIGN KEY (owner_id) REFERENCES users(id)
 //    );
 //
-// 3e. Webhooks — powers the "Custom integrations" Pro-plan feature (see
+// 3e. Webhooks - powers the "Custom integrations" Pro-plan feature (see
 //     deliverWebhooks, validateWebhookUrl, and the /webhooks routes):
 //    CREATE TABLE IF NOT EXISTS webhook_endpoints (
 //      id                   TEXT PRIMARY KEY,          -- crypto.randomUUID()
@@ -4129,7 +4129,7 @@ function buildPasswordResetEmailHtml(resetLink) {
 //      FOREIGN KEY (user_id) REFERENCES users(id)
 //    );
 //
-// 4. Indexes — apply all; IF NOT EXISTS makes them safe to re-run:
+// 4. Indexes - apply all; IF NOT EXISTS makes them safe to re-run:
 //    CREATE INDEX IF NOT EXISTS idx_users_email                ON users(email);
 //    CREATE INDEX IF NOT EXISTS idx_sessions_user_id           ON sessions(user_id);
 //    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at        ON sessions(expires_at);
@@ -4153,41 +4153,41 @@ function buildPasswordResetEmailHtml(resetLink) {
 //    CREATE INDEX IF NOT EXISTS idx_team_invites_email         ON team_invites(email);
 //    CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_user_id  ON webhook_endpoints(user_id);
 //
-// 5. Cloudflare cron triggers (wrangler.toml) — TWO triggers are required:
+// 5. Cloudflare cron triggers (wrangler.toml) - TWO triggers are required:
 //    [triggers]
 //    crons = ["0 0 * * *", "0 0 1 * *"]
 //    The daily trigger performs scheduled-downgrade processing; the monthly
 //    trigger performs token/session/audit-log cleanup ONLY. Neither trigger
-//    resets analyses_used — that happens exclusively via Paddle webhooks on
+//    resets analyses_used - that happens exclusively via Paddle webhooks on
 //    each user's own renewal (see processPaddleEvent). See scheduled() for
 //    how event.cron is used to route between the two jobs.
 //
 // 6. Required Cloudflare environment variables / secrets for this version:
-//    PADDLE_API_KEY              — Paddle API key (secret), used for both
+//    PADDLE_API_KEY              - Paddle API key (secret), used for both
 //                                   transaction creation and customer lookups.
-//    PADDLE_WEBHOOK_SECRET       — Paddle webhook signing secret (secret).
-//    PADDLE_API_BASE              — optional, defaults to https://api.paddle.com
+//    PADDLE_WEBHOOK_SECRET       - Paddle webhook signing secret (secret).
+//    PADDLE_API_BASE              - optional, defaults to https://api.paddle.com
 //                                   (override to https://sandbox-api.paddle.com
 //                                   for sandbox testing).
-//    PADDLE_CHECKOUT_SUCCESS_URL  — preferred return URL for hosted checkout;
+//    PADDLE_CHECKOUT_SUCCESS_URL  - preferred return URL for hosted checkout;
 //                                   should resolve to success.html on the
 //                                   frontend. Falls back to
 //                                   PADDLE_CHECKOUT_RETURN_URL if unset.
-//    PADDLE_CHECKOUT_CANCEL_URL   — destination the frontend's success.html /
+//    PADDLE_CHECKOUT_CANCEL_URL   - destination the frontend's success.html /
 //                                   checkout.html should send the user to if
 //                                   the hosted checkout indicates the payment
 //                                   was not completed. Not sent to Paddle
 //                                   directly (Paddle Billing v2 hosted
 //                                   checkout supports a single return URL);
 //                                   read by the frontend only.
-//    PADDLE_BILLING_PORTAL_URL    — (optional) override the Paddle Customer
+//    PADDLE_BILLING_PORTAL_URL    - (optional) override the Paddle Customer
 //                                   Portal base URL. Not required; the portal
 //                                   URL is returned dynamically by the Paddle
 //                                   API per-session via /billing-portal.
-//    RATE_LIMIT_KV                — KV namespace binding for rate limiting,
+//    RATE_LIMIT_KV                - KV namespace binding for rate limiting,
 //                                   login protection, CSRF/webhook monitoring,
 //                                   the /analyze concurrency lock, and Paddle
 //                                   event idempotency.
-//    DB                           — D1 database binding.
-//    ANTHROPIC_API_KEY            — Anthropic API key (secret).
-//    RESEND_API_KEY               — Resend API key (secret).
+//    DB                           - D1 database binding.
+//    ANTHROPIC_API_KEY            - Anthropic API key (secret).
+//    RESEND_API_KEY               - Resend API key (secret).
