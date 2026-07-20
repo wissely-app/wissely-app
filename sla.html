@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Service Level Agreement · Wissely</title>
+<meta name="description" content="Wissely's uptime commitment, support response times, and service credit policy."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0c0c0a; --sage:#2d4a3e; --gold:#c9a84c; --gold2:#e8c97a;
+  --cream:#f8f6f0; --cream2:#ede9df; --cream3:#dedad0;
+  --text:#2a2a20; --muted:#6b6b55; --white:#fefefc;
+}
+body{background:var(--cream);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:56px 24px 96px}
+.eyebrow{font-size:11px;font-family:'DM Mono',monospace;letter-spacing:3px;text-transform:uppercase;color:var(--sage);font-weight:600;margin-bottom:14px}
+h1{font-family:'Cormorant Garamond',serif;font-size:clamp(28px,4vw,38px);font-weight:600;letter-spacing:-1px;color:var(--ink);margin-bottom:8px}
+.updated{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:32px}
+
+.draft-notice{background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);border-radius:12px;padding:18px 20px;margin-bottom:36px;font-size:13px;color:#5c4a15;line-height:1.7}
+.draft-notice strong{color:#3d3210}
+
+h2{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--ink);margin:36px 0 12px}
+p{font-size:14px;color:var(--text);margin-bottom:12px}
+ul{margin:0 0 12px 20px}
+li{font-size:14px;color:var(--text);margin-bottom:6px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+th, td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--cream3)}
+th{font-family:'DM Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);font-weight:600}
+a{color:var(--sage);font-weight:600;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Legal</div>
+  <h1>Service Level Agreement</h1>
+  <div class="updated">Draft - not yet published</div>
+
+  <div class="draft-notice">
+    <strong>Before publishing this:</strong> the uptime percentage and service credit table below are proposed, industry-standard defaults, not commitments Wissely has reviewed or approved. They're a starting point for you to adjust and sign off on - this becomes a binding promise to customers the moment it's live, so it should get a real legal/business review first. The support response times are the one section that's already true today, enforced by the actual support ticket system, not a promise on paper.
+  </div>
+
+  <h2>1. What this covers</h2>
+  <p>This Service Level Agreement ("SLA") describes Wissely's uptime target for the API and dashboard, our support response times, and what happens if we miss them. It applies to paid subscriptions (Starter, Growth, Pro); the free trial is provided as-is, without an uptime commitment.</p>
+
+  <h2>2. Uptime commitment</h2>
+  <p>We target <strong>99.9% monthly uptime</strong> for the Wissely API and dashboard, measured as the percentage of time these are available and responding to requests, excluding the exclusions in Section 5.</p>
+  <table>
+    <tr><th>Monthly uptime</th><th>Service credit</th></tr>
+    <tr><td>Below 99.9%</td><td>10% of that month's subscription fee</td></tr>
+    <tr><td>Below 99.0%</td><td>25% of that month's subscription fee</td></tr>
+    <tr><td>Below 95.0%</td><td>50% of that month's subscription fee</td></tr>
+  </table>
+  <p>Credits are applied to a future invoice and must be requested within 30 days of the incident via a <a href="support.html">support ticket</a>. Current and historical status is published at <a href="status.html">status.wissely.com</a>.</p>
+
+  <h2>3. Support response times</h2>
+  <p>These are enforced automatically by our support system, not a manual best-effort target:</p>
+  <ul>
+    <li><strong>Pro plan:</strong> first response within 4 business hours.</li>
+    <li><strong>Starter and Growth plans:</strong> first response within 1-2 business days.</li>
+  </ul>
+  <p>Business hours are Monday-Friday, 9am-6pm in our support team's local time zone, excluding public holidays.</p>
+
+  <h2>4. What counts as downtime</h2>
+  <p>Downtime means the Wissely API or dashboard returning error responses to a majority of requests, or being completely unreachable, for more than 5 consecutive minutes. A single failed request, or intermittent errors affecting a small fraction of traffic, do not count as downtime on their own.</p>
+
+  <h2>5. Exclusions</h2>
+  <p>The uptime commitment does not cover:</p>
+  <ul>
+    <li>Scheduled maintenance, announced at least 24 hours in advance via the status page.</li>
+    <li>Outages caused by our upstream AI provider (Anthropic) or other third-party infrastructure we depend on and don't control.</li>
+    <li>Issues caused by the customer's own network, browser, or misuse of the API (e.g. exceeding rate limits).</li>
+    <li>Force majeure events - anything genuinely outside our reasonable control.</li>
+  </ul>
+
+  <h2>6. Changes to this SLA</h2>
+  <p>We may update this SLA from time to time. Material changes that reduce the commitment will be announced at least 30 days in advance to active subscribers.</p>
+
+  <h2>7. Contact</h2>
+  <p>Questions about this SLA, or to request a service credit, go through <a href="support.html">Support</a>.</p>
+</div>
+</body>
+</html>
