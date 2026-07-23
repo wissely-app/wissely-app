@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Wissely — Access Your Account</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#0c0c0a;
+  --ink2:#1a1a14;
+  --sage:#2d4a3e;
+  --sage2:#3d6b58;
+  --gold:#c9a84c;
+  --gold2:#e8c97a;
+  --cream:#f8f6f0;
+  --cream2:#ede9df;
+  --cream3:#dedad0;
+  --text:#2a2a20;
+  --muted:#7a7a66;
+  --white:#fefefc;
+  --error:#b91c1c;
+  --success:#16a34a;
+}
+body{
+  background: var(--cream);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Subtle premium background graphics matching Wissely landing page */
+body::before {
+  content: "";
+  position: absolute;
+  top: -10%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(45,74,62,0.03) 0%, rgba(248,246,240,0) 70%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Split layout split for desktop premium feeling */
+.auth-container-master {
+  width: 100%;
+  max-width: 1040px;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: var(--white);
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(12, 12, 10, 0.05);
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media(min-width: 860px) {
+  .auth-container-master {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
+
+/* Form block */
+.auth-form-side {
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media(max-width: 480px) {
+  .auth-form-side {
+    padding: 32px 20px;
+  }
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  margin-bottom: 40px;
+}
+.logo-mark {
+  width: 36px;
+  height: 36px;
+  background: var(--sage);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold2);
+}
+.logo-text {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+
+/* Premium Navigation Tabs */
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--cream2);
+  margin-bottom: 32px;
+  gap: 24px;
+}
+.auth-tab-btn {
+  background: none;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+  padding-bottom: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.3s ease;
+}
+.auth-tab-btn:hover {
+  color: var(--ink);
+}
+.auth-tab-btn.active {
+  color: var(--sage);
+  font-weight: 600;
+}
+.auth-tab-btn.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--sage);
+  border-radius: 2px;
+}
+
+/* Form States */
+.auth-pane {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.auth-pane.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.auth-header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+  margin-bottom: 10px;
+}
+.auth-header p {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 32px;
+  line-height: 1.5;
+}
+
+.form-group {
+  margin-bottom: 24px;
+}
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+/* Flexbox utilities to support row alignment on specific forms */
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.form-label-row label {
+  margin-bottom: 0; /* Clear bottom margin to optimize vertical centering with the link */
+}
+.forgot-link {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.forgot-link:hover {
+  color: var(--sage);
+}
+
+.form-input {
+  width: 100%;
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 100px;
+  padding: 16px 24px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: var(--ink);
+  outline: none;
+  transition: all 0.25s ease;
+}
+.form-input:focus {
+  border-color: var(--sage);
+  background: var(--white);
+  box-shadow: 0 0 0 4px rgba(45, 74, 62, 0.06);
+}
+
+/* Premium Button with Loading Spinners */
+.auth-btn {
+  width: 100%;
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  border-radius: 100px;
+  padding: 16px 28px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(201, 168, 76, 0.2);
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.auth-btn:hover {
+  background: var(--gold2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(201, 168, 76, 0.35);
+}
+.auth-btn:active {
+  transform: translateY(0);
+}
+.auth-btn:disabled {
+  opacity: 0.8;
+  background: var(--cream3);
+  color: var(--muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(12, 12, 10, 0.15);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+}
+.auth-btn:disabled .spinner {
+  display: inline-block;
+}
+
+/* Dynamic Notification System */
+.status-banner {
+  display: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 14px;
+  margin-bottom: 28px;
+  line-height: 1.5;
+  animation: fadeIn 0.3s ease forwards;
+}
+.status-banner.error {
+  display: block;
+  background: rgba(185, 28, 28, 0.05);
+  border: 1px solid rgba(185, 28, 28, 0.15);
+  color: var(--error);
+}
+.status-banner.success {
+  display: block;
+  background: rgba(22, 163, 74, 0.05);
+  border: 1px solid rgba(22, 163, 74, 0.15);
+  color: var(--success);
+}
+
+/* Trust Badges Widget */
+.trust-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cream2);
+  text-align: center;
+}
+.metric-item {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  font-weight: 400;
+}
+.metric-item span {
+  display: block;
+  color: var(--sage);
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+}
+
+/* Premium Marketing/Benefits Sidebar Panel */
+.auth-benefits-side {
+  background: var(--sage);
+  padding: 64px 48px;
+  color: var(--cream);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+
+@media(max-width: 859px) {
+  .auth-benefits-side {
+    display: none;
+  }
+}
+
+.auth-benefits-side::after {
+  content: "✦";
+  position: absolute;
+  bottom: -40px;
+  right: -20px;
+  font-size: 260px;
+  color: rgba(232, 201, 122, 0.03);
+  font-family: 'Cormorant Garamond', serif;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.benefits-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  color: var(--gold2);
+  line-height: 1.25;
+  margin-bottom: 40px;
+}
+
+.benefit-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.benefit-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.benefit-icon {
+  color: var(--gold2);
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 2px;
+}
+.benefit-text h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--white);
+}
+.benefit-text p {
+  font-size: 14px;
+  color: #a3b8ad;
+  line-height: 1.5;
+}
+
+.benefits-footer {
+  font-size: 13px;
+  color: #a3b8ad;
+  border-top: 1px solid rgba(248, 246, 240, 0.1);
+  padding-top: 24px;
+  margin-top: 40px;
+}
+
+/* ── Resend verification section ─────────────────────────────────────────── */
+/* Hidden by default; revealed only when login fails due to unverified email. */
+.resend-section {
+  display: none;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cream2);
+  animation: fadeIn 0.35s ease forwards;
+}
+.resend-section.visible {
+  display: block;
+}
+.resend-btn {
+  width: 100%;
+  background: transparent;
+  color: var(--sage);
+  border: 1.5px solid rgba(45, 74, 62, 0.4);
+  border-radius: 100px;
+  padding: 14px 28px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.resend-btn:hover {
+  background: rgba(45, 74, 62, 0.06);
+  border-color: var(--sage);
+}
+.resend-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.resend-spinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(45, 74, 62, 0.2);
+  border-top-color: var(--sage);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+  flex-shrink: 0;
+}
+.resend-btn.sending .resend-spinner {
+  display: inline-block;
+}
+
+/* Animation Specifications */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+</style>
+</head>
+<body>
+
+<div class="auth-container-master">
+  
+  <div class="auth-form-side">
+    <a href="index.html" class="logo-container">
+      <div class="logo-mark">W</div>
+      <div class="logo-text">Wissely</div>
+    </a>
+
+    <div class="auth-tabs">
+      <button id="tab-register" class="auth-tab-btn active" onclick="switchForm('register')">Start Free Trial </button>
+      <button id="tab-login" class="auth-tab-btn" onclick="switchForm('login')">Sign In </button>
+    </div>
+
+    <div id="statusBanner" class="status-banner"></div>
+
+    <div id="registerPane" class="auth-pane active">
+      <div class="auth-header">
+        <h1>Start 14-day trial</h1>
+        <p>Turn your metrics into clear financial strategies. No payment method required upfront.</p>
+      </div>
+      <form id="registerForm" onsubmit="handleAuth(event, 'register')">
+        <div class="form-group">
+          <label for="registerEmail">Email Address</label>
+          <input type="email" id="registerEmail" class="form-input" required placeholder="name@company.com"/>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Password</label>
+          <input type="password" id="registerPassword" class="form-input" required placeholder="Create a secure password"/>
+        </div>
+        <button type="submit" class="auth-btn">
+          <div class="spinner"></div>
+          <span class="btn-text">Start Free Trial</span>
+        </button>
+      </form>
+    </div>
+
+    <div id="loginPane" class="auth-pane">
+      <div class="auth-header">
+        <h1>Welcome back</h1>
+        <p>Access your automated insights workspace and live cash flow timelines securely.</p>
+      </div>
+      <form id="loginForm" onsubmit="handleAuth(event, 'login')">
+        <div class="form-group">
+          <label for="loginEmail">Email Address</label>
+          <input type="email" id="loginEmail" class="form-input" required placeholder="name@company.com"/>
+        </div>
+        <div class="form-group">
+          <div class="form-label-row">
+            <label for="loginPassword">Password</label>
+            <a href="forgot-password.html" class="forgot-link">Forgot password?</a>
+          </div>
+          <input type="password" id="loginPassword" class="form-input" required placeholder="••••••••"/>
+        </div>
+        <button type="submit" class="auth-btn">
+          <div class="spinner"></div>
+          <span class="btn-text">Sign In </span>
+        </button>
+      </form>
+
+      <!-- Resend verification section — hidden until login fails due to unverified email -->
+      <div class="resend-section" id="resendSection">
+        <button type="button" class="resend-btn" id="resendBtn" onclick="resendVerification()">
+          <div class="resend-spinner"></div>
+          <span id="resendBtnText">Resend Verification Email</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="trust-metrics">
+      <div class="metric-item">
+        <span>Timeline</span>
+        14-day trial
+      </div>
+      <div class="metric-item">
+        <span>Volume</span>
+        20 analyses
+      </div>
+      <div class="metric-item">
+        <span>Security</span>
+        No card required
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-benefits-side">
+    <div>
+      <h2 class="benefits-title">Stop guessing about your money. Understand it simply.</h2>
+      
+      <div class="benefit-rows">
+        <div class="benefit-row">
+          <div class="benefit-icon">✦</div>
+          <div class="benefit-text">
+            <h3>Plain English Explanations</h3>
+            <p>Wissely parses your ledger numbers into human statements automatically.</p>
+          </div>
+        </div>
+        <div class="benefit-row">
+          <div class="benefit-icon">✦</div>
+          <div class="benefit-text">
+            <h3>Automated Cash Flow Projections</h3>
+            <p>Predict growth limits and runway variables using smart visual logic modeling paths.</p>
+          </div>
+        </div>
+        <div class="benefit-row">
+          <div class="benefit-icon">✦</div>
+          <div class="benefit-text">
+            <h3>Expense Optimization Identifiers</h3>
+            <p>Isolate repeating leak categories and pattern cycles across custom timeframes instantly.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="benefits-footer">
+      Join thousands of business owners clarifying their trajectory with Wissely.
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
+// Validate existing session via cookie middleware verification on load
+async function checkSession() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/me`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (response.ok) {
+      window.location.replace('index.html');
+    }
+  } catch (err) {
+    console.error('Session validation failed:', err);
+  }
+}
+
+function initRouting() {
+  const mode = new URLSearchParams(window.location.search).get('mode');
+  if (mode === 'login') {
+    switchForm('login');
+  } else {
+    switchForm('register');
+  }
+}
+
+// Initial structural self-execution
+checkSession();
+document.addEventListener("DOMContentLoaded", initRouting);
+
+function switchForm(mode) {
+  const registerPane = document.getElementById('registerPane');
+  const loginPane = document.getElementById('loginPane');
+  const tabRegister = document.getElementById('tab-register');
+  const tabLogin = document.getElementById('tab-login');
+  const statusBanner = document.getElementById('statusBanner');
+
+  // Reset banners and resend section on every tab switch
+  statusBanner.className = 'status-banner';
+  statusBanner.style.display = 'none';
+  document.getElementById('resendSection').classList.remove('visible');
+  
+  document.getElementById('loginForm').reset();
+  document.getElementById('registerForm').reset();
+
+  window.history.replaceState({}, '', `?mode=${mode}`);
+
+  if (mode === 'register') {
+    tabLogin.classList.remove('active');
+    tabRegister.classList.add('active');
+    loginPane.classList.remove('active');
+    setTimeout(() => {
+      loginPane.style.display = 'none';
+      registerPane.style.display = 'block';
+      setTimeout(() => registerPane.classList.add('active'), 20);
+    }, 200);
+  } else {
+    tabRegister.classList.remove('active');
+    tabLogin.classList.add('active');
+    registerPane.classList.remove('active');
+    setTimeout(() => {
+      registerPane.style.display = 'none';
+      loginPane.style.display = 'block';
+      setTimeout(() => loginPane.classList.add('active'), 20);
+    }, 200);
+  }
+}
+
+async function handleAuth(event, type) {
+  event.preventDefault();
+
+  const statusBanner = document.getElementById('statusBanner');
+  statusBanner.className = 'status-banner';
+  statusBanner.style.display = 'none';
+
+  // Hide resend section on every new login attempt
+  if (type === 'login') {
+    document.getElementById('resendSection').classList.remove('visible');
+  }
+
+  const form = event.target;
+  const button = form.querySelector('.auth-btn');
+  const btnTextNode = button.querySelector('.btn-text');
+  const initialButtonText = btnTextNode.textContent;
+
+  const email = document.getElementById(`${type}Email`).value;
+  const password = document.getElementById(`${type}Password`).value;
+  const endpoint = `${API_BASE_URL}/${type}`;
+
+  // Processing configuration framework state updates
+  button.disabled = true;
+  btnTextNode.textContent = type === 'register' ? 'Creating your workspace...' : 'Signing you in...';
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // ── Email verification gate ───────────────────────────────────────────
+      // Never treat this as a generic auth error — surface the resend widget instead.
+      // Resilient to future wording changes — matches requiresVerification flag
+      // or any error string containing 'verify your email'.
+      if (
+          type === 'login' &&
+          (
+              data.requiresVerification ||
+              (typeof data.error === 'string' &&
+               data.error.toLowerCase().includes('verify your email'))
+          )
+      ) {
+        statusBanner.textContent = "Your email address hasn't been verified yet. You can request a new verification email below.";
+        statusBanner.className = 'status-banner error';
+        document.getElementById('resendSection').classList.add('visible');
+        button.disabled = false;
+        btnTextNode.textContent = initialButtonText;
+        return;
+      }
+      // ── Generic error ─────────────────────────────────────────────────────
+      throw new Error(data.message || data.error || `Failed to perform ${type} operation.`);
+    }
+
+    if (type === 'register') {
+      // Email verification is required before the account can be used.
+      // No session/CSRF token is issued at register time (the account
+      // isn't usable yet), so nothing to store here - only /login and
+      // /verify-email issue one.
+      statusBanner.textContent = 'Account created! Please check your inbox for a verification link before signing in.';
+      statusBanner.className = 'status-banner success';
+
+      setTimeout(() => {
+        switchForm('login');
+        const loginStatusBanner = document.getElementById('statusBanner');
+        loginStatusBanner.textContent = 'Check your inbox and verify your email to sign in.';
+        loginStatusBanner.className = 'status-banner success';
+      }, 1800);
+    } else {
+      // Persist the CSRF token issued for this new session - index.html's
+      // getCsrfToken() reads this exact key and sends it as X-CSRF-Token on
+      // every state-changing request (/analyze, checkout, etc). Without
+      // this, every one of those requests fails CSRF validation forever,
+      // since a CSRF token is only ever handed out here at login.
+      if (data.csrfToken) {
+        localStorage.setItem('wissely_csrf_token', data.csrfToken);
+      }
+      statusBanner.textContent = 'Authentication verified. Launching financial studio dashboard...';
+      statusBanner.className = 'status-banner success';
+      setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+    }
+
+  } catch (err) {
+    statusBanner.style.display = 'block';
+    statusBanner.textContent = err.message;
+    statusBanner.className = 'status-banner error';
+    button.disabled = false;
+    btnTextNode.textContent = initialButtonText;
+  }
+}
+
+// ── Resend verification email ─────────────────────────────────────────────────
+// Reads the email already typed in the login field and POSTs to /resend-verification.
+// The API always responds 200 to prevent enumeration, so success is shown on any 2xx.
+async function resendVerification() {
+  const email      = document.getElementById('loginEmail').value.trim();
+  const btn        = document.getElementById('resendBtn');
+  const btnText    = document.getElementById('resendBtnText');
+  const statusBanner = document.getElementById('statusBanner');
+
+  // Disable button and show loading state
+  btn.disabled = true;
+  btn.classList.add('sending');
+  btnText.textContent = 'Sending...';
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/resend-verification`, {
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body:        JSON.stringify({ email })
+    });
+
+    if (res.ok) {
+      statusBanner.textContent = 'If your account exists and hasn\'t been verified yet, a new verification email has been sent.';
+      statusBanner.className = 'status-banner success';
+    } else {
+      let msg = 'Unable to send verification email. Please try again.';
+      try { const d = await res.json(); if (d.error) msg = d.error; } catch {}
+      statusBanner.textContent = msg;
+      statusBanner.className = 'status-banner error';
+    }
+  } catch {
+    statusBanner.textContent = 'Unable to reach the server. Please check your connection and try again.';
+    statusBanner.className = 'status-banner error';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('sending');
+    btnText.textContent = 'Resend Verification Email';
+  }
+}
+</script>
+
+</body>
+  </html>
