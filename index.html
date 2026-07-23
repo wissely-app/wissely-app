@@ -1358,7 +1358,29 @@ async function generate() {
     const authOk = await handleAuthResponse(res);
     if (!authOk) return;
 
-    if (!res.ok) throw new Error(`Server returned status code: ${res.status}`);
+    if (!res.ok) {
+      // Try to read the JSON body before giving up - a 403 here carries
+      // upgradeRequired/trialExpired flags we need to sync the UI with,
+      // not just a status code to display generically.
+      let errBody = null;
+      try { errBody = await res.json(); } catch (e) {}
+
+      if (res.status === 403 && errBody && errBody.upgradeRequired) {
+        // Re-fetch /me so quota-used-display, the Run button, and
+        // isQuotaExhausted all reflect the real, current server state
+        // instead of the stale numbers from the last /me load.
+        try {
+          const meRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+          const meAuthOk = await handleAuthResponse(meRes);
+          if (meAuthOk && meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.user) updateQuotaUI(meData.user);
+          }
+        } catch (e) {}
+      }
+
+      throw new Error(errBody?.error || `Server returned status code: ${res.status}`);
+    }
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) throw new Error("Server did not return valid JSON data payload.");
 
@@ -1440,7 +1462,7 @@ async function generate() {
   } catch(e) {
     clearTimeout(timeoutId);
     document.getElementById('outputText').innerHTML = '';
-    document.getElementById('errorText').textContent = getFriendlyErrorMessage(e, 'analyze');
+    document.getElementById('errorText').textContent = getFriendlyErrorMessage(e, isQuotaExhausted ? 'quota' : 'analyze');
     document.getElementById('emptyState').style.display = 'block';
   } finally {
     isProcessing = false;
