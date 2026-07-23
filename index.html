@@ -1,0 +1,2435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Wissely - Your Finances, Finally Clear</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<!-- pdf.js, tesseract.js and jsPDF are lazy-loaded on first use (see ensurePdfJs / ensureTesseract / ensureJsPdf) to reduce initial page weight -->
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--ink:#0c0c0a;--sage:#2d4a3e;--sage2:#3d6b58;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#f5e0a0;--cream:#f8f6f0;--cream2:#ede9df;--cream3:#dedad0;--text:#2a2a20;--muted:#7a7a66;--ease:cubic-bezier(0.16,1,0.3,1)}
+body{background:var(--cream);font-family:'DM Sans',sans-serif;color:var(--text);margin:0}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-thumb{background:rgba(45,74,62,0.2);border-radius:3px;transition:background 0.2s var(--ease)}
+::-webkit-scrollbar-thumb:hover{background:rgba(201,168,76,0.45)}
+::selection{background:rgba(201,168,76,0.32);color:var(--ink)}
+textarea::placeholder{color:#bbb;font-family:'DM Mono',monospace;font-size:12px}
+button,a{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,.tool-btn:focus-visible,.method-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@keyframes scaleIn{from{opacity:0;transform:scale(0.96) translateY(-4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:0.001ms!important;animation-iteration-count:1!important;transition-duration:0.001ms!important;scroll-behavior:auto!important}
+}
+
+#auth-gate-shield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--cream);
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 1;
+  transition: opacity 0.25s ease-in-out;
+}
+.gate-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--gold), var(--sage) 55%, var(--gold));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: spin 0.9s linear infinite;
+  filter: drop-shadow(0 2px 6px rgba(201,168,76,0.25));
+}
+
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.wissely-toast {
+  background: rgba(12,12,10,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  border: 1px solid rgba(201,168,76,0.2);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.1);
+  pointer-events: auto;
+  animation: fadeUp 0.3s var(--ease) forwards;
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 400px;
+}
+.wissely-toast.error {
+  border-color: #f87171;
+  background: #1a0f0f;
+  color: #fca5a5;
+}
+.wissely-toast.success {
+  border-color: #4ade80;
+  background: #0f1a14;
+  color: #86efac;
+}
+
+nav{background:var(--ink);border-bottom:1px solid rgba(201,168,76,0.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;max-width:1060px;margin:0 auto;box-shadow:0 1px 0 rgba(201,168,76,0.06),0 12px 24px -16px rgba(0,0,0,0.4)}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--sage),var(--sage2));border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:700;color:var(--gold);box-shadow:inset 0 1px 0 rgba(255,255,255,0.15),0 2px 8px rgba(0,0,0,0.25);transition:transform 0.3s var(--ease)}
+.nav-logo:hover .nav-logo-mark{transform:rotate(-4deg) scale(1.05)}
+.nav-logo-text{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:-0.5px}
+.nav-right-zone{display:flex;align-items:center;gap:16px}
+.logout-btn{background:transparent;border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.7);padding:6px 14px;border-radius:8px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.15s}
+.logout-btn:hover{background:rgba(239,68,68,0.1);border-color:#f87171;color:#f87171}
+.ai-ready{display:flex;align-items:center;gap:6px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:100px;padding:5px 14px}
+.ai-ready-dot{width:6px;height:6px;border-radius:50%;background:#c9a84c;animation:pulse 2s infinite;box-shadow:0 0 6px rgba(201,168,76,0.7)}
+.ai-ready-text{font-size:11px;color:#c9a84c;font-family:'DM Mono',monospace;letter-spacing:1px}
+
+.app-body{max-width:1060px;margin:0 auto;padding:24px 20px 60px;display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start}
+
+.sidebar{display:flex;flex-direction:column;gap:4px}
+.sidebar-label{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;padding-left:4px}
+.tool-btn{background:transparent;border:1px solid transparent;border-radius:12px;padding:12px 14px;text-align:left;cursor:pointer;transition:all 0.25s var(--ease);display:flex;align-items:flex-start;gap:10px;width:100%;position:relative;overflow:hidden}
+.tool-btn::before{content:'';position:absolute;left:0;top:10%;bottom:10%;width:3px;border-radius:0 3px 3px 0;background:var(--gold);transform:scaleY(0);transition:transform 0.25s var(--ease)}
+.tool-btn:hover{background:rgba(45,74,62,0.06);border-color:rgba(45,74,62,0.2);transform:translateX(1px)}
+.tool-btn:hover::before{transform:scaleY(1)}
+.tool-btn.active{background:var(--sage);border-color:var(--sage);box-shadow:0 4px 16px -4px rgba(45,74,62,0.45),inset 0 1px 0 rgba(255,255,255,0.06)}
+.tool-btn.active::before{transform:scaleY(1)}
+.tool-icon{font-size:17px;line-height:1;margin-top:1px;flex-shrink:0}
+.tool-label{font-size:13px;font-weight:500;margin-bottom:2px;color:var(--text)}
+.tool-btn.active .tool-label{color:var(--gold3)}
+.tool-desc{font-size:11px;color:var(--muted);line-height:1.4}
+.tool-btn.active .tool-desc{color:rgba(255,255,255,0.75)}
+
+.history-section{margin-top:20px;border-top:1px solid var(--cream3);padding-top:16px}
+.hist-item{background:#fff;border:1px solid var(--cream3);border-radius:8px;padding:10px 12px;margin-bottom:7px;cursor:pointer;transition:all 0.2s var(--ease)}
+.hist-item:hover{background:var(--cream2);border-color:var(--sage);transform:translateX(2px);box-shadow:0 2px 8px rgba(45,74,62,0.08)}
+.hist-tool{font-size:10px;color:var(--gold);font-family:'DM Mono',monospace;letter-spacing:1px;margin-bottom:3px}
+.hist-preview{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.main{display:flex;flex-direction:column;gap:14px}
+
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat-card{background:#fff;border:1px solid var(--cream3);border-radius:12px;padding:14px 16px;text-align:center;box-shadow:0 2px 12px rgba(45,74,62,0.05);position:relative;overflow:hidden;transition:transform 0.25s var(--ease),box-shadow 0.25s var(--ease)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--sage));transform:scaleX(0);transform-origin:left;transition:transform 0.3s var(--ease)}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(45,74,62,0.18)}
+.stat-card:hover::before{transform:scaleX(1)}
+.stat-icon{font-size:18px;display:block;margin-bottom:4px}
+.stat-val{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:700;color:var(--sage);display:block;line-height:1;letter-spacing:-0.5px;font-feature-settings:"tnum" 1}
+.stat-label{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;margin-top:4px;display:block}
+
+.input-card{border-radius:14px;overflow:hidden;border:1px solid var(--cream3);box-shadow:0 4px 24px rgba(45,74,62,0.07),0 1px 2px rgba(0,0,0,0.02);transition:box-shadow 0.3s var(--ease)}
+.input-card:hover{box-shadow:0 8px 32px rgba(45,74,62,0.1),0 1px 2px rgba(0,0,0,0.03)}
+.tool-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:14px 18px;display:flex;align-items:center;justify-content:space-between}
+.tool-header-left{display:flex;align-items:center;gap:10px}
+.tool-header-icon{font-size:20px}
+.tool-header-title{font-size:14px;font-weight:600;color:#fff}
+.tool-header-desc{font-size:11px;color:rgba(255,255,255,0.6);margin-top:1px}
+.clear-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:6px 14px;color:rgba(255,255,255,0.7);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.2s var(--ease)}
+.clear-btn:hover{background:rgba(255,255,255,0.2);color:#fff;transform:translateY(-1px)}
+.clear-btn:active{transform:translateY(0) scale(0.97)}
+.textarea-wrap{background:#fff}
+textarea{width:100%;background:transparent;border:none;padding:18px 20px;color:#1a1a12;font-size:13px;font-family:'DM Mono',monospace;line-height:1.8;resize:vertical;outline:none;min-height:190px;transition:background 0.2s var(--ease)}
+textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gold)}
+.input-footer{padding:10px 20px;border-top:1px solid var(--cream3);display:flex;justify-content:space-between;align-items:center;background:#fff}
+.char-count{font-size:11px;color:#aaa;font-family:'DM Mono',monospace}
+.error-text{font-size:12px;color:#f87171;font-family:'DM Mono',monospace}
+
+.input-method-row{display:flex;gap:8px;padding:14px 18px;background:#fff;border-bottom:1px solid var(--cream3)}
+.method-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--cream);border:1px solid var(--cream3);border-radius:10px;padding:10px 8px;cursor:pointer;transition:all 0.2s var(--ease);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--muted)}
+.method-btn:hover{background:var(--cream2);border-color:var(--sage);transform:translateY(-1px)}
+.method-btn:active{transform:translateY(0) scale(0.98)}
+.method-btn.active{background:var(--sage);border-color:var(--sage);color:var(--gold3);box-shadow:0 4px 14px -2px rgba(45,74,62,0.35),inset 0 1px 0 rgba(255,255,255,0.08)}
+.method-icon{font-size:14px;line-height:1}
+
+.upload-zone{background:#fff;padding:18px 20px;min-height:190px;display:flex;align-items:center;justify-content:center}
+.upload-card{width:100%;border:1.5px dashed var(--cream3);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.25s var(--ease);background:var(--cream)}
+.upload-card:hover{border-color:var(--sage);background:rgba(45,74,62,0.04);transform:translateY(-1px);box-shadow:0 6px 18px -6px rgba(45,74,62,0.15)}
+.upload-card:hover .upload-card-icon{transform:translateY(-2px) scale(1.05)}
+.upload-card.has-file{border-style:solid;border-color:var(--sage);background:rgba(45,74,62,0.04)}
+.upload-card.drag-over{border-style:solid;border-color:var(--gold);background:rgba(201,168,76,0.08);box-shadow:0 0 0 4px rgba(201,168,76,0.12),0 10px 24px -8px rgba(201,168,76,0.25);transform:scale(1.01)}
+.upload-card.drag-over .upload-card-icon{transform:translateY(-4px) scale(1.15)}
+.upload-card-icon{font-size:30px;margin-bottom:10px;display:block;transition:transform 0.25s var(--ease)}
+.upload-card-title{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:4px}
+.upload-card-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace}
+.upload-filename{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--sage);border-radius:8px;padding:7px 14px;font-size:12px;color:var(--sage2);font-family:'DM Mono',monospace;max-width:100%}
+.upload-filename span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.camera-card{width:100%;text-align:center}
+.camera-trigger-btn{background:linear-gradient(135deg,#2d4a3e,#1a3027);color:var(--gold3);border:none;border-radius:12px;padding:16px 24px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:all 0.25s var(--ease);box-shadow:0 4px 16px rgba(45,74,62,0.25),inset 0 1px 0 rgba(255,255,255,0.1)}
+.camera-trigger-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(45,74,62,0.32),inset 0 1px 0 rgba(255,255,255,0.12)}
+.camera-trigger-btn:active{transform:translateY(0) scale(0.98)}
+.camera-card-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:12px}
+
+.extract-overlay{display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:36px 24px;background:#fff}
+.extract-spinner{width:34px;height:34px;border-radius:50%;background:conic-gradient(from 0deg,var(--gold),var(--sage) 55%,var(--gold));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));animation:spin 0.9s linear infinite}
+.extract-label{font-size:13.5px;font-weight:600;color:var(--text)}
+.extract-progress-track{width:200px;height:6px;background:var(--cream2);border-radius:3px;overflow:hidden}
+.extract-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--sage),var(--sage2));transition:width 0.3s var(--ease);position:relative;overflow:hidden}
+.extract-progress-fill::after{content:'';position:absolute;top:0;left:0;bottom:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent);animation:shimmer 1.4s linear infinite}
+.extract-percent{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:0.5px}
+.extract-error{font-size:12px;color:#f87171;font-family:'DM Mono',monospace;text-align:center;max-width:320px}
+
+@media(max-width:700px){
+  .input-method-row{flex-direction:row;padding:10px 12px;gap:6px}
+  .method-btn{flex-direction:column;padding:9px 4px;gap:4px;font-size:9.5px;line-height:1.2;min-height:48px}
+  .method-icon{font-size:16px}
+  .upload-card{padding:24px 14px;min-height:140px}
+}
+
+.generate-btn{width:100%;border:none;border-radius:0 0 14px 14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.25s var(--ease);display:flex;align-items:center;justify-content:center;gap:10px;letter-spacing:0.3px;background:linear-gradient(135deg,#c9a84c,#a8873c);color:#0c0c0a;box-shadow:0 4px 24px rgba(201,168,76,0.3),inset 0 1px 0 rgba(255,255,255,0.3)}
+.generate-btn:hover{background:linear-gradient(135deg,#e8c97a,#c9a84c);transform:translateY(-1px);box-shadow:0 8px 32px rgba(201,168,76,0.4),inset 0 1px 0 rgba(255,255,255,0.35)}
+.generate-btn:active:not(:disabled){transform:translateY(0) scale(0.99)}
+.generate-btn:disabled{background:rgba(122,122,102,0.2)!important;color:rgba(0,0,0,0.35)!important;cursor:not-allowed!important;transform:none!important;box-shadow:none!important;background-image:none!important}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+
+.output-card{background:#fff;border:1px solid var(--cream3);border-radius:14px;overflow:hidden;box-shadow:0 8px 32px -6px rgba(45,74,62,0.14),0 1px 2px rgba(0,0,0,0.03);animation:fadeUp 0.4s var(--ease)}
+.output-header{background:var(--sage);border-bottom:1px solid rgba(255,255,255,0.1);padding:13px 18px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;position:relative}
+.output-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),transparent 70%)}
+.output-meta{display:flex;align-items:center;gap:8px}
+.output-dot{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;box-shadow:0 0 6px rgba(74,222,128,0.6)}
+.output-label{font-size:11px;color:rgba(255,255,255,0.8);font-family:'DM Mono',monospace;letter-spacing:0.5px}
+.output-actions{display:flex;gap:10px;align-items:center}
+.copy-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:5px 12px;font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all 0.2s var(--ease);color:rgba(255,255,255,0.8)}
+.copy-btn:hover{background:rgba(255,255,255,0.18);transform:translateY(-1px)}
+.copy-btn:active{transform:translateY(0) scale(0.96)}
+.copy-btn.copied{border-color:rgba(74,222,128,0.4);color:#4ade80;background:rgba(74,222,128,0.1)}
+.output-text{padding:18px;font-size:13.5px;line-height:1.8;color:var(--text);overflow:visible;max-height:none;font-family:'DM Sans',sans-serif}
+.output-text strong{color:var(--sage);font-weight:600}
+.output-text em{color:var(--muted);font-style:normal}
+
+.empty-state{border:1px dashed var(--cream3);border-radius:14px;padding:24px;background:#fff}
+.sample-label{font-size:10px;color:var(--sage);font-family:'DM Mono',monospace;letter-spacing:2px;margin-bottom:16px;text-align:center;text-transform:uppercase}
+.empty-sub{font-size:11px;color:#bbb;font-family:'DM Mono',monospace;text-align:center;margin-top:12px}
+
+.app-footer{text-align:center;padding-top:8px}
+.app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px;white-space:nowrap}
+
+.invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px;word-wrap:break-word;overflow-wrap:break-word;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6)}
+.decision-status{display:inline-block;padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:12px;background:#e8f5e9;color:#2d4a3e;box-shadow:0 2px 6px rgba(45,74,62,0.12)}
+.big-amount{font-size:32px;font-weight:700;color:#2d4a3e;margin:12px 0;word-wrap:break-word;overflow-wrap:break-word;font-feature-settings:"tnum" 1;letter-spacing:-0.5px}
+.wissely-premium-header{display:flex!important;align-items:center!important;justify-content:space-between!important;border-bottom:1px solid #dedad0!important;padding-bottom:16px!important;margin-bottom:24px!important;gap:12px!important;flex-wrap:wrap!important}
+.wissely-premium-footer{display:block!important;text-align:center!important;border-top:1px solid #dedad0!important;padding-top:16px!important;margin-top:24px!important}
+.completeness-score-card{background:rgba(45,74,62,.04);border:1px solid rgba(45,74,62,.1);border-radius:12px;padding:16px;margin-bottom:20px;display:flex;gap:16px;align-items:center;box-shadow:inset 0 1px 0 rgba(255,255,255,0.5)}
+.completeness-score-value{font-size:36px;font-weight:700;color:#2d4a3e;font-family:'Cormorant Garamond',serif;font-feature-settings:"tnum" 1}
+.premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:24px 0}
+.premium-info-card{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:14px;word-wrap:break-word;overflow-wrap:break-word;transition:box-shadow 0.2s var(--ease),border-color 0.2s var(--ease)}
+.premium-info-card:hover{box-shadow:0 4px 14px -4px rgba(45,74,62,0.15);border-color:#c9a84c}
+.finding-box{margin-top:14px;padding:12px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px;word-wrap:break-word;overflow-wrap:break-word;transition:box-shadow 0.2s var(--ease)}
+.finding-box:hover{box-shadow:0 4px 14px -4px rgba(45,74,62,0.12)}
+
+/* Line items table */
+.line-items-wrap{margin-top:16px;overflow-x:auto;border:1px solid #dedad0;border-radius:10px;break-inside:avoid;page-break-inside:avoid}
+.line-items-table{width:100%;border-collapse:collapse;font-size:12px;min-width:420px}
+.line-items-table caption{text-align:left;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;padding:10px 12px;background:#fff}
+.line-items-table th{background:#f4f1e8;text-align:left;padding:8px 12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;border-bottom:1px solid #dedad0}
+.line-items-table td{padding:8px 12px;border-bottom:1px solid #ede9df;background:#fff}
+.line-items-table td.num,.line-items-table th.num{text-align:right;font-feature-settings:"tnum" 1;font-family:'DM Mono',monospace}
+.line-items-table tr:last-child td{border-bottom:none}
+
+/* Validation */
+.validation-box{margin-top:16px;border:1px solid #dedad0;border-radius:10px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+.validation-box-title{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;padding:10px 12px;background:#f4f1e8;border-bottom:1px solid #dedad0}
+.validation-list{list-style:none;margin:0;padding:0}
+.validation-list li{padding:9px 12px;font-size:12px;border-bottom:1px solid #ede9df;display:flex;gap:8px;align-items:flex-start}
+.validation-list li:last-child{border-bottom:none}
+.validation-list li.warn{color:#8a5a1a;background:#fffaf0}
+.validation-list li.ok{color:#2d4a3e;background:#f4faf6}
+
+/* Confidence */
+.confidence-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}
+.confidence-cell{background:#fff;border:1px solid #dedad0;border-radius:10px;padding:10px;text-align:center}
+.confidence-cell strong{display:block;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;margin-bottom:4px;font-weight:500}
+.confidence-cell span{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:#2d4a3e}
+.confidence-cell.low span{color:#b45309}
+
+/* Verification badge */
+.verification-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:600;margin-bottom:12px;margin-left:8px}
+.verification-badge.verified{background:#e8f5e9;color:#2d4a3e}
+.verification-badge.review{background:#fff4e0;color:#8a5a1a}
+
+/* Report metadata footer */
+.report-meta{margin-top:18px;padding-top:14px;border-top:1px dashed #dedad0;display:grid;grid-template-columns:repeat(2,1fr);gap:6px 16px;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace}
+.report-meta div span{color:var(--text)}
+@media(max-width:520px){.confidence-grid{grid-template-columns:repeat(2,1fr)}.report-meta{grid-template-columns:1fr}}
+
+.nav-dropdown-container { position: relative; display: inline-block; }
+.nav-avatar-btn { background: var(--sage); border: 1px solid var(--gold); color: #fff; width: 32px; height: 32px; border-radius: 50%; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.25s var(--ease); }
+.nav-avatar-btn:hover { background: var(--sage2); box-shadow: 0 0 0 3px rgba(201,168,76,0.18), 0 0 10px rgba(201,168,76,0.35); transform: scale(1.05); }
+.nav-avatar-btn:active { transform: scale(0.97); }
+.nav-dropdown-menu { display: none; position: absolute; right: 0; top: 40px; background: rgba(255,255,255,0.96); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--cream3); border-radius: 12px; width: 220px; box-shadow: 0 16px 40px -8px rgba(0,0,0,0.15),0 2px 6px rgba(0,0,0,0.04); padding: 12px; z-index: 200; transform-origin: top right; animation: scaleIn 0.18s var(--ease); }
+.nav-dropdown-menu.show { display: block; }
+.dropdown-header { border-bottom: 1px solid var(--cream2); padding-bottom: 8px; margin-bottom: 8px; }
+.dropdown-plan-badge { display: inline-block; background: var(--sage); color: var(--gold3); font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px; margin-top: 4px; }
+.dropdown-usage-text { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin: 4px 0 2px; }
+.dropdown-link { display: flex; align-items: center; gap: 8px; padding: 8px; color: var(--text); font-size: 13px; text-decoration: none; border-radius: 8px; transition: background 0.2s var(--ease), transform 0.2s var(--ease); }
+.dropdown-link:hover { background: var(--cream2); transform: translateX(2px); }
+.dropdown-link.upgrade-highlight { color: #a8873c; font-weight: 600; background: rgba(201,168,76,0.08); }
+.dropdown-link.upgrade-highlight:hover { background: rgba(201,168,76,0.15); }
+.dropdown-divider { height: 1px; background: var(--cream2); margin: 6px 0; }
+.dropdown-logout-btn { width: 100%; background: transparent; border: none; text-align: left; padding: 8px; color: #ef4444; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 8px; transition: background 0.2s var(--ease); }
+.dropdown-logout-btn:hover { background: rgba(239,68,68,0.05); }
+
+.sidebar-premium-widget { background: #fff; border: 1px solid var(--cream3); border-radius: 14px; padding: 14px; margin-top: auto; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 10px rgba(45,74,62,0.04); transition: box-shadow 0.3s var(--ease), border-color 0.3s var(--ease); }
+.progress-bar-container { background: var(--cream2); height: 6px; border-radius: 3px; width: 100%; overflow: hidden; margin: 4px 0; }
+.progress-bar-fill { background: linear-gradient(90deg, var(--sage), var(--sage2)); height: 100%; width: 0%; transition: width 0.5s var(--ease); position: relative; overflow: hidden; }
+.progress-bar-fill::after { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmer 1.8s linear infinite; }
+.progress-bar-fill.warning { background: linear-gradient(90deg, #e67e22, #d35400); }
+.progress-bar-fill.critical { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+.premium-feat-list { list-style: none; margin: 6px 0; display: flex; flex-direction: column; gap: 4px; }
+.premium-feat-item { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.widget-upgrade-btn { background: linear-gradient(135deg, var(--sage), #1a3027); color: var(--gold3); border: none; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; transition: all 0.25s var(--ease); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+.widget-upgrade-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45,74,62,0.2), inset 0 1px 0 rgba(255,255,255,0.1); }
+.widget-upgrade-btn:active { transform: translateY(0) scale(0.98); }
+
+.warning-banner { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 16px; border-radius: 12px; margin-bottom: 14px; display: none; align-items: center; justify-content: space-between; font-size: 13px; animation: fadeUp 0.3s var(--ease); }
+.warning-banner-btn { background: #856404; color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s var(--ease); }
+.warning-banner-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(133,100,4,0.3); }
+
+.exhausted-card { background: #fff; border: 1px solid var(--cream3); border-radius: 16px; padding: 40px 24px; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,0.04), 0 0 0 1px rgba(201,168,76,0.08), 0 20px 48px -16px rgba(45,74,62,0.18); display: none; max-width: 540px; margin: 40px auto; animation: fadeUp 0.5s var(--ease); }
+.exhausted-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; color: var(--sage); margin-bottom: 8px; }
+.exhausted-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.exhausted-stat { background: var(--cream); padding: 12px; border-radius: 10px; border: 1px solid var(--cream2); transition: box-shadow 0.2s var(--ease); }
+.exhausted-stat:hover { box-shadow: 0 4px 12px -4px rgba(45,74,62,0.15); }
+
+#wissely-print-frame { display: none !important; position: absolute; width: 0; height: 0; border: none; }
+
+@media(max-width:700px){
+  body{overflow-x:hidden!important}
+  .app-body,.main{width:100%!important;max-width:100%!important}
+  nav{max-width:100%!important;width:100%!important;padding:0 16px!important}
+  .app-body{grid-template-columns:1fr!important;padding:14px!important}
+  .sidebar{flex-direction:column;gap:4px}
+  .history-section{display:none}
+  
+  .stats-row{
+    display:flex!important;
+    flex-direction:row!important;
+    justify-content:space-between!important;
+    align-items:stretch!important;
+    gap:8px!important;
+    width:100%!important;
+    max-width:100%!important;
+    padding:0!important;
+    margin:0 0 4px 0!important;
+    overflow:hidden!important;
+  }
+  .stat-card{
+    flex:1!important;
+    min-width:0!important;
+    padding:14px 4px!important;
+    border-radius:12px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+  }
+  .stat-icon{font-size:16px!important;margin-bottom:4px!important}
+  .stat-val{font-size:16px!important;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis}
+  .stat-label{
+    font-size:7.5px!important;
+    letter-spacing:0.5px!important;
+    line-height:1.2!important;
+    margin-top:4px!important;
+    white-space:normal!important;
+    display:-webkit-box!important;
+    -webkit-line-clamp:2!important;
+    -webkit-box-orient:vertical!important;
+    overflow:hidden!important;
+    text-align:center!important;
+  }
+  
+  .output-actions{width:100%;justify-content:flex-end;flex-wrap:wrap;gap:6px}
+  .output-actions .copy-btn{min-height:36px;padding:7px 12px}
+  .output-label{font-size:10px;word-break:break-word}
+  .big-amount{font-size:36px!important}
+  .summary-val{max-width:100%;overflow-wrap:anywhere;text-align:right}
+  .nav-logo-text{font-size:18px}
+  .ai-ready{padding:5px 10px}
+  .output-card,.input-card,.invoice-summary{width:100%}
+  .premium-data-grid{grid-template-columns:1fr!important}
+  .premium-info-card{grid-column:auto!important}
+  .sidebar-premium-widget { margin-top: 14px; }
+  .nav-dropdown-menu { right: -16px; top: 44px; max-height: 70vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .nav-avatar-btn{width:38px;height:38px}
+  .tool-btn{min-height:48px;padding:13px 14px}
+  .clear-btn,.method-btn,.camera-trigger-btn,.generate-btn{min-height:44px}
+  html{scroll-behavior:smooth}
+  body{-webkit-overflow-scrolling:touch}
+}
+</style>
+</head>
+<body>
+
+<div id="auth-gate-shield" aria-hidden="true">
+  <div class="gate-spinner"></div>
+</div>
+
+<div id="toast-container" role="status" aria-live="polite"></div>
+<iframe id="wissely-print-frame" title="Wissely print preview"></iframe>
+
+<nav>
+  <a href="https://wissely.com" class="nav-logo">
+    <div class="nav-logo-mark">W</div>
+    <div class="nav-logo-text">Wissely</div>
+  </a>
+  <div class="nav-right-zone">
+    <div class="ai-ready">
+      <div class="ai-ready-dot"></div>
+      <span class="ai-ready-text">AI Ready</span>
+    </div>
+    
+    <div class="nav-dropdown-container">
+      <button class="nav-avatar-btn" id="navAvatarBtn" aria-label="Account Settings">U</button>
+      <div class="nav-dropdown-menu" id="navDropdownMenu">
+        <div class="dropdown-header">
+          <strong id="dropdownUserEmail" style="font-size:13px; word-break:break-all;">Account</strong>
+          <div><span class="dropdown-plan-badge" id="dropdownPlanBadge">TRIAL</span></div>
+          <div class="dropdown-usage-text" id="dropdownUsageText">Usage: - / -</div>
+          <!-- Task 5: Trial days remaining (shown only when available) -->
+          <div class="dropdown-usage-text" id="dropdownTrialText" style="display:none; color: var(--gold);"></div>
+        </div>
+        <a href="billing.html" class="dropdown-link">💳 Billing Settings</a>
+        <a href="support.html" class="dropdown-link">💬 Support</a>
+        <a href="team.html" class="dropdown-link" id="dropdownTeamLink" style="display:none;">👥 Team</a>
+        <a href="api-keys.html" class="dropdown-link" id="dropdownApiKeysLink" style="display:none;">🔑 API Keys</a>
+        <a href="webhooks.html" class="dropdown-link" id="dropdownWebhooksLink" style="display:none;">🔌 Webhooks</a>
+        <a href="upgrade.html" class="dropdown-link upgrade-highlight" id="dropdownUpgradeLink">⭐ Upgrade Plan</a>
+        <div class="dropdown-divider"></div>
+        <button class="dropdown-logout-btn" id="dropdownLogoutBtn">🚪 Logout</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="app-body">
+  <div class="sidebar">
+    <div class="sidebar-label">Tools</div>
+    <button class="tool-btn active">
+      <span class="tool-icon">🔍</span>
+      <div><div class="tool-label">Invoice Analyzer</div><div class="tool-desc">Extract every detail instantly</div></div>
+    </button>
+    <button class="tool-btn">
+      <span class="tool-icon">🗂️</span>
+      <div><div class="tool-label">Expense Clarity</div><div class="tool-desc">Sort expenses for tax</div></div>
+    </button>
+    <button class="tool-btn">
+      <span class="tool-icon">📊</span>
+      <div><div class="tool-label">Finance Report</div><div class="tool-desc">A clear summary you can read</div></div>
+    </button>
+    <button class="tool-btn">
+      <span class="tool-icon">📧</span>
+      <div><div class="tool-label">Payment Request</div><div class="tool-desc">Get paid faster</div></div>
+    </button>
+    <button class="tool-btn">
+      <span class="tool-icon">🚨</span>
+      <div><div class="tool-label">Fraud Detection</div><div class="tool-desc">Catch errors early</div></div>
+    </button>
+    <button class="tool-btn">
+      <span class="tool-icon">📈</span>
+      <div><div class="tool-label">Cash Flow Forecast</div><div class="tool-desc">30, 60, 90 day picture</div></div>
+    </button>
+    
+    <div class="history-section" id="historySection" style="display:none">
+      <div class="sidebar-label">Recent</div>
+      <div id="historyList"></div>
+    </div>
+
+    <div class="sidebar-premium-widget" id="sidebarPremiumWidget">
+      <div class="sidebar-label" style="margin-bottom:2px; padding:0;">Usage Target</div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:500;">
+        <span id="widgetRemainingText">- left</span>
+        <span id="widgetPercentText">0%</span>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="widgetProgressBar"></div>
+      </div>
+      <ul class="premium-feat-list" id="widgetFeatures">
+        <li class="premium-feat-item">✓ Core Data Analysis Engine</li>
+        <li class="premium-feat-item" id="featCsvItem">✕ Advanced CSV Framework</li>
+        <li class="premium-feat-item" id="featPredictiveItem">✕ 90-Day Predictions</li>
+      </ul>
+      <a href="upgrade.html" class="widget-upgrade-btn" id="widgetUpgradeBtn">Upgrade Workspace</a>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="warning-banner" id="lowQuotaBanner">
+      <div>⚠️ <strong>Running low on quota!</strong> You have used <span id="bannerPercentText">0%</span> of your allocation. Upgrade now to preserve workflows.</div>
+      <a href="upgrade.html" class="warning-banner-btn">Upgrade</a>
+    </div>
+
+    <div id="mainWorkspaceContainer" style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
+      <div class="stats-row">
+        <div class="stat-card"><span class="stat-icon">✅</span><span class="stat-val" id="quota-used-display">-</span><span class="stat-label">Analyses Remaining</span></div>
+        <div class="stat-card"><span class="stat-icon">👑</span><span class="stat-val" id="quota-plan-display">Loading...</span><span class="stat-label">Subscription Plan</span></div>
+        <div class="stat-card"><span class="stat-icon">🔒</span><span class="stat-val">Secure</span><span class="stat-label">Verified Session</span></div>
+      </div>
+
+      <div class="input-card">
+        <div class="tool-header">
+          <div class="tool-header-left">
+            <span class="tool-header-icon" id="activeIcon">🔍</span>
+            <div>
+              <div class="tool-header-title" id="activeTitle">Invoice Analyzer</div>
+              <div class="tool-header-desc" id="activeDesc">Extract every detail instantly</div>
+            </div>
+          </div>
+          <button class="clear-btn" id="clearBtn">Clear</button>
+        </div>
+
+        <div class="input-method-row" role="tablist" aria-label="Input method">
+          <button class="method-btn" id="methodUploadBtn" type="button" role="tab" aria-pressed="false">
+            <span class="method-icon" aria-hidden="true">📄</span><span>Upload PDF/Image</span>
+          </button>
+          <button class="method-btn" id="methodCameraBtn" type="button" role="tab" aria-pressed="false">
+            <span class="method-icon" aria-hidden="true">📷</span><span>Camera Scan</span>
+          </button>
+          <button class="method-btn active" id="methodPasteBtn" type="button" role="tab" aria-pressed="true">
+            <span class="method-icon" aria-hidden="true">📋</span><span>Paste Text</span>
+          </button>
+        </div>
+
+        <div class="upload-zone" id="uploadZone" style="display:none">
+          <div class="upload-card" id="uploadCard" role="button" tabindex="0" aria-label="Upload or drag a PDF, JPG, JPEG or PNG file, up to 20MB">
+            <span class="upload-card-icon" aria-hidden="true">📄</span>
+            <div class="upload-card-title">Click or drag a file here</div>
+            <div class="upload-card-sub">PDF, JPG, JPEG or PNG · up to 20MB</div>
+            <div class="upload-filename" id="uploadFilenameWrap" style="display:none">
+              <span aria-hidden="true">📎</span><span id="uploadFilenameText"></span>
+            </div>
+          </div>
+          <input type="file" id="fileInputUpload" accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf" style="display:none" aria-hidden="true"/>
+        </div>
+
+        <div class="upload-zone" id="cameraZone" style="display:none">
+          <div class="camera-card">
+            <button class="camera-trigger-btn" id="cameraTriggerBtn" type="button" aria-label="Open camera to photograph an invoice">
+              <span aria-hidden="true">📷</span><span>Open Camera</span>
+            </button>
+            <div class="camera-card-sub">Takes a photo using your device camera</div>
+            <div class="upload-filename" id="cameraFilenameWrap" style="display:none">
+              <span aria-hidden="true">📎</span><span id="cameraFilenameText"></span>
+            </div>
+          </div>
+          <input type="file" id="fileInputCamera" accept="image/*" capture="environment" style="display:none" aria-hidden="true"/>
+        </div>
+
+        <div class="extract-overlay" id="extractOverlay" role="status" aria-live="polite">
+          <div class="extract-spinner" aria-hidden="true"></div>
+          <div class="extract-label" id="extractLabel">Extracting document...</div>
+          <div class="extract-progress-track">
+            <div class="extract-progress-fill" id="extractProgressFill"></div>
+          </div>
+          <div class="extract-percent" id="extractPercent">0%</div>
+          <div class="extract-error" id="extractError" role="alert" style="display:none"></div>
+        </div>
+
+        <div class="textarea-wrap" id="textareaWrap">
+          <textarea id="inputText" maxlength="100000" aria-label="Paste your financial data here"
+            placeholder="Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"></textarea>
+          <div class="input-footer">
+            <span class="char-count" id="charCount">0 chars</span>
+            <span class="error-text" id="errorText" role="alert"></span>
+          </div>
+        </div>
+        <button class="generate-btn" id="generateBtn">
+          🔍 Run Invoice Analyzer
+        </button>
+      </div>
+
+      <div style="height:18px" id="resultSpacer"></div>
+      <div class="output-card" id="outputCard" style="display:none" role="region" aria-label="Analysis results" tabindex="-1">
+        <div class="output-header">
+          <div class="output-meta">
+            <div class="output-dot" aria-hidden="true"></div>
+            <span class="output-label" id="outputLabel">Invoice Analyzer · Wissely AI</span>
+          </div>
+          <div class="output-actions">
+            <button class="copy-btn" id="copyBtn" aria-live="polite" aria-label="Copy analysis to clipboard">Copy</button>
+            <button class="copy-btn" id="csvBtn" aria-label="Export analysis as CSV">CSV</button>
+            <button class="copy-btn" id="pdfBtn" title="Print via browser" aria-label="Print analysis as PDF">Print</button>
+            <button class="copy-btn" id="downloadPdfBtn" title="Download a Premium PDF file" aria-label="Download analysis as a premium PDF">Download</button>
+          </div>
+        </div>
+        <div class="output-text" id="outputText" aria-live="polite"></div>
+      </div>
+
+
+      <div class="empty-state" id="emptyState">
+        <div class="sample-label">Wissely AI Ready</div>
+        <div style="text-align:center;padding:24px">
+          <div style="font-size:42px;margin-bottom:10px">📊</div>
+          <div style="font-weight:600;margin-bottom:8px">Run an analysis to see results</div>
+          <div class="empty-sub">Paste invoice or financial data and click Run</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="exhausted-card" id="quotaExhaustedCard">
+      <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+      <h2 class="exhausted-title">Quota Limit Reached</h2>
+      <p style="color: var(--muted); font-size: 14px; line-height: 1.5;">Your billing subscription tier has exhausted its computational limits for the billing cycle. Upgrade your engine workspace to proceed with active processing pipelines.</p>
+      
+      <div class="exhausted-grid">
+        <div class="exhausted-stat"><span class="sidebar-label" style="font-size:8px;">Plan</span><div style="font-weight:600; font-size:14px;" id="exhPlan">-</div></div>
+        <div class="exhausted-stat"><span class="sidebar-label" style="font-size:8px;">Analyzed</span><div style="font-weight:600; font-size:14px; color:#ef4444;" id="exhUsed">-</div></div>
+        <div class="exhausted-stat"><span class="sidebar-label" style="font-size:8px;">Remaining</span><div style="font-weight:600; font-size:14px; color:var(--muted);">0</div></div>
+      </div>
+
+      <div style="text-align: left; background: var(--cream); border:1px solid var(--cream3); padding: 16px; border-radius: 12px; margin-bottom: 24px;">
+        <div class="sidebar-label" style="margin-bottom:8px;">Unlocked with Professional Tier</div>
+        <div style="font-size: 12px; display:grid; grid-template-columns: 1fr 1fr; gap: 8px; color: var(--text);">
+          <div>✨ Unlimited Invoice Pipelines</div>
+          <div>📊 Advanced CSV Outputs</div>
+          <div>📈 Predictive Forecasts</div>
+          <div>⚡ Accelerated Priority Processing</div>
+        </div>
+      </div>
+      <a href="upgrade.html" class="generate-btn" style="text-decoration:none;">⭐ Unlock Professional Access</a>
+    </div>
+
+    <div class="app-footer">
+      <span>WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE_URL = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+
+const TOOLS = [
+  {
+    icon:"🔍", label:"Invoice Analyzer", desc:"Extract every detail instantly",
+    placeholder:"Paste your invoice here...\n\nExample:\nInvoice #INV-2026-0547\nFrom: TechSupplies Ltd\nTo: Your Business\nDate: May 29, 2026\nDue: June 28, 2026\nMacBook Pro x2: $3,998\nSoftware License: $1,200\nTax (8.5%): $512\nTOTAL: $6,544"
+  },
+  {
+    icon:"🗂️", label:"Expense Clarity", desc:"Sort expenses for tax",
+    placeholder:"Paste your expenses here...\n\nExample:\nSoftware tools: $890\nOffice rent: $2,100\nContractor fees: $4,200\nMarketing: $500"
+  },
+  {
+    icon:"📊", label:"Finance Report", desc:"A clear summary you can read",
+    placeholder:"Paste your financial data here...\n\nExample:\nRevenue: $12,400\nExpenses: $8,900\nUnpaid invoices: $3,200\nRent: $2,100\nTax paid: $0"
+  },
+  {
+    icon:"📧", label:"Payment Request", desc:"Get paid faster",
+    placeholder:"Paste invoice details here...\n\nExample:\nClient: ABC Corp\nInvoice: $3,500\nDays overdue: 15\nProject: Website redesign"
+  },
+  {
+    icon:"🚨", label:"Fraud Detection", desc:"Catch errors early",
+    placeholder:"Paste invoices or transactions here...\n\nExample:\nInvoice A: $2,500 - Supplier X - May 1\nInvoice B: $2,500 - Supplier X - May 1\nInvoice C: $8,999 - Unknown Vendor"
+  },
+  {
+    icon:"📈", label:"Cash Flow Forecast", desc:"30, 60, 90 day picture",
+    placeholder:"Paste your financial data here...\n\nExample:\nCurrent balance: $18,500\nMonthly expenses: $6,200\nExpected payments: $12,000\nOverdue invoices: $4,500"
+  }
+];
+
+// Maps each TOOLS[] entry to the tool identifier the backend's
+// AI_TOOL_PROMPTS registry expects in body.tool (see worker.js). The backend
+// now owns all task-specific prompt authoring and output-schema enforcement,
+// so the frontend no longer builds its own instruction text - it just tells
+// the backend which tool is active and sends the raw input.
+const TOOL_IDS = [
+  'invoice-analyzer',
+  'expense-clarity',
+  'finance-report',
+  'payment-request',
+  'fraud-detection',
+  'cash-flow-forecast'
+];
+
+// Builds the user-message content sent to /analyze. The backend's system
+// prompt fully specifies the task and the required JSON output schema, so
+// this only needs to carry the raw input - plus, for the Invoice Analyzer,
+// the locally regex-extracted field hints so the AI can verify/correct them.
+function buildAnalyzeMessage(text, toolIndex, localFields) {
+  if (toolIndex === 0 && localFields && Object.keys(localFields).length) {
+    return `${text}\n\nFields already extracted locally (verify against the text below, correct any that are wrong, fill in any left as null): ${JSON.stringify(localFields)}`;
+  }
+  return text;
+}
+
+let currentTool = 0;
+let currentReport = null; // the structured JSON report object from the last successful /analyze call
+let analysisHistory = [];
+let outputText = "";
+let isQuotaExhausted = false;
+let isProcessing = false;
+let currentAnalysisId = "";
+let currentAnalysisDate = "";
+let currentUserPlan = "";
+let toolButtonsCollection;
+let lastAuthCheckTimestamp = 0;
+let lastLocalInvoiceFields = null; // Task 4: regex-extracted fields for the current input, sent alongside the AI prompt
+
+// Task 8: upload validation limits
+const MAX_UPLOAD_MB = 20;
+const ALLOWED_UPLOAD_TYPES = {
+  'application/pdf': ['.pdf'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png']
+};
+
+// Task 12: dedupe in-flight/loaded <script> tags so libraries are only ever fetched once
+const _loadedScripts = {};
+
+// The backend requires X-CSRF-Token on state-changing requests (/analyze,
+// /logout, etc). The token is issued once, in the /login response body, and
+// is expected to be persisted by the auth flow under this key - same key
+// used by api-keys.html. If it isn't present (e.g. this key isn't set by
+// auth.html yet), requests are sent without it, which is today's behavior.
+function getCsrfToken() {
+  try {
+    return localStorage.getItem('wissely_csrf_token') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function loadScriptOnce(src) {
+  if (_loadedScripts[src]) return _loadedScripts[src];
+  _loadedScripts[src] = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load a required engine. Check your connection and try again.'));
+    document.head.appendChild(s);
+  });
+  return _loadedScripts[src];
+}
+
+async function ensurePdfJs() {
+  if (typeof pdfjsLib !== 'undefined') return;
+  await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF engine failed to load. Check your connection and try again.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+async function ensureTesseract() {
+  if (typeof Tesseract !== 'undefined') return;
+  await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js');
+  if (typeof Tesseract === 'undefined') throw new Error('OCR engine failed to load. Check your connection and try again.');
+}
+
+async function ensureJsPdf() {
+  if (typeof window.jspdf !== 'undefined' && typeof window.html2canvas !== 'undefined') return;
+  await Promise.all([
+    loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+    loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+  ]);
+  if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+    throw new Error('PDF export engine failed to load. Check your connection and try again.');
+  }
+}
+
+// ─── Task 1/2/3: Centralised auth-failure handler ────────────────────────────
+// Call this after every authenticated API response to handle 401 and 403.
+async function handleAuthResponse(res) {
+  // Task 1: 401 → redirect to login, no back-button return
+  if (res.status === 401) {
+    window.location.replace('auth.html?mode=login');
+    return false;
+  }
+
+  // Task 2: 403 → check for trialExpired flag
+  if (res.status === 403) {
+    let data = null;
+    try { data = await res.clone().json(); } catch (e) {}
+    if (data && data.trialExpired === true) {
+      window.location.replace('upgrade.html');
+      return false;
+    }
+    // Quota-exhaustion 403s always carry upgradeRequired - let the caller
+    // handle those via updateQuotaUI. Anything else (e.g. CSRF failures:
+    // { error: 'Invalid or missing security token' }, no upgradeRequired
+    // flag) has no client-side recovery path since a CSRF token is only
+    // ever issued at login - re-authenticating is the only way to get a
+    // valid one, so send the user back to login rather than leaving them
+    // stuck retrying with a dead token indefinitely.
+    if (!(data && data.upgradeRequired === true)) {
+      window.location.replace('auth.html?mode=login');
+      return false;
+    }
+    return true;
+  }
+
+  return true; // 200, 2xx - proceed normally
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `wissely-toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+  });
+}
+
+function initLocalStorageHistory() {
+  try {
+    let unparsedPayload = localStorage.getItem('wissely_history_v2');
+    if (!unparsedPayload) {
+      unparsedPayload = localStorage.getItem('wissely_history_v1');
+    }
+    if (unparsedPayload) {
+      const parsed = JSON.parse(unparsedPayload);
+      analysisHistory = Array.isArray(parsed) ? parsed : [];
+      analysisHistory = analysisHistory.map(item => {
+        if (!item) return null;
+        let tIndex = 0;
+        if (typeof item.toolIndex === 'number') {
+          tIndex = item.toolIndex;
+        } else if (item.tool) {
+          const indexMatch = TOOLS.findIndex(t => t.label === item.tool);
+          tIndex = indexMatch !== -1 ? indexMatch : 0;
+        }
+        return {
+          toolIndex: Math.max(0, Math.min(TOOLS.length - 1, parseInt(tIndex) || 0)),
+          icon: String(item.icon || ''),
+          preview: String(item.preview || '').slice(0, 100),
+          output: String(item.output || '').slice(0, 5000),
+          report: (item.report && typeof item.report === 'object') ? item.report : null,
+          invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber) : undefined,
+          analysisId: String(item.analysisId || ''),
+          timestamp: String(item.timestamp || '')
+        };
+      }).filter(Boolean);
+      localStorage.setItem('wissely_history_v2', JSON.stringify(analysisHistory));
+      renderHistory();
+    } else {
+      analysisHistory = [];
+      renderHistory();
+    }
+  } catch (e) {
+    analysisHistory = [];
+    renderHistory();
+  }
+}
+
+function syncHistoryToStorage() {
+  try {
+    const safeExport = analysisHistory.map(item => ({
+      toolIndex: parseInt(item.toolIndex) || 0,
+      icon: String(item.icon || ''),
+      preview: String(item.preview || '').slice(0, 100),
+      output: String(item.output || '').slice(0, 5000),
+      report: (item.report && typeof item.report === 'object') ? item.report : null,
+      invoiceNumber: item.invoiceNumber ? String(item.invoiceNumber) : undefined,
+      analysisId: String(item.analysisId || ''),
+      timestamp: String(item.timestamp || '')
+    }));
+    localStorage.setItem('wissely_history_v2', JSON.stringify(safeExport));
+  } catch (e) {}
+}
+
+// ─── Task 5: optional backend history sync ───────────────────────────────────
+// LocalStorage stays the source of truth for the UI. This call is best-effort:
+// if there's no /history endpoint yet (404/network error), it silently no-ops
+// and never surfaces an error to the user or blocks anything else.
+function syncHistoryToBackend(item) {
+  try {
+    fetch(`${API_BASE_URL}/history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(item)
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+// ─── Task 9: consistent, human-readable error messages ─────────────────────
+function getFriendlyErrorMessage(err, context) {
+  if (!err) return 'Something went wrong. Please try again.';
+  if (err.name === 'AbortError') return 'The request timed out. Check your connection and try again.';
+  const msg = String(err.message || '');
+
+  if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+    return 'Network issue - check your connection and try again.';
+  }
+  if (/401/.test(msg) || context === 'auth') return 'Your session has expired. Please sign in again.';
+  if (/403/.test(msg) || context === 'quota') return 'Your analysis quota is exhausted. Upgrade your plan to continue.';
+  if (/500|502|503|504/.test(msg)) return 'Wissely servers are temporarily unavailable. Please try again shortly.';
+  if (context === 'ocr') return 'OCR could not read this image clearly. Try a sharper photo or better lighting.';
+  if (context === 'pdf') return 'This PDF could not be processed - it may be corrupted, scanned as an image, or password-protected.';
+  if (context === 'camera') return 'Camera access was denied or unavailable. You can upload a photo instead.';
+  if (context === 'empty') return 'No readable text was found in that file. Try pasting the text manually.';
+  if (context === 'file-type') return 'Unsupported file type. Please upload a PDF, JPG, JPEG or PNG.';
+  if (context === 'file-size') return `That file is larger than the ${MAX_UPLOAD_MB}MB limit. Try a smaller or compressed file.`;
+
+  return msg || 'Error executing processing operations. Please try again.';
+}
+
+async function checkAuthSession() {
+  if (isProcessing) return;
+
+  const shield = document.getElementById('auth-gate-shield');
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/me`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    // Centralized authentication handling
+    const authOk = await handleAuthResponse(res);
+    if (!authOk) return;
+
+    const data = await res.json();
+
+    if (data && data.authenticated && data.user) {
+      updateQuotaUI(data.user);
+      initLocalStorageHistory();
+
+      if (shield) {
+        shield.style.opacity = '0';
+        setTimeout(() => shield.remove(), 250);
+      }
+
+      return;
+    }
+
+    window.location.replace('auth.html?mode=login');
+
+  } catch (err) {
+    window.location.replace('auth.html?mode=login');
+  }
+}
+
+function updateQuotaUI(user) {
+  if(!user) return;
+  const rawPlan = user.plan ? String(user.plan).toLowerCase() : 'trial';
+  currentUserPlan = rawPlan;
+  const VALID_TIERS = { 'trial': 20, 'starter': 50, 'growth': 250, 'pro': 1000 };
+  const limit = Math.max(0, parseInt(user.analyses_limit) || VALID_TIERS[rawPlan] || 20);
+  const used = Math.max(0, parseInt(user.analyses_used || 0));
+  const remaining = Math.max(0, limit - used);
+  const usagePercentage = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  
+  document.getElementById('quota-plan-display').textContent = rawPlan.toUpperCase();
+  document.getElementById('quota-used-display').textContent = `${remaining}`;
+  
+  const csvBtn = document.getElementById('csvBtn');
+  if (csvBtn) csvBtn.style.display = (currentUserPlan === 'starter') ? 'none' : 'inline-block';
+
+  const emailDisplayStr = user.email ? String(user.email) : 'User Session';
+  document.getElementById('dropdownUserEmail').textContent = emailDisplayStr;
+  document.getElementById('navAvatarBtn').textContent = emailDisplayStr.charAt(0).toUpperCase();
+  document.getElementById('dropdownPlanBadge').textContent = rawPlan.toUpperCase();
+  document.getElementById('dropdownUsageText').textContent = `Usage: ${used} / ${limit}`;
+
+  // Task 5: Display trial info if the API returns it
+  const trialTextEl = document.getElementById('dropdownTrialText');
+  if (trialTextEl) {
+    if (typeof user.trialDaysRemaining === 'number' && rawPlan === 'trial') {
+      const days = user.trialDaysRemaining;
+      trialTextEl.textContent = days > 0
+        ? `⏳ Trial: ${days} day${days !== 1 ? 's' : ''} remaining`
+        : '⏳ Trial expires today';
+      trialTextEl.style.display = 'block';
+    } else if (user.trialEndsAt && rawPlan === 'trial') {
+      try {
+        const endsDate = new Date(user.trialEndsAt);
+        const today = new Date();
+        const diffMs = endsDate - today;
+        const diffDays = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        trialTextEl.textContent = diffDays > 0
+          ? `⏳ Trial: ${diffDays} day${diffDays !== 1 ? 's' : ''} remaining`
+          : '⏳ Trial expires today';
+        trialTextEl.style.display = 'block';
+      } catch (e) {
+        trialTextEl.style.display = 'none';
+      }
+    } else {
+      trialTextEl.style.display = 'none';
+    }
+  }
+  
+  document.getElementById('widgetRemainingText').textContent = `${remaining} remaining`;
+  document.getElementById('widgetPercentText').textContent = `${usagePercentage}%`;
+  
+  const progressBar = document.getElementById('widgetProgressBar');
+  if (progressBar) {
+    progressBar.style.width = `${usagePercentage}%`;
+    progressBar.classList.toggle('warning', usagePercentage >= 80 && usagePercentage < 95);
+    progressBar.classList.toggle('critical', usagePercentage >= 95);
+  }
+  
+  const hasPremiumTier = (rawPlan !== 'trial' && rawPlan !== 'starter');
+  document.getElementById('featCsvItem').textContent = hasPremiumTier ? '✓ Advanced CSV Framework' : '✕ Advanced CSV Framework';
+  document.getElementById('featPredictiveItem').textContent = (rawPlan === 'growth' || rawPlan === 'pro') ? '✓ 90-Day Predictions' : '✕ 90-Day Predictions';
+  
+  const dropdownUpgradeLink = document.getElementById('dropdownUpgradeLink');
+  const dropdownApiKeysLink = document.getElementById('dropdownApiKeysLink');
+  const dropdownWebhooksLink = document.getElementById('dropdownWebhooksLink');
+  const dropdownTeamLink = document.getElementById('dropdownTeamLink');
+  const widgetUpgradeBtn = document.getElementById('widgetUpgradeBtn');
+  const sidebarPremiumWidget = document.getElementById('sidebarPremiumWidget');
+
+  // API Keys and Webhooks are owner-only administrative capabilities - a
+  // team member's `plan` reads 'pro' too (shared-quota overlay from /me),
+  // but they must never see these links, only the actual Pro subscriber
+  // who owns the team.
+  if (dropdownApiKeysLink) dropdownApiKeysLink.style.display = (rawPlan === 'pro' && !user.isTeamMember) ? 'flex' : 'none';
+  if (dropdownWebhooksLink) dropdownWebhooksLink.style.display = (rawPlan === 'pro' && !user.isTeamMember) ? 'flex' : 'none';
+
+  // Team Seats, unlike API Keys, is relevant to BOTH owners (to manage their
+  // team) and members (to see whose team they're on) - and since a member's
+  // overlaid `plan` already reads 'pro', this one check naturally covers both.
+  if (dropdownTeamLink) dropdownTeamLink.style.display = (rawPlan === 'pro') ? 'flex' : 'none';
+
+  if (rawPlan === 'pro') {
+    if (dropdownUpgradeLink) dropdownUpgradeLink.style.display = 'none';
+    if (widgetUpgradeBtn) widgetUpgradeBtn.style.display = 'none';
+    if (sidebarPremiumWidget) sidebarPremiumWidget.style.border = '1px solid var(--gold)';
+  } else {
+    if (dropdownUpgradeLink) dropdownUpgradeLink.style.display = 'flex';
+    if (widgetUpgradeBtn) widgetUpgradeBtn.style.display = 'block';
+  }
+
+  const lowQuotaBanner = document.getElementById('lowQuotaBanner');
+  if (lowQuotaBanner) {
+    if (usagePercentage >= 80 && remaining > 0 && rawPlan !== 'pro') {
+      lowQuotaBanner.style.display = 'flex';
+      document.getElementById('bannerPercentText').textContent = `${usagePercentage}%`;
+    } else {
+      lowQuotaBanner.style.display = 'none';
+    }
+  }
+
+  const mainWorkspace = document.getElementById('mainWorkspaceContainer');
+  const exhaustedCard = document.getElementById('quotaExhaustedCard');
+  const btn = document.getElementById('generateBtn');
+  
+  if (used >= limit || remaining === 0) {
+    isQuotaExhausted = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+    }
+    document.getElementById('errorText').textContent = 'Your analysis quota is exhausted. Upgrade your tier to process further records.';
+    
+    if (!outputText) {
+      if (mainWorkspace) mainWorkspace.style.display = 'none';
+      if (exhaustedCard) {
+        exhaustedCard.style.display = 'block';
+        document.getElementById('exhPlan').textContent = rawPlan.toUpperCase();
+        document.getElementById('exhUsed').textContent = `${used} / ${limit}`;
+      }
+    } else {
+      showToast('Quota limits met. Current session data remains accessible.', 'error');
+    }
+  } else {
+    isQuotaExhausted = false;
+    if (mainWorkspace) mainWorkspace.style.display = 'flex';
+    if (exhaustedCard) exhaustedCard.style.display = 'none';
+    
+    if (!isProcessing && btn) {
+      btn.disabled = false;
+      btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+    }
+  }
+}
+
+// Task 4: Logout uses replace() so back button can't return to dashboard
+async function triggerLogout() {
+  try {
+    await fetch(`${API_BASE_URL}/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': getCsrfToken() }
+    });
+  } catch (e) {}
+  analysisHistory = [];
+  try {
+    localStorage.removeItem('wissely_history_v2');
+    localStorage.removeItem('wissely_csrf_token');
+  } catch (e) {}
+  window.location.replace('auth.html?mode=login');
+}
+
+function selectTool(index) {
+  if (isProcessing) {
+    showToast('Please wait until the current analysis operation completes.', 'error');
+    return;
+  }
+  currentTool = index;
+  const t = TOOLS[index];
+  for(let i=0; i < toolButtonsCollection.length; i++){ 
+    toolButtonsCollection[i].classList.toggle('active', i === index); 
+  }
+  document.getElementById('activeIcon').textContent = t.icon;
+  document.getElementById('activeTitle').textContent = t.label;
+  document.getElementById('activeDesc').textContent = t.desc;
+  
+  const currentInput = document.getElementById('inputText').value.trim();
+  if (!currentInput) {
+    document.getElementById('inputText').placeholder = t.placeholder;
+    document.getElementById('inputText').value = '';
+    document.getElementById('charCount').textContent = '0 chars';
+    document.getElementById('outputCard').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+  }
+  
+  const btn = document.getElementById('generateBtn');
+  if (isQuotaExhausted) {
+    btn.disabled = true;
+    btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+  } else {
+    btn.disabled = false;
+    btn.textContent = t.icon + ' Run ' + t.label;
+    document.getElementById('errorText').textContent = '';
+  }
+}
+
+function updateChar() { document.getElementById('charCount').textContent = document.getElementById('inputText').value.length + ' chars'; }
+
+function handleKey(e) { 
+  if(e.ctrlKey && e.key === 'Enter') {
+    e.preventDefault();
+    if(!isQuotaExhausted && !isProcessing) generate();
+  }
+}
+
+function clearAll() {
+  if (isProcessing) return;
+  document.getElementById('inputText').value = '';
+  document.getElementById('charCount').textContent = '0 chars';
+  if (!isQuotaExhausted) document.getElementById('errorText').textContent = '';
+  document.getElementById('outputCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+  outputText = "";
+  lastExtractionMethod = 'Manual Paste';
+  lastOcrEngine = '—';
+}
+
+function cleanOutput(text) {
+  let safeText = escapeHTML(text);
+  safeText = safeText.replace(/^#{1,6}\s*/gm,'');
+  safeText = safeText.replace(/\*\处理/g,'').replace(/\*/g,'');
+  safeText = safeText.replace(/^[-_=]{3,}$/gm,'');
+  safeText = safeText.replace(/^\s*[-•*]\s+/gm,'');
+  safeText = safeText.replace(/\n{3,}/g,'\n\n').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>');
+  return safeText.trim();
+}
+
+// ─── Task 4: Local regex-based invoice pre-extraction ───────────────────────
+// Runs BEFORE the AI call. If a field is found locally, we pass it to the AI
+// as a verified hint instead of asking the model to find it from raw text,
+// which cuts down on how much the model needs to reason over per request.
+function extractInvoiceFieldsRegex(text) {
+  if (!text) return {};
+  const grab = (patterns) => {
+    for (let i = 0; i < patterns.length; i++) {
+      const m = text.match(patterns[i]);
+      if (m && m[1]) return m[1].trim().replace(/[,;]+$/, '');
+    }
+    return null;
+  };
+
+  const fields = {
+    vendor: grab([/(?:from|vendor|seller|billed by)\s*[:\-]\s*([^\n]+)/i]),
+    customer: grab([/(?:to|customer|client|billed to)\s*[:\-]\s*([^\n]+)/i]),
+    invoiceNumber: grab([/invoice\s*(?:#|no\.?|number)\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i]),
+    invoiceDate: grab([/(?:invoice\s*date|date)\s*[:\-]\s*([0-9]{1,4}[\/\-][0-9]{1,2}[\/\-][0-9]{1,4}|[A-Za-z]+ \d{1,2},? \d{4})/i]),
+    dueDate: grab([/(?:due\s*date|due)\s*[:\-]\s*([0-9]{1,4}[\/\-][0-9]{1,2}[\/\-][0-9]{1,4}|[A-Za-z]+ \d{1,2},? \d{4})/i]),
+    tax: grab([/tax(?:\s*\([\d.]+%\))?\s*[:\-]\s*([\$€£]?[\d,]+\.?\d*)/i]),
+    subtotal: grab([/sub\s*-?\s*total\s*[:\-]\s*([\$€£]?[\d,]+\.?\d*)/i]),
+    discount: grab([/discount\s*[:\-]\s*([\$€£]?[\d,]+\.?\d*%?)/i]),
+    total: grab([/(?:grand\s*total|total\s*amount|total)\s*[:\-]\s*([\$€£]?[\d,]+\.?\d*)/i]),
+    currency: (function(){
+      const code = grab([/\b(USD|EUR|GBP|CAD|AUD|LKR|INR|JPY)\b/]);
+      if (code) return code;
+      if (/€/.test(text)) return 'EUR';
+      if (/£/.test(text)) return 'GBP';
+      if (/\$/.test(text)) return 'USD';
+      return null;
+    })(),
+    purchaseOrder: grab([/(?:purchase\s*order|po\s*(?:#|no\.?|number)?)\s*[:\-]\s*([A-Za-z0-9\-\/]+)/i]),
+    paymentTerms: grab([/payment\s*terms\s*[:\-]\s*([^\n]+)/i])
+  };
+
+  const cleaned = {};
+  Object.keys(fields).forEach(k => { if (fields[k]) cleaned[k] = fields[k]; });
+  return cleaned;
+}
+
+// ─── Smart currency detection + consistent formatting ───────────────────────
+const CURRENCY_SYMBOLS = { USD:'$', EUR:'€', GBP:'£', CAD:'$', AUD:'$', LKR:'Rs', INR:'₹', JPY:'¥' };
+function formatCurrencyValue(rawValue, currencyCode) {
+  if (!rawValue || rawValue === '—') return '—';
+  const code = (currencyCode || 'USD').toUpperCase();
+  const symbol = CURRENCY_SYMBOLS[code] || '';
+  const numMatch = String(rawValue).match(/-?[\d,]+\.?\d*/);
+  if (!numMatch) return rawValue;
+  const num = parseFloat(numMatch[0].replace(/,/g, ''));
+  if (isNaN(num)) return rawValue;
+  const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return symbol ? `${code} ${symbol}${formatted}` : `${code} ${formatted}`;
+}
+
+// ─── Invoice validation engine ───────────────────────────────────────────────
+function runInvoiceValidation(fieldsObj) {
+  const { vendor, customer, invoice, invDate, due, amount, tax, subtotal } = fieldsObj;
+  const warnings = [];
+  const isBlank = (v) => !v || v === '—' || /not provided|n\/a|^none$|unknown/i.test(v);
+
+  if (isBlank(invoice)) warnings.push('Missing invoice number.');
+  if (isBlank(vendor)) warnings.push('Missing vendor name.');
+  if (isBlank(customer)) warnings.push('Missing customer name.');
+  if (isBlank(amount)) warnings.push('Missing total amount.');
+
+  const parsedInvDate = isBlank(invDate) ? null : new Date(invDate);
+  const parsedDueDate = isBlank(due) ? null : new Date(due);
+  if (parsedInvDate && parsedDueDate && !isNaN(parsedInvDate) && !isNaN(parsedDueDate) && parsedDueDate < parsedInvDate) {
+    warnings.push('Due date is before the invoice date.');
+  }
+
+  if (!isBlank(subtotal) && !isBlank(tax) && !isBlank(amount)) {
+    const num = (v) => parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
+    const sub = num(subtotal), taxVal = num(tax), tot = num(amount);
+    if (!isNaN(sub) && !isNaN(taxVal) && !isNaN(tot) && Math.abs((sub + taxVal) - tot) > 0.5) {
+      warnings.push(`Tax calculation looks off: subtotal + tax (${(sub + taxVal).toFixed(2)}) does not match total (${tot.toFixed(2)}).`);
+    }
+  }
+
+  if (!isBlank(invoice) && Array.isArray(analysisHistory)) {
+    const dup = analysisHistory.some(h => h && h.toolIndex === 0 && h.invoiceNumber && h.invoiceNumber === invoice);
+    if (dup) warnings.push(`Invoice number ${invoice} appears to be a duplicate of one already in this session's history.`);
+  }
+
+  return warnings;
+}
+
+// ─── OCR / pasted-text cleanup, run before local regex extraction and before
+// the AI call. Conservative on purpose: it fixes formatting noise without
+// rewriting numbers or words it isn't confident about.
+function cleanOcrText(text) {
+  if (!text) return text;
+  let out = text;
+  out = out.replace(/[ \t]{2,}/g, ' ');                       // collapse duplicate spaces
+  out = out.replace(/-\n(?=\w)/g, '');                        // merge hyphen-broken words across lines
+  out = out.replace(/([a-z,])\n(?=[a-z])/g, '$1 ');            // merge lines broken mid-sentence
+  out = out.replace(/\n{3,}/g, '\n\n');                        // collapse excess blank lines
+  out = out.replace(/(\d)\s+,\s+(\d)/g, '$1,$2');              // normalize "1 , 234" -> "1,234"
+  out = out.replace(/(\d)\s+\.\s+(\d)/g, '$1.$2');             // normalize "1 . 234" -> "1.234"
+  out = out.replace(/\$\s+(\d)/g, '$$$1');                     // normalize "$ 5,420" -> "$5,420"
+  out = out.replace(/(\d)\s*[oO](?=\d)/g, '$10');              // common OCR digit mistake: O -> 0 inside numbers
+  out = out.replace(/(\d)[lI](\d)/g, '$1' + '1' + '$2');       // common OCR digit mistake: l/I -> 1 inside numbers
+  out = out.replace(/\bInv0ice\b/gi, 'Invoice');
+  return out.trim();
+}
+
+// ─── Report metadata (extraction method, OCR engine, timing, report ID) ────
+let lastExtractionMethod = 'Manual Paste';
+let lastOcrEngine = '—';
+let lastAnalysisDurationMs = 0;
+function buildReportMetadata() {
+  return {
+    reportId: currentAnalysisId || '—',
+    generatedTime: new Date().toLocaleString(),
+    extractionMethod: lastExtractionMethod,
+    ocrEngine: lastOcrEngine,
+    duration: lastAnalysisDurationMs ? `${(lastAnalysisDurationMs / 1000).toFixed(1)}s` : '—'
+  };
+}
+
+function exportCSV() {
+  if (currentUserPlan === 'starter') {
+    showToast('Structured CSV export is only available on higher tiers.', 'error');
+    return;
+  }
+  if (!outputText || !outputText.trim()) { showToast('No analysis available to export.', 'error'); return; }
+  
+  let toolLabel = TOOLS[currentTool].label;
+  let cleanLabel = toolLabel.replace(/\s+/g, '_');
+  let d = new Date();
+  let formattedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let filename = `${cleanLabel}_Report_${formattedDate}.csv`;
+  let csvContent = "";
+  
+  if (currentTool === 0) {
+    const data = extractInvoiceReportData(currentReport);
+    const csvCell = (v) => `"${String(v).replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`;
+
+    const headers = ["Vendor", "Customer", "Invoice Number", "Invoice Date", "Due Date", "Currency", "Subtotal", "Tax", "Grand Total", "Field Coverage", "Overall Confidence", "Verification Status", "Issues", "Recommendation"];
+    const row = [
+      data.vendor, data.customer, data.invoice, data.invDate, data.due, data.currency,
+      data.subtotal, data.tax, data.amount, `${data.fieldCoverage}%`, `${data.confidence.overall}%`,
+      data.verified ? 'AI Verified' : 'Manual Review Recommended', data.issues, data.action
+    ];
+
+    csvContent += headers.map(csvCell).join(",") + "\n";
+    csvContent += row.map(csvCell).join(",") + "\n";
+
+    if (data.warnings.length) {
+      csvContent += "\n" + csvCell("Validation Warnings") + "\n";
+      data.warnings.forEach(w => { csvContent += csvCell(w) + "\n"; });
+    }
+
+    if (data.lineItems.length) {
+      csvContent += "\n" + ["Item", "Qty", "Unit Price", "Line Total"].map(csvCell).join(",") + "\n";
+      data.lineItems.forEach(li => {
+        csvContent += [li.item, li.qty, li.unitPrice, li.total].map(csvCell).join(",") + "\n";
+      });
+    }
+  } else {
+    csvContent += `"Analysis Output"\n"${outputText.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"\n`;
+  }
+  
+  let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  let link = document.createElement("a");
+  if (link.download !== undefined) {
+    let url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('CSV compilation exported successfully.', 'success');
+  }
+}
+
+async function generate() {
+  if (isQuotaExhausted || isProcessing) return;
+  let input = document.getElementById('inputText').value.trim();
+  if(!input){ document.getElementById('errorText').textContent = 'Paste financial data first.'; return; }
+  document.getElementById('errorText').textContent = '';
+
+  // OCR/text cleanup: normalize spacing, merge broken lines, fix common OCR
+  // digit mistakes before it's used for extraction or sent to the AI.
+  if (currentTool === 0) input = cleanOcrText(input);
+
+  const generationStartTime = performance.now();
+
+  isProcessing = true;
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Analyzing...';
+  document.getElementById('outputCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  // Task 4: run local regex extraction first (Invoice Analyzer only) and pass
+  // whatever it finds to the AI as verified hints instead of raw guesswork.
+  lastLocalInvoiceFields = (currentTool === 0) ? extractInvoiceFieldsRegex(input) : null;
+  
+  try {
+    const res = await fetch(`${API_BASE_URL}/analyze`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken()},
+      credentials: 'include',
+      signal: controller.signal,
+      body: JSON.stringify({
+        tool: TOOL_IDS[currentTool],
+        messages: [{role:'user', content: buildAnalyzeMessage(input, currentTool, lastLocalInvoiceFields)}]
+      })
+    });
+    clearTimeout(timeoutId);
+
+    // Task 1/2: Handle auth failures on /analyze
+    const authOk = await handleAuthResponse(res);
+    if (!authOk) return;
+
+    if (!res.ok) {
+      // Try to read the JSON body before giving up - a 403 here carries
+      // upgradeRequired/trialExpired flags we need to sync the UI with,
+      // not just a status code to display generically.
+      let errBody = null;
+      try { errBody = await res.json(); } catch (e) {}
+
+      if (res.status === 403 && errBody && errBody.upgradeRequired) {
+        // Re-fetch /me so quota-used-display, the Run button, and
+        // isQuotaExhausted all reflect the real, current server state
+        // instead of the stale numbers from the last /me load.
+        try {
+          const meRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+          const meAuthOk = await handleAuthResponse(meRes);
+          if (meAuthOk && meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.user) updateQuotaUI(meData.user);
+          }
+        } catch (e) {}
+      }
+
+      throw new Error(errBody?.error || `Server returned status code: ${res.status}`);
+    }
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) throw new Error("Server did not return valid JSON data payload.");
+
+    const data = await res.json();
+
+    // The backend returns the AI's structured JSON report directly as
+    // `data.data` (see worker.js validateAIReport) - not a raw provider
+    // envelope, so it's stored as-is rather than text-extracted.
+    currentReport = data.data || null;
+    outputText = renderReportAsPlainText(currentReport);
+    currentAnalysisDate = new Date().toLocaleDateString();
+    document.getElementById('outputLabel').textContent = '✓ Analysis Complete · ' + new Date().toLocaleTimeString();
+    currentAnalysisId = "WLY-" + Date.now().toString().slice(-4) + Math.floor(10 + Math.random() * 90);
+    lastAnalysisDurationMs = performance.now() - generationStartTime;
+
+    if(currentTool === 0) {
+      renderInvoiceCards(currentReport);
+    } else {
+      document.getElementById('outputText').innerHTML = cleanOutput(outputText);
+    }
+    document.getElementById('outputCard').style.display = 'block';
+    
+    if (data.user) {
+      updateQuotaUI(data.user);
+    } else {
+      const checkRes = await fetch(`${API_BASE_URL}/me`, { method: 'GET', credentials: 'include' });
+      const checkAuthOk = await handleAuthResponse(checkRes);
+      if (!checkAuthOk) return;
+      if (checkRes.ok) {
+        try {
+          const checkData = await checkRes.json();
+          if (checkData.user) updateQuotaUI(checkData.user);
+        } catch(e){}
+      }
+    }
+    
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const card = document.getElementById('outputCard');
+        if(card) { card.scrollIntoView({behavior:'smooth', block:'start'}); card.focus({preventScroll: true}); }
+      });
+    });
+    
+    try {
+      let latestRaw = localStorage.getItem('wissely_history_v2');
+      let currentHistoryArray = [];
+      if (latestRaw) {
+        let parsed = JSON.parse(latestRaw);
+        currentHistoryArray = Array.isArray(parsed) ? parsed : [];
+      }
+      const safeString = String(input || '');
+      const slicePreview = safeString.length > 50 ? safeString.slice(0, 50) + '...' : safeString;
+      
+      const newHistoryItem = {
+        toolIndex: currentTool, 
+        icon: TOOLS[currentTool].icon, 
+        preview: slicePreview, 
+        output: outputText,
+        report: currentReport,
+        invoiceNumber: (currentTool === 0 && currentReport) ? extractInvoiceReportData(currentReport).invoice : undefined,
+        analysisId: currentAnalysisId,
+        timestamp: currentAnalysisDate
+      };
+      analysisHistory = [newHistoryItem].concat(currentHistoryArray).slice(0, 5);
+      renderHistory();
+      syncHistoryToStorage();
+      // Task 5: best-effort backend sync. LocalStorage remains the source of
+      // truth; this is fire-and-forget and silently no-ops if the endpoint
+      // doesn't exist yet, so it can never break the existing history flow.
+      syncHistoryToBackend({
+        analysisId: currentAnalysisId,
+        tool: TOOLS[currentTool].label,
+        toolIndex: currentTool,
+        preview: slicePreview,
+        output: outputText,
+        timestamp: currentAnalysisDate
+      });
+    } catch (storageErr) {}
+  } catch(e) {
+    clearTimeout(timeoutId);
+    document.getElementById('outputText').innerHTML = '';
+    document.getElementById('errorText').textContent = getFriendlyErrorMessage(e, isQuotaExhausted ? 'quota' : 'analyze');
+    document.getElementById('emptyState').style.display = 'block';
+  } finally {
+    isProcessing = false;
+    if (isQuotaExhausted) {
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '❌ Quota Limit Reached. Please Upgrade.';
+      }
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+      }
+    }
+  }
+}
+
+function renderHistory() {
+  const section = document.getElementById('historySection');
+  const listEl = document.getElementById('historyList');
+  if (!Array.isArray(analysisHistory) || analysisHistory.length === 0) {
+    if (section) section.style.display = 'none';
+    if (listEl) listEl.innerHTML = '';
+    return;
+  }
+  if (section) section.style.display = 'block';
+  
+  if (listEl) {
+    listEl.innerHTML = '';
+    analysisHistory.forEach((item, index) => {
+      if (!item) return;
+      const idx = item.toolIndex;
+      if (typeof idx !== 'number' || idx < 0 || idx >= TOOLS.length) return;
+      
+      const itemEl = document.createElement('div');
+      itemEl.className = 'hist-item';
+      
+      const toolEl = document.createElement('div');
+      toolEl.className = 'hist-tool';
+      toolEl.textContent = `${item.icon} ${TOOLS[idx].label}`;
+      
+      const previewEl = document.createElement('div');
+      previewEl.className = 'hist-preview';
+      previewEl.textContent = item.preview;
+      
+      itemEl.appendChild(toolEl);
+      itemEl.appendChild(previewEl);
+      itemEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showHistory(index);
+      });
+      listEl.appendChild(itemEl);
+    });
+  }
+}
+
+function showHistory(i) {
+  if (isProcessing) return;
+  if (!Array.isArray(analysisHistory) || i < 0 || i >= analysisHistory.length || !analysisHistory[i]) return;
+  
+  const targetToolIndex = analysisHistory[i].toolIndex;
+  if (typeof targetToolIndex !== 'number' || targetToolIndex < 0 || targetToolIndex >= TOOLS.length) return;
+  
+  outputText = analysisHistory[i].output;
+  currentReport = analysisHistory[i].report || null;
+  currentTool = targetToolIndex;
+  for(let b = 0; b < toolButtonsCollection.length; b++) { 
+    toolButtonsCollection[b].classList.toggle('active', b === targetToolIndex); 
+  }
+  
+  const t = TOOLS[targetToolIndex];
+  document.getElementById('activeIcon').textContent = t.icon;
+  document.getElementById('activeTitle').textContent = t.label;
+  document.getElementById('activeDesc').textContent = t.desc;
+  document.getElementById('inputText').placeholder = t.placeholder;
+  document.getElementById('outputLabel').textContent = `${t.label} · Wissely · AI`;
+  currentAnalysisId = analysisHistory[i].analysisId;
+  currentAnalysisDate = analysisHistory[i].timestamp || '';
+
+  if(currentTool === 0) {
+    renderInvoiceCards(currentReport);
+  } else {
+    document.getElementById('outputText').innerHTML = cleanOutput(outputText);
+  }
+  document.getElementById('outputCard').style.display = 'block';
+  document.getElementById('emptyState').style.display = 'none';
+}
+
+function copyOutput() {
+  const btn = document.getElementById('copyBtn');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(outputText)
+      .then(() => triggerCopyFeedback(btn))
+      .catch(() => fallbackCopyMechanism(outputText, btn));
+  } else {
+    fallbackCopyMechanism(outputText, btn);
+  }
+}
+
+function fallbackCopyMechanism(text, btnElement) {
+  try {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (success) triggerCopyFeedback(btnElement);
+  } catch (err) {}
+}
+
+function triggerCopyFeedback(btn) {
+  btn.textContent = 'Copied';
+  btn.classList.add('copied');
+  showToast('Analysis data copied to dashboard clipboard.', 'success');
+  setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+}
+
+// ─── Shared invoice field extraction, reused by the dashboard card, the
+// browser Print view, and the downloadable Premium PDF so all three stay
+// in sync with a single source of truth. Consumes the structured JSON
+// report returned by the backend (see worker.js validateAIReport) - the
+// AI's optional fields (invoice/vendor/customer/totals/dates) aren't under
+// a strict schema, so this defensively checks several reasonable shapes
+// before falling back to '—', exactly like the old field-per-line parser did.
+function extractInvoiceReportData(report) {
+  report = report || {};
+  const inv      = report.invoice  || {};
+  const vendor   = report.vendor   || inv.vendor   || {};
+  const customer = report.customer || inv.customer || {};
+  const totals   = report.totals   || inv.totals   || {};
+  const dates    = report.dates    || inv.dates     || {};
+
+  const pick = (...vals) => {
+    for (const v of vals) {
+      if (v !== undefined && v !== null && v !== '') return String(v);
+    }
+    return '—';
+  };
+
+  const vendorName   = pick(vendor.name, typeof vendor === 'string' ? vendor : null, inv.vendorName);
+  const customerName = pick(customer.name, typeof customer === 'string' ? customer : null, inv.customerName);
+  const invoiceNum   = pick(inv.number, inv.invoiceNumber, report.invoiceNumber);
+  const invDate      = pick(dates.invoiceDate, inv.date, inv.invoiceDate, report.invoiceDate);
+  const due          = pick(dates.dueDate, inv.dueDate, report.dueDate);
+  const currency     = pick(report.currency, totals.currency, inv.currency, 'USD').replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'USD';
+  const subtotal     = pick(totals.subtotal, inv.subtotal, report.subtotal);
+  const tax          = pick(totals.tax, inv.tax, report.tax);
+  const amount       = pick(totals.total, totals.grandTotal, inv.total, report.total);
+
+  const lineItemsRaw = report.lineItems || inv.lineItems || totals.lineItems || [];
+  const lineItems = Array.isArray(lineItemsRaw) ? lineItemsRaw.slice(0, 25).map(li => ({
+    item:      pick(li.description, li.name, li.item),
+    qty:       pick(li.quantity, li.qty),
+    unitPrice: pick(li.unitPrice, li.price),
+    total:     pick(li.total, li.lineTotal, li.subtotal)
+  })) : [];
+
+  const issues = (Array.isArray(report.findings) && report.findings.length)
+    ? report.findings.map(f => `${f.title}: ${f.detail}`).join(' | ')
+    : (Array.isArray(report.risks) && report.risks.length)
+        ? report.risks.map(r => `[${r.level}] ${r.description}`).join(' | ')
+        : 'No issues detected.';
+
+  const action = (Array.isArray(report.recommendations) && report.recommendations.length)
+    ? report.recommendations.map(r => r.action).filter(Boolean).join(' • ')
+    : 'No action needed.';
+
+  // The new schema reports one overall confidence score (0-100), not a
+  // per-field breakdown - mirrored across all four cells so the existing
+  // confidence-grid UI (4 cells: Vendor/Invoice#/Amount/Overall) still works.
+  const overallConfidence = Number.isFinite(report.confidence) ? Math.max(0, Math.min(100, report.confidence)) : 0;
+  const confidence = { vendor: overallConfidence, invoiceNumber: overallConfidence, amount: overallConfidence, overall: overallConfidence };
+
+  function isValidField(val) {
+    if (!val || val === '—') return false;
+    const clean = val.toLowerCase();
+    return !(clean.includes('not provided') || clean.includes('n/a') || clean === 'none' || clean === 'unknown');
+  }
+
+  let fields = 0;
+  [vendorName, customerName, invoiceNum, invDate, due, amount].forEach(v => { if (isValidField(v)) fields++; });
+  const fieldCoverage = Math.round((fields / 6) * 100);
+
+  const warnings = runInvoiceValidation({ vendor: vendorName, customer: customerName, invoice: invoiceNum, invDate, due, amount, tax, subtotal });
+  const verified = overallConfidence >= 90 && warnings.length === 0;
+
+  return {
+    vendor: vendorName, customer: customerName, invoice: invoiceNum, invDate, due, currency, subtotal, tax, amount, issues, action,
+    lineItems, fields, fieldCoverage, confidence, warnings, verified,
+    amountFormatted: formatCurrencyValue(amount, currency),
+    subtotalFormatted: formatCurrencyValue(subtotal, currency),
+    taxFormatted: formatCurrencyValue(tax, currency)
+  };
+}
+
+// Renders the structured JSON report as readable plain text - used for the
+// non-Invoice-Analyzer tools' display, copy-to-clipboard, and CSV/history
+// text storage, in place of the old raw AI plain-text blob.
+function renderReportAsPlainText(report) {
+  if (!report) return 'No output available.';
+  const lines = [];
+  if (report.title) lines.push(report.title);
+  if (report.summary) lines.push('', report.summary);
+  if (Array.isArray(report.metrics) && report.metrics.length) {
+    lines.push('', 'Key Metrics:');
+    report.metrics.forEach(m => lines.push(`- ${m.label}: ${m.value}${m.unit ? ' ' + m.unit : ''}`));
+  }
+  if (Array.isArray(report.findings) && report.findings.length) {
+    lines.push('', 'Findings:');
+    report.findings.forEach(f => lines.push(`- ${f.title}: ${f.detail}`));
+  }
+  if (Array.isArray(report.risks) && report.risks.length) {
+    lines.push('', 'Risks:');
+    report.risks.forEach(r => lines.push(`- [${r.level}] ${r.description}`));
+  }
+  if (Array.isArray(report.recommendations) && report.recommendations.length) {
+    lines.push('', 'Recommendations:');
+    report.recommendations.forEach(r => lines.push(`- [${r.priority}] ${r.action}`));
+  }
+  if (typeof report.confidence === 'number') {
+    lines.push('', `Confidence: ${report.confidence}%`);
+  }
+  return lines.join('\n').trim() || 'No output available.';
+}
+
+function buildLineItemsTableHTML(data) {
+  if (!data.lineItems.length) return '';
+  const rows = data.lineItems.map(li => `
+      <tr>
+        <td>${escapeHTML(li.item)}</td>
+        <td class="num">${escapeHTML(li.qty)}</td>
+        <td class="num">${escapeHTML(formatCurrencyValue(li.unitPrice, data.currency) === '—' ? li.unitPrice : formatCurrencyValue(li.unitPrice, data.currency))}</td>
+        <td class="num">${escapeHTML(formatCurrencyValue(li.total, data.currency) === '—' ? li.total : formatCurrencyValue(li.total, data.currency))}</td>
+      </tr>`).join('');
+  return `
+   <div class="line-items-wrap">
+     <table class="line-items-table">
+       <caption>Line Items</caption>
+       <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Total</th></tr></thead>
+       <tbody>${rows}</tbody>
+     </table>
+   </div>`;
+}
+
+function buildValidationHTML(data) {
+  if (!data.warnings.length) {
+    return `
+   <div class="validation-box">
+     <div class="validation-box-title">Premium Validation</div>
+     <ul class="validation-list"><li class="ok">✓ No validation issues detected.</li></ul>
+   </div>`;
+  }
+  const items = data.warnings.map(w => `<li class="warn">⚠ ${escapeHTML(w)}</li>`).join('');
+  return `
+   <div class="validation-box">
+     <div class="validation-box-title">Premium Validation</div>
+     <ul class="validation-list">${items}</ul>
+   </div>`;
+}
+
+function buildConfidenceHTML(data) {
+  const low = (v) => v < 80 ? ' low' : '';
+  return `
+   <div class="confidence-grid">
+     <div class="confidence-cell${low(data.confidence.vendor)}"><strong>Vendor</strong><span>${data.confidence.vendor}%</span></div>
+     <div class="confidence-cell${low(data.confidence.invoiceNumber)}"><strong>Invoice #</strong><span>${data.confidence.invoiceNumber}%</span></div>
+     <div class="confidence-cell${low(data.confidence.amount)}"><strong>Amount</strong><span>${data.confidence.amount}%</span></div>
+     <div class="confidence-cell${low(data.confidence.overall)}"><strong>Overall</strong><span>${data.confidence.overall}%</span></div>
+   </div>`;
+}
+
+function buildVerificationBadgeHTML(data) {
+  return data.verified
+    ? `<span class="verification-badge verified">✓ AI Verified · ✓ OCR Verified · ✓ Regex Verified</span>`
+    : `<span class="verification-badge review">⚠ Manual Review Recommended</span>`;
+}
+
+function buildReportMetaHTML() {
+  const m = buildReportMetadata();
+  return `
+   <div class="report-meta">
+     <div>Report ID: <span>${escapeHTML(m.reportId)}</span></div>
+     <div>Generated: <span>${escapeHTML(m.generatedTime)}</span></div>
+     <div>Extraction Method: <span>${escapeHTML(m.extractionMethod)}</span></div>
+     <div>OCR Engine: <span>${escapeHTML(m.ocrEngine)}</span></div>
+     <div>Analysis Duration: <span>${escapeHTML(m.duration)}</span></div>
+   </div>`;
+}
+
+function renderInvoiceCards(report){
+ const data = extractInvoiceReportData(report);
+ const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
+
+ document.getElementById('outputText').innerHTML = `
+ <div class="invoice-summary">
+   <div class="wissely-premium-header">
+     <div><strong style="font-size:24px">Wissely</strong><br><small>AI Financial Analysis Report</small></div>
+     <div style="text-align: right;"><small>${escapeHTML(formattedPrintDate)}</small><br><small>${escapeHTML(currentAnalysisId)}</small></div>
+   </div>
+   <div class="decision-status">✓ ANALYZED</div>${buildVerificationBadgeHTML(data)}
+   <div class="big-amount">${escapeHTML(data.amountFormatted)}</div>
+   <div class="completeness-score-card">
+      <div class="completeness-score-value">${data.fieldCoverage}%</div>
+      <div><strong>Field Coverage</strong><br><small>${data.fields} of 6 key invoice fields detected</small></div>
+   </div>
+   ${buildConfidenceHTML(data)}
+   <div class="premium-data-grid">
+      <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(data.vendor)}</div>
+      <div class="premium-info-card"><strong>Invoice Date</strong><br>${escapeHTML(data.invDate)}</div>
+      <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(data.invoice)}</div>
+      <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(data.due)}</div>
+      <div class="premium-info-card"><strong>Subtotal</strong><br>${escapeHTML(data.subtotalFormatted)}</div>
+      <div class="premium-info-card"><strong>Tax</strong><br>${escapeHTML(data.taxFormatted)}</div>
+      <div class="premium-info-card" style="grid-column: span 2;"><strong>Customer</strong><br>${escapeHTML(data.customer)}</div>
+   </div>
+   ${buildLineItemsTableHTML(data)}
+   ${buildValidationHTML(data)}
+   <div class="finding-box"><strong>Issues Found</strong><br>${escapeHTML(data.issues)}</div>
+   <div class="finding-box" style="border-left-color: var(--gold)"><strong>Recommended Action</strong><br>${escapeHTML(data.action)}</div>
+   ${buildReportMetaHTML()}
+   <div class="wissely-premium-footer">WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</div>
+ </div>`;
+}
+
+function buildPremiumPDFReport(report) {
+  const data = extractInvoiceReportData(report);
+  const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
+
+  return `
+    <div class="invoice-summary">
+      <div class="wissely-premium-header">
+        <div><strong style="font-size:24px">Wissely</strong><br><small>Executive Financial Report</small></div>
+        <div style="text-align: right;"><small>Date: ${escapeHTML(formattedPrintDate)}</small><br><small>Ref: ${escapeHTML(currentAnalysisId)}</small></div>
+      </div>
+      ${buildVerificationBadgeHTML(data)}
+      <div style="margin-bottom: 30px;">
+        <small style="text-transform: uppercase; color: #7a7a66;">Total Amount</small>
+        <div class="big-amount" style="font-size: 42px;">${escapeHTML(data.amountFormatted)}</div>
+      </div>
+      ${buildConfidenceHTML(data)}
+      <div class="premium-data-grid">
+         <div class="premium-info-card"><strong>Vendor</strong><br>${escapeHTML(data.vendor)}</div>
+         <div class="premium-info-card"><strong>Invoice Date</strong><br>${escapeHTML(data.invDate)}</div>
+         <div class="premium-info-card"><strong>Invoice #</strong><br>${escapeHTML(data.invoice)}</div>
+         <div class="premium-info-card"><strong>Due Date</strong><br>${escapeHTML(data.due)}</div>
+         <div class="premium-info-card"><strong>Subtotal</strong><br>${escapeHTML(data.subtotalFormatted)}</div>
+         <div class="premium-info-card"><strong>Tax</strong><br>${escapeHTML(data.taxFormatted)}</div>
+         <div class="premium-info-card" style="grid-column: span 2;"><strong>Customer</strong><br>${escapeHTML(data.customer)}</div>
+      </div>
+      ${buildLineItemsTableHTML(data)}
+      ${buildValidationHTML(data)}
+      <div class="finding-box" style="margin-bottom: 20px;"><strong>Key Findings</strong><br>${escapeHTML(data.issues)}</div>
+      <div class="finding-box" style="border-left-color: #c9a84c;"><strong>Recommendations</strong><br>${escapeHTML(data.action)}</div>
+      ${buildReportMetaHTML()}
+      <div class="wissely-premium-footer">WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026</div>
+    </div>`;
+}
+
+function exportPDF() {
+  if (!outputText || !outputText.trim()) { showToast('No active data profile to print.', 'error'); return; }
+  let content = (currentTool === 0) ? buildPremiumPDFReport(currentReport) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+
+  const frame = document.getElementById('wissely-print-frame');
+  if (!frame) {
+    showToast('Export engine failed to mount print view context.', 'error');
+    return;
+  }
+
+  const frameDoc = frame.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`
+  <!DOCTYPE html>
+  <html>
+  <head>
+  <title>Wissely Premium Financial Document Report</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#fff;font-family:'DM Sans',sans-serif;color:#2a2a20;font-size:14px;line-height:1.6;padding:20px}
+  .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:24px;width:100%;max-width:100%}
+  .wissely-premium-header{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0c0c0a;padding-bottom:16px;margin-bottom:24px}
+  .decision-status{display:inline-block;padding:6px 12px;border-radius:999px;font-size:11px;font-weight:700;background:#e8f5e9;color:#2d4a3e;text-transform:uppercase}
+  .big-amount{font-size:38px;font-weight:700;color:#2d4a3e;margin:16px 0}
+  .premium-data-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin:24px 0}
+  .premium-info-card{background:#fff;border:1px solid #dedad0;border-radius:12px;padding:14px}
+  .finding-box{margin-top:14px;padding:14px;border-left:4px solid #2d4a3e;background:#f4f1e8;border-radius:6px}
+  .wissely-premium-footer{text-align:center;border-top:1px solid #dedad0;padding-top:16px;margin-top:32px;font-size:10px;color:#7a7a66;font-family:'DM Mono',monospace}
+  .line-items-wrap{margin-top:16px;overflow-x:auto;border:1px solid #dedad0;border-radius:10px;break-inside:avoid;page-break-inside:avoid}
+  .line-items-table{width:100%;border-collapse:collapse;font-size:11px}
+  .line-items-table caption{text-align:left;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#7a7a66;font-family:'DM Mono',monospace;padding:8px 10px}
+  .line-items-table th{background:#f4f1e8;text-align:left;padding:6px 10px;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#7a7a66;border-bottom:1px solid #dedad0}
+  .line-items-table td{padding:6px 10px;border-bottom:1px solid #ede9df}
+  .line-items-table td.num,.line-items-table th.num{text-align:right;font-feature-settings:"tnum" 1}
+  .validation-box{margin-top:16px;border:1px solid #dedad0;border-radius:10px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+  .validation-box-title{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#7a7a66;font-family:'DM Mono',monospace;padding:8px 10px;background:#f4f1e8}
+  .validation-list{list-style:none;margin:0;padding:0}
+  .validation-list li{padding:7px 10px;font-size:11px;border-bottom:1px solid #ede9df}
+  .confidence-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;break-inside:avoid;page-break-inside:avoid}
+  .confidence-cell{background:#fff;border:1px solid #dedad0;border-radius:10px;padding:8px;text-align:center}
+  .confidence-cell strong{display:block;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#7a7a66;margin-bottom:3px;font-weight:500}
+  .confidence-cell span{font-size:16px;font-weight:700;color:#2d4a3e}
+  .verification-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:10px;font-weight:600;margin-bottom:10px;margin-left:8px}
+  .verification-badge.verified{background:#e8f5e9;color:#2d4a3e}
+  .verification-badge.review{background:#fff4e0;color:#8a5a1a}
+  .report-meta{margin-top:16px;padding-top:12px;border-top:1px dashed #dedad0;display:grid;grid-template-columns:repeat(2,1fr);gap:5px 14px;font-size:10px;color:#7a7a66;font-family:'DM Mono',monospace}
+  .premium-info-card,.finding-box{break-inside:avoid;page-break-inside:avoid}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  @page{size:A4;margin:20mm}
+  </style>
+  </head>
+  <body>
+    <div>${content}</div>
+    <script>
+      window.onload = function() {
+        setTimeout(function() { window.print(); }, 300);
+      };
+    <\/script>
+  </body>
+  </html>`);
+  frameDoc.close();
+  showToast('Forwarding report interface to system printer...', 'success');
+}
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'wissely_history_v2') initLocalStorageHistory();
+});
+
+window.addEventListener('focus', () => {
+  const absoluteNow = Date.now();
+  if (!isProcessing && (absoluteNow - lastAuthCheckTimestamp > 60000)) {
+    lastAuthCheckTimestamp = absoluteNow;
+    checkAuthSession();
+  }
+});
+
+let currentInputMethod = 'paste';
+
+function selectInputMethod(method) {
+  if (isProcessing || isExtracting) return;
+  currentInputMethod = method;
+
+  document.getElementById('methodPasteBtn').classList.toggle('active', method === 'paste');
+  document.getElementById('methodUploadBtn').classList.toggle('active', method === 'upload');
+  document.getElementById('methodCameraBtn').classList.toggle('active', method === 'camera');
+  // Task 11: reflect the selected input method to assistive tech
+  document.getElementById('methodPasteBtn').setAttribute('aria-pressed', method === 'paste');
+  document.getElementById('methodUploadBtn').setAttribute('aria-pressed', method === 'upload');
+  document.getElementById('methodCameraBtn').setAttribute('aria-pressed', method === 'camera');
+
+  document.getElementById('textareaWrap').style.display = (method === 'paste') ? 'block' : 'none';
+  document.getElementById('uploadZone').style.display = (method === 'upload') ? 'flex' : 'none';
+  document.getElementById('cameraZone').style.display = (method === 'camera') ? 'flex' : 'none';
+}
+
+function handleFileSelected(file, filenameTextEl, filenameWrapEl, cardEl) {
+  if (!file) return;
+  filenameTextEl.textContent = file.name;
+  filenameWrapEl.style.display = 'inline-flex';
+  if (cardEl) cardEl.classList.add('has-file');
+}
+
+// ─── Task 8: file validation (size, MIME/extension whitelist) ──────────────
+function validateFile(file) {
+  if (!file) return { valid: false, reason: 'file-type' };
+
+  const sizeMB = file.size / (1024 * 1024);
+  if (sizeMB > MAX_UPLOAD_MB) return { valid: false, reason: 'file-size' };
+  if (file.size === 0) return { valid: false, reason: 'empty' };
+
+  const name = (file.name || '').toLowerCase();
+  const type = file.type || '';
+  const allowedExts = Object.values(ALLOWED_UPLOAD_TYPES).flat();
+  const extOk = allowedExts.some(ext => name.endsWith(ext));
+  const mimeOk = Object.keys(ALLOWED_UPLOAD_TYPES).includes(type);
+
+  if (!extOk && !mimeOk) return { valid: false, reason: 'file-type' };
+
+  const isPDF = type === 'application/pdf' || name.endsWith('.pdf');
+  const isImage = /^image\//.test(type) || /\.(jpe?g|png)$/i.test(name);
+  if (!isPDF && !isImage) return { valid: false, reason: 'file-type' };
+
+  return { valid: true, kind: isPDF ? 'pdf' : 'image' };
+}
+
+let isExtracting = false;
+
+function setExtractButtonState(disabled) {
+  const btn = document.getElementById('generateBtn');
+  if (!btn) return;
+  btn.disabled = disabled;
+  if (disabled) {
+    btn.dataset.prevLabel = btn.textContent;
+  } else if (!isQuotaExhausted) {
+    btn.textContent = TOOLS[currentTool].icon + ' Run ' + TOOLS[currentTool].label;
+  }
+}
+
+function showExtractOverlay() {
+  const overlay = document.getElementById('extractOverlay');
+  const errEl = document.getElementById('extractError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  updateExtractProgress(0, 'Loading document...');
+  if (overlay) overlay.style.display = 'flex';
+  document.getElementById('textareaWrap').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('cameraZone').style.display = 'none';
+}
+
+function hideExtractOverlay() {
+  const overlay = document.getElementById('extractOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function updateExtractProgress(percent, label) {
+  const fill = document.getElementById('extractProgressFill');
+  const pct = document.getElementById('extractPercent');
+  const lbl = document.getElementById('extractLabel');
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  if (fill) fill.style.width = clamped + '%';
+  if (pct) pct.textContent = clamped + '%';
+  if (lbl && label) lbl.textContent = label;
+}
+
+function showExtractError(message) {
+  const errEl = document.getElementById('extractError');
+  if (errEl) {
+    errEl.textContent = message;
+    errEl.style.display = 'block';
+  }
+  showToast(message, 'error');
+}
+
+function finishExtraction(extractedText) {
+  isExtracting = false;
+  hideExtractOverlay();
+  setExtractButtonState(false);
+
+  const cleaned = (extractedText || '').trim();
+  document.getElementById('inputText').value = cleaned;
+  updateChar();
+
+  selectInputMethod('paste');
+
+  if (!cleaned) {
+    document.getElementById('errorText').textContent = getFriendlyErrorMessage(null, 'empty');
+  } else {
+    document.getElementById('errorText').textContent = '';
+    showToast('Document text extracted. Review and edit before analyzing.', 'success');
+  }
+}
+
+// ─── Task 7: page-by-page PDF extraction with memory cleanup ───────────────
+async function extractTextFromPDF(file) {
+  await ensurePdfJs();
+
+  updateExtractProgress(5, 'Loading PDF...');
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdf = await loadingTask.promise;
+
+  let fullText = '';
+  const numPages = pdf.numPages || 1;
+
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n\n';
+
+    // Release this page's resources immediately so 100+ page PDFs don't
+    // accumulate memory or freeze the tab.
+    if (typeof page.cleanup === 'function') page.cleanup();
+
+    const pct = 5 + Math.round((pageNum / numPages) * 80);
+    updateExtractProgress(pct, `Reading page ${pageNum} of ${numPages}...`);
+
+    // Yield back to the browser between pages on large documents.
+    if (pageNum % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  updateExtractProgress(90, 'Cleaning text...');
+  fullText = fullText.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+  try { await loadingTask.destroy(); } catch (e) {}
+
+  updateExtractProgress(100, 'Ready');
+  return fullText;
+}
+
+// ─── Task 1: image preprocessing before OCR ─────────────────────────────────
+// Grayscale + contrast boost + light sharpen + 2x upscale + basic noise
+// reduction, done on a canvas. EXIF orientation is corrected where the
+// browser exposes it; full skew/rotation detection would need a dedicated
+// OSD model, so this handles the common real-world case (phone photos with
+// EXIF rotation flags) rather than claiming to fix arbitrary skewed scans.
+async function preprocessImageForOCR(file) {
+  const img = await loadImageFromFile(file);
+  const scale = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width * scale;
+  canvas.height = img.height * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imageData.data;
+
+  // Grayscale + contrast boost
+  const contrast = 1.25;
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    const boosted = Math.max(0, Math.min(255, (gray - 128) * contrast + 128));
+    d[i] = d[i + 1] = d[i + 2] = boosted;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  // Light sharpen (unsharp-mask style convolution) + mild noise smoothing
+  // via a single lightweight 3x3 pass.
+  try {
+    const sharpened = applyConvolution(ctx, canvas.width, canvas.height, [
+      0, -0.4, 0,
+      -0.4, 2.6, -0.4,
+      0, -0.4, 0
+    ]);
+    ctx.putImageData(sharpened, 0, 0);
+  } catch (e) { /* if convolution fails for any reason, continue with the unsharpened version */ }
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob || file), 'image/png');
+  });
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image file.')); };
+    img.src = url;
+  });
+}
+
+function applyConvolution(ctx, width, height, kernel) {
+  const src = ctx.getImageData(0, 0, width, height);
+  const dst = ctx.createImageData(width, height);
+  const s = src.data, o = dst.data;
+  const side = Math.round(Math.sqrt(kernel.length));
+  const half = Math.floor(side / 2);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0, g = 0, b = 0;
+      for (let ky = 0; ky < side; ky++) {
+        for (let kx = 0; kx < side; kx++) {
+          const sy = Math.min(height - 1, Math.max(0, y + ky - half));
+          const sx = Math.min(width - 1, Math.max(0, x + kx - half));
+          const idx = (sy * width + sx) * 4;
+          const weight = kernel[ky * side + kx];
+          r += s[idx] * weight;
+          g += s[idx + 1] * weight;
+          b += s[idx + 2] * weight;
+        }
+      }
+      const di = (y * width + x) * 4;
+      o[di] = Math.max(0, Math.min(255, r));
+      o[di + 1] = Math.max(0, Math.min(255, g));
+      o[di + 2] = Math.max(0, Math.min(255, b));
+      o[di + 3] = s[di + 3];
+    }
+  }
+  return dst;
+}
+
+// ─── Task 1: multi-language OCR with preprocessing ──────────────────────────
+async function extractTextFromImage(file) {
+  await ensureTesseract();
+
+  updateExtractProgress(2, 'Preparing image...');
+  let processedInput = file;
+  try {
+    processedInput = await preprocessImageForOCR(file);
+  } catch (e) {
+    // If preprocessing fails for any reason, fall back to the original file
+    // rather than blocking OCR entirely.
+    processedInput = file;
+  }
+
+  updateExtractProgress(8, 'Preparing image...');
+
+  // English, German, French and Spanish. Tesseract downloads each language's
+  // trained data the first time it's used, so the very first OCR run may be
+  // slower; subsequent runs use the cached data.
+  const LANGS = 'eng+deu+fra+spa';
+
+  const result = await Tesseract.recognize(processedInput, LANGS, {
+    logger: (m) => {
+      if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+        const pct = 10 + Math.round(m.progress * 80);
+        updateExtractProgress(pct, 'Running OCR...');
+      } else if (m.status) {
+        const label = m.status.charAt(0).toUpperCase() + m.status.slice(1);
+        updateExtractProgress(10, label + '...');
+      }
+    }
+  });
+
+  updateExtractProgress(92, 'Cleaning text...');
+  let text = (result && result.data && result.data.text) ? result.data.text : '';
+  text = text.replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+  updateExtractProgress(100, 'Ready');
+  return text;
+}
+
+async function runExtraction(file, kind) {
+  if (!file || isExtracting || isProcessing) return;
+  isExtracting = true;
+  setExtractButtonState(true);
+  showExtractOverlay();
+
+  try {
+    let text = '';
+    if (kind === 'pdf') {
+      text = await extractTextFromPDF(file);
+      lastExtractionMethod = 'PDF Upload (pdf.js text layer)';
+      lastOcrEngine = 'None (native PDF text)';
+    } else {
+      text = await extractTextFromImage(file);
+      lastExtractionMethod = 'Image Upload / Camera (OCR)';
+      lastOcrEngine = 'Tesseract.js v5';
+    }
+    text = cleanOcrText(text);
+    finishExtraction(text);
+  } catch (err) {
+    isExtracting = false;
+    hideExtractOverlay();
+    setExtractButtonState(false);
+    const context = kind === 'pdf' ? 'pdf' : (kind === 'camera' ? 'camera' : 'ocr');
+    showExtractError(getFriendlyErrorMessage(err, context));
+    selectInputMethod(kind === 'pdf' ? 'upload' : (kind === 'camera' ? 'camera' : 'upload'));
+  }
+}
+
+// ─── Task 2: shared handler for file-input change AND drag & drop ──────────
+function handleIncomingFile(file, filenameTextEl, filenameWrapEl, cardEl) {
+  const validation = validateFile(file);
+  if (!validation.valid) {
+    showExtractError(getFriendlyErrorMessage(null, validation.reason));
+    return;
+  }
+  handleFileSelected(file, filenameTextEl, filenameWrapEl, cardEl);
+  runExtraction(file, validation.kind);
+}
+
+// ─── Task 3: downloadable Premium PDF (in addition to Print) ───────────────
+async function downloadPremiumPDF() {
+  if (!outputText || !outputText.trim()) { showToast('No active data profile to export.', 'error'); return; }
+  const downloadBtn = document.getElementById('downloadPdfBtn');
+  const prevLabel = downloadBtn ? downloadBtn.textContent : '';
+  if (downloadBtn) { downloadBtn.disabled = true; downloadBtn.textContent = 'Preparing...'; }
+
+  try {
+    await ensureJsPdf();
+    const { jsPDF } = window.jspdf;
+
+    const content = (currentTool === 0) ? buildPremiumPDFReport(currentReport) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
+
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '760px';
+    container.style.background = '#ffffff';
+    container.style.padding = '32px';
+    container.style.fontFamily = "'DM Sans', sans-serif";
+    container.innerHTML = `<div style="border-bottom:2px solid #0c0c0a;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center">
+      <strong style="font-size:22px;font-family:'Cormorant Garamond',serif;color:#0c0c0a">Wissely</strong>
+      <span style="font-size:11px;color:#7a7a66;font-family:'DM Mono',monospace">${escapeHTML(currentAnalysisId || '')}</span>
+    </div>${content}`;
+    document.body.appendChild(container);
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 36;
+
+    await new Promise((resolve, reject) => {
+      doc.html(container, {
+        x: margin, y: margin,
+        width: pageWidth - margin * 2,
+        windowWidth: 760,
+        autoPaging: 'text',
+        html2canvas: { scale: 0.75, useCORS: true },
+        callback: function () { resolve(); }
+      });
+      setTimeout(() => reject(new Error('PDF rendering took too long. Please try again.')), 20000);
+    });
+
+    // Repeated header + footer with Wissely branding and page numbers on every page.
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+
+      // Repeating header: thin gold rule + report label/ID, sitting above the margin
+      // so it never overlaps the rendered content below it.
+      doc.setDrawColor(201, 168, 76);
+      doc.setLineWidth(0.75);
+      doc.line(margin, 20, pageWidth - margin, 20);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(45, 74, 62);
+      doc.text('WISSELY PREMIUM REPORT', margin, 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(122, 122, 102);
+      doc.text(String(currentAnalysisId || ''), pageWidth - margin - 60, 14);
+
+      // Repeating footer: branding + page number.
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(122, 122, 102);
+      doc.text('WISSELY.COM · YOUR FINANCES, FINALLY CLEAR', margin, pageHeight - 18);
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 60, pageHeight - 18);
+    }
+
+    document.body.removeChild(container);
+
+    const toolLabel = TOOLS[currentTool].label.replace(/\s+/g, '_');
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    doc.save(`${toolLabel}_Report_${stamp}.pdf`);
+    showToast('Premium PDF downloaded successfully.', 'success');
+  } catch (err) {
+    showToast(getFriendlyErrorMessage(err, 'pdf-export'), 'error');
+  } finally {
+    if (downloadBtn) { downloadBtn.disabled = false; downloadBtn.textContent = prevLabel || 'Download'; }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const methodPasteBtn = document.getElementById('methodPasteBtn');
+  const methodUploadBtn = document.getElementById('methodUploadBtn');
+  const methodCameraBtn = document.getElementById('methodCameraBtn');
+  if (methodPasteBtn) methodPasteBtn.addEventListener('click', () => selectInputMethod('paste'));
+  if (methodUploadBtn) methodUploadBtn.addEventListener('click', () => selectInputMethod('upload'));
+  if (methodCameraBtn) methodCameraBtn.addEventListener('click', () => selectInputMethod('camera'));
+
+  const uploadCard = document.getElementById('uploadCard');
+  const fileInputUpload = document.getElementById('fileInputUpload');
+  if (uploadCard && fileInputUpload) {
+    uploadCard.addEventListener('click', () => fileInputUpload.click());
+    uploadCard.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputUpload.click(); }
+    });
+    fileInputUpload.addEventListener('change', () => {
+      const file = fileInputUpload.files && fileInputUpload.files[0];
+      if (!file) return;
+      handleIncomingFile(file, document.getElementById('uploadFilenameText'), document.getElementById('uploadFilenameWrap'), uploadCard);
+      fileInputUpload.value = '';
+    });
+
+    // Task 2: drag & drop support (desktop)
+    ['dragenter', 'dragover'].forEach(evt => {
+      uploadCard.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        if (isExtracting || isProcessing) return;
+        uploadCard.classList.add('drag-over');
+      });
+    });
+    ['dragleave', 'dragend'].forEach(evt => {
+      uploadCard.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        uploadCard.classList.remove('drag-over');
+      });
+    });
+    uploadCard.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      uploadCard.classList.remove('drag-over');
+      if (isExtracting || isProcessing) return;
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!file) return;
+      handleIncomingFile(file, document.getElementById('uploadFilenameText'), document.getElementById('uploadFilenameWrap'), uploadCard);
+    });
+  }
+
+  const cameraTriggerBtn = document.getElementById('cameraTriggerBtn');
+  const fileInputCamera = document.getElementById('fileInputCamera');
+  if (cameraTriggerBtn && fileInputCamera) {
+    cameraTriggerBtn.addEventListener('click', () => fileInputCamera.click());
+    fileInputCamera.addEventListener('change', () => {
+      const file = fileInputCamera.files && fileInputCamera.files[0];
+      if (!file) return;
+      handleIncomingFile(file, document.getElementById('cameraFilenameText'), document.getElementById('cameraFilenameWrap'), null);
+      fileInputCamera.value = '';
+    });
+  }
+
+  toolButtonsCollection = document.getElementsByClassName('tool-btn');
+  for (let idx = 0; idx < toolButtonsCollection.length; idx++) {
+    toolButtonsCollection[idx].addEventListener('click', () => selectTool(idx));
+    toolButtonsCollection[idx].setAttribute('role', 'button');
+    toolButtonsCollection[idx].setAttribute('tabindex', '0');
+    toolButtonsCollection[idx].addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTool(idx); }
+    });
+  }
+
+  document.getElementById('clearBtn').addEventListener('click', clearAll);
+  document.getElementById('generateBtn').addEventListener('click', generate);
+  document.getElementById('copyBtn').addEventListener('click', copyOutput);
+  document.getElementById('csvBtn').addEventListener('click', exportCSV);
+  document.getElementById('pdfBtn').addEventListener('click', exportPDF);
+  const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+  if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', downloadPremiumPDF);
+  
+  const textInput = document.getElementById('inputText');
+  if (textInput) {
+    textInput.addEventListener('keydown', handleKey);
+    textInput.addEventListener('input', updateChar);
+  }
+
+  const navAvatarBtn = document.getElementById('navAvatarBtn');
+  const navDropdownMenu = document.getElementById('navDropdownMenu');
+  
+  if (navAvatarBtn && navDropdownMenu) {
+    navAvatarBtn.setAttribute('aria-haspopup', 'true');
+    navAvatarBtn.setAttribute('aria-expanded', 'false');
+    navAvatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = navDropdownMenu.classList.toggle('show');
+      navAvatarBtn.setAttribute('aria-expanded', String(isOpen));
+    });
+    document.addEventListener('click', () => {
+      navDropdownMenu.classList.remove('show');
+      navAvatarBtn.setAttribute('aria-expanded', 'false');
+    });
+    // Task 11: close on Escape and return focus to the trigger
+    navDropdownMenu.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        navDropdownMenu.classList.remove('show');
+        navAvatarBtn.setAttribute('aria-expanded', 'false');
+        navAvatarBtn.focus();
+      }
+    });
+  }
+  
+  const dropdownLogoutBtn = document.getElementById('dropdownLogoutBtn');
+  if (dropdownLogoutBtn) dropdownLogoutBtn.addEventListener('click', triggerLogout);
+
+  checkAuthSession();
+});
+</script>
+</body>
+</html>
