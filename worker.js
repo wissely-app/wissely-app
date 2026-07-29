@@ -2582,23 +2582,16 @@ export default {
       }
 
       // ── LOGOUT ────────────────────────────────────────────────────────────
+      // Deliberately NOT CSRF-gated: logout is idempotent and low-risk (a
+      // forced logout via CSRF is a nuisance, not a data/account compromise),
+      // whereas requiring a valid token here creates a deadlock - if a
+      // client's stored CSRF token is ever missing or stale, logout would
+      // silently 403 without deleting the session, and auth.html's own
+      // session check would then bounce the user straight back to
+      // index.html, making logout appear completely broken. The httpOnly
+      // session cookie alone is sufficient to identify and delete the
+      // correct session.
       if (path === '/logout' && request.method === 'POST') {
-        const csrfValid = await validateCsrfToken(request, env, requestId);
-        if (!csrfValid) {
-          await writeAuditLog(env, {
-            requestId, ip: getClientIp(request),
-            eventType: 'csrf_validation_failed', result: 'failure',
-            metadata: { path: '/logout' }
-          });
-          await trackSecurityFailure(env, request, {
-            kvPrefix:       'csrf_fail',
-            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
-            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
-            alertEventType: 'csrf_repeated_failure',
-            requestId
-          });
-          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
-        }
 
         const cookies   = parseCookies(request);
         const rawId     = cookies['wissely_session'];

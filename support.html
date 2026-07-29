@@ -81,7 +81,7 @@ textarea{min-height:140px;line-height:1.6}
 <div class="toast" id="toast"></div>
 
 <script>
-const API_BASE = '';
+const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
 const app = document.getElementById('app');
 const planNote = document.getElementById('planNote');
 const toastEl = document.getElementById('toast');
@@ -129,11 +129,19 @@ function fmtDate(iso) {
 }
 
 async function init() {
-  const meRes = await apiFetch('/me');
-  if (meRes && meRes.ok) {
-    const me = await meRes.json();
-    isLoggedIn = true;
-    isPro = me.user?.plan === 'pro';
+  try {
+    const meRes = await apiFetch('/me');
+    if (meRes && meRes.ok) {
+      const me = await meRes.json();
+      isLoggedIn = true;
+      isPro = me.user?.plan === 'pro';
+    }
+  } catch (e) {
+    // Any failure here (network, bad JSON, unexpected shape) just means we
+    // treat the visitor as anonymous - support accepts anonymous submissions,
+    // so this must never block the form from rendering.
+    isLoggedIn = false;
+    isPro = false;
   }
   // Not logged in is fine here - support accepts anonymous submissions
   // (e.g. someone locked out of their account). We just skip the /me step.
