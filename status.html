@@ -78,7 +78,7 @@ const COMPONENT_LABELS = { api: 'API', dashboard: 'Dashboard', ai_analysis: 'AI 
 async function init() {
   let data;
   try {
-    const res = await fetch('https://wissely-worker.thilinarashmika0727.workers.dev/api/status');
+    const res = await fetch('https://api.wissely.com/api/status');
     if (!res.ok) throw new Error('bad response');
     data = await res.json();
   } catch {

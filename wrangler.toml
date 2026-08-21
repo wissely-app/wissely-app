@@ -2,36 +2,35 @@ name = "wissely-worker"
 main = "worker.js"
 compatibility_date = "2026-06-02"
 
+# Wrangler auto-disables the *.workers.dev subdomain whenever a `routes`
+# array is present, unless this is explicitly kept true. Keeping this on
+# means the workers.dev URL keeps working as a fallback regardless of any
+# custom domain or route config.
+workers_dev = true
+
 # ── Routes ─────────────────────────────────────────────────────────────────────
-# Connects app.wissely.com to this Worker. Declared here, not just in the
-# Cloudflare dashboard, because `wrangler deploy` (which runs on every push
-# to main via .github/workflows/deploy.yml) treats this file as the source
-# of truth for routing - routes added only through the dashboard are not
-# guaranteed to survive the next automatic deploy.
+# Intentionally NOT declaring a `routes` array here. It was tried, but the
+# GitHub Actions deploy's Cloudflare API token doesn't have the
+# `Zone -> Workers Routes: Edit` permission needed to apply it - every
+# deploy failed with "Authentication error [code: 10000]" on the
+# /zones/.../workers/routes API call, even though the Worker script itself
+# deployed successfully every time.
 #
-# Do NOT add a bare "app.wissely.com/*" route - this Worker does not proxy
-# unmatched paths back to the static Pages site (wissely-app), so a
-# catch-all would take over the entire domain and break the Dashboard,
-# auth pages, and every other static page.
-routes = [
-  { pattern = "app.wissely.com/health", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/webhook/paddle", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/register", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/login", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/logout", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/me", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/verify-email", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/forgot-password", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/reset-password", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/resend-verification", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/create-checkout", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/billing-portal", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/analyze", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/api/*", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/support/*", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/team/*", zone_name = "wissely.com" },
-  { pattern = "app.wissely.com/webhooks*", zone_name = "wissely.com" }
-]
+# It also turned out to be unnecessary: every frontend file (all 17 HTML
+# pages) calls `https://api.wissely.com` directly now, not a relative path,
+# so none of them depend on wissely.com routing to this Worker at all.
+# `api.wissely.com` itself is configured as a Custom Domain instead (added
+# manually via Workers & Pages -> wissely-worker -> Domains -> Add Domain),
+# which uses a different permission scope than zone routes and deploys
+# without issue.
+#
+# If routes are ever needed again in the future (e.g. to also serve
+# app.wissely.com/* directly from this Worker), the CI token will need
+# `Zone -> Workers Routes: Edit` added first at
+# https://dash.cloudflare.com/profile/api-tokens, or they'll need to keep
+# being added manually through the dashboard, which does not survive
+# being reconciled away by a future `wrangler deploy` that declares no
+# routes (as this one does).
 
 # ── Cron Triggers ─────────────────────────────────────────────────────────────
 # Fires at 00:00 UTC on the 1st of every month.

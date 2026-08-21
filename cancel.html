@@ -352,7 +352,7 @@ h1 {
 
   // ── Configuration ───────────────────────────────────────────────────────────
 
-  const API_BASE = 'https://wissely-worker.thilinarashmika0727.workers.dev';
+  const API_BASE = 'https://api.wissely.com';
 
   // Worker /me returns user.plan as one of these exact strings.
   // See worker.js userPayload — the only subscription field exposed to the client.
@@ -398,7 +398,7 @@ h1 {
 
     // 401 — no valid session, send to login
     if (res.status === 401) {
-      window.location.replace('login.html');
+      window.location.replace('auth.html?mode=login');
       return;
     }
 

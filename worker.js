@@ -250,7 +250,14 @@ Focus on:
 - Any discrepancies between subtotals and totals
 - Missing or suspicious fields (blank vendor, zero totals, future-dated invoices)
 - Invoice quality score and completeness
-Populate the optional fields: invoice, vendor, customer, totals, dates, paymentTerms.`,
+
+For this tool, the "invoice", "vendor", "customer", "totals", and "dates" fields
+are the primary deliverable, not optional extras - populate every one of them
+you can find in the source text. Keep "summary", "findings", and
+"recommendations" concise (1-2 sentences each) so the response budget is
+spent on accurately extracting these structured invoice fields rather than
+on prose. Use "—" or omit a leaf value only when it is genuinely absent
+from the source text.`,
 
   'expense-clarity': `TOOL: Expense Clarity
 Your task is to analyze the provided expense data and identify patterns and savings.
@@ -1986,7 +1993,7 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
     try {
       const result = await fetchAnthropicWithRetry(env, {
         model:     'claude-sonnet-5',
-        max_tokens: 1000,
+        max_tokens: 4096,
         system:    buildSystemPrompt(body.tool || 'unknown'),
         messages:  body.messages
       });
@@ -2000,6 +2007,23 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
         // exhausted the quota, so it can react without a separate /me poll.
         const postFlightFlags = computeAccessFlags(updatedUser);
         updatedUser.upgradeRequired = postFlightFlags.upgradeRequired;
+
+        // Truncation safety net: if Claude ran out of tokens before
+        // finishing, the JSON is likely incomplete/malformed even after
+        // raising max_tokens - this can't fix a truncated response, but it
+        // makes the failure mode visible in the audit log instead of
+        // silently shipping a low-quality or empty report to the customer.
+        let wasTruncated = false;
+        try {
+          const rawParsed = JSON.parse(result.text);
+          wasTruncated = rawParsed?.stop_reason === 'max_tokens';
+          if (wasTruncated) {
+            console.warn('[Analyze] Response truncated at max_tokens', { requestId, tool: body.tool });
+          }
+        } catch {
+          // Not JSON-parseable at the envelope level - extractAIReport
+          // below has its own fallback handling for this, nothing to do here.
+        }
 
         const report = validateAIReport(extractAIReport(result.text));
 
@@ -2032,7 +2056,8 @@ async function performAnalyze(request, env, ctx, requestId, actor) {
             tool:       body.tool || 'unknown',
             authMethod: actor.authMethod,
             ...(actor.apiKeyId ? { apiKeyId: actor.apiKeyId } : {}),
-            ...(billingUserId !== actor.user_id ? { billingUserId } : {})
+            ...(billingUserId !== actor.user_id ? { billingUserId } : {}),
+            ...(wasTruncated ? { wasTruncated: true } : {})
           }
         });
 
@@ -2583,23 +2608,13 @@ export default {
 
       // ── LOGOUT ────────────────────────────────────────────────────────────
       if (path === '/logout' && request.method === 'POST') {
-        const csrfValid = await validateCsrfToken(request, env, requestId);
-        if (!csrfValid) {
-          await writeAuditLog(env, {
-            requestId, ip: getClientIp(request),
-            eventType: 'csrf_validation_failed', result: 'failure',
-            metadata: { path: '/logout' }
-          });
-          await trackSecurityFailure(env, request, {
-            kvPrefix:       'csrf_fail',
-            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
-            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
-            alertEventType: 'csrf_repeated_failure',
-            requestId
-          });
-          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
-        }
-
+        // No CSRF check here, deliberately: logout is idempotent and
+        // low-risk (it can only ever end a session, never start or
+        // escalate one), and requiring CSRF here created a real deadlock -
+        // if the CSRF token was ever missing or stale on the client, the
+        // user could not log out to clear the broken session, since the
+        // very request meant to fix that got rejected by the same problem.
+        // The session cookie itself is enough to identify what to delete.
         const cookies   = parseCookies(request);
         const rawId     = cookies['wissely_session'];
         let   userId    = null;
