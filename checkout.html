@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout - Wissely</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold2: #e8c97a;
+  --gold-dark: #b0913b;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+nav {
+  height: 70px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+}
+
+.logo {
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  transition: var(--transition);
+}
+
+.logo:hover {
+  opacity: 0.85;
+}
+
+.back-btn {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.back-btn:hover {
+  color: var(--gold);
+}
+
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 20px;
+}
+
+.checkout-card {
+  width: 100%;
+  max-width: 550px;
+  background: var(--cream-card);
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: var(--shadow);
+}
+
+.title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--sage);
+  text-align: center;
+  margin-bottom: 12px;
+  line-height: 1.1;
+}
+
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 15px;
+  margin-bottom: 32px;
+  line-height: 1.5;
+}
+
+.summary {
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-size: 15px;
+}
+
+.row:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  color: var(--text-muted);
+}
+
+.value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.total {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--cream3);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--sage);
+}
+
+.pay-btn {
+  width: 100%;
+  margin-top: 32px;
+  border: 1px solid var(--gold-dark);
+  border-radius: 14px;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--gold), #a8873c);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  box-sizing: border-box;
+}
+
+.pay-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.25);
+  opacity: 0.95;
+}
+
+.pay-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.note {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+.error-msg {
+  display: none;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  border-top: 1px solid var(--cream3);
+  background: var(--cream-card);
+  font-weight: 500;
+}
+
+@media(max-width:768px){
+  nav {
+    padding: 0 20px;
+  }
+
+  .title {
+    font-size: 38px;
+  }
+
+  .checkout-card {
+    padding: 32px 20px;
+    border-radius: 20px;
+  }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">Wissely</a>
+  <a href="pricing.html" class="back-btn">← Back</a>
+</nav>
+
+<main>
+
+<div class="checkout-card">
+
+  <h1 class="title">Checkout</h1>
+
+  <p class="subtitle">
+    Review your selected plan before payment.
+  </p>
+
+  <div class="summary">
+
+    <div class="row">
+      <span class="label">Selected Plan</span>
+      <span class="value" id="planName">Growth</span>
+    </div>
+
+    <div class="row">
+      <span class="label">Billing Cycle</span>
+      <span class="value">Monthly</span>
+    </div>
+
+    <div class="row total">
+      <span>Total</span>
+      <span id="planPrice">$29/month</span>
+    </div>
+
+  </div>
+
+  <button class="pay-btn" id="payBtn">
+    Continue to Payment
+  </button>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="note">
+    Secured by Paddle · SSL encrypted
+  </div>
+
+</div>
+
+</main>
+
+<footer>
+WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer>
+
+<script>
+const API_BASE = 'https://api.wissely.com';
+
+const PLANS = {
+  starter: { name: 'Starter', price: '$12/month' },
+  growth:  { name: 'Growth',  price: '$29/month' },
+  pro:     { name: 'Pro',     price: '$79/month' }
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function setButtonState(loading) {
+  const btn = document.getElementById('payBtn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Redirecting…' : 'Continue to Payment';
+}
+
+function showError(message) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function hideError() {
+  const el = document.getElementById('errorMsg');
+  el.style.display = 'none';
+  el.textContent = '';
+}
+
+// CSRF tokens are issued at login and expected to be available to the
+// frontend (e.g. stored in sessionStorage by the login flow). Read it here
+// defensively — if it's missing, the worker rejects the request with 403
+// and the catch block below surfaces a friendly error.
+function getCsrfToken() {
+  try {
+    return sessionStorage.getItem('csrfToken') || '';
+  } catch {
+    return '';
+  }
+}
+
+// ── Plan validation ───────────────────────────────────────────────────────────
+// Only starter / growth / pro are valid. Any other ?plan= value sends the user
+// back to pricing so they can make a proper selection.
+
+const params = new URLSearchParams(window.location.search);
+const selectedPlan = (params.get('plan') || '').toLowerCase();
+
+if (!PLANS[selectedPlan]) {
+  window.location.replace('pricing.html');
+} else {
+  document.getElementById('planName').textContent  = PLANS[selectedPlan].name;
+  document.getElementById('planPrice').textContent = PLANS[selectedPlan].price;
+}
+
+// ── Auth gate ─────────────────────────────────────────────────────────────────
+// Verify the session before letting the user interact with the checkout.
+// A 401 means unauthenticated → redirect to login.
+// A 403 means trial expired → redirect to upgrade.
+// Any other non-OK response or network failure is treated as a transient
+// problem; the page loads normally so the user can still attempt checkout.
+
+async function verifyAuth() {
+  try {
+    const res = await fetch(`${API_BASE}/me`, { credentials: 'include' });
+    if (res.status === 401) {
+      window.location.replace('auth.html?mode=login');
+      return;
+    }
+    if (res.status === 403) {
+      window.location.replace('upgrade.html');
+      return;
+    }
+    // Any other status (200, 5xx, network error) → allow the page to load.
+  } catch {
+    // Network error — degrade gracefully, do not block the page.
+  }
+}
+
+verifyAuth();
+
+// ── Payment button ────────────────────────────────────────────────────────────
+
+document.getElementById('payBtn').addEventListener('click', async () => {
+  // Guard against double-clicks; the button is already disabled after first click.
+  if (document.getElementById('payBtn').disabled) return;
+
+  hideError();
+  setButtonState(true);
+
+  try {
+    const res = await fetch(`${API_BASE}/create-checkout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      },
+      body: JSON.stringify({ plan: selectedPlan })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    // ── Redirect responses — never show an error for these ─────────────────
+
+    // 401 — session expired mid-checkout; send to login
+    if (res.status === 401) {
+      window.location.replace('auth.html?mode=login');
+      return;
+    }
+
+    // 409 — already subscribed to this plan; send to billing management
+    if (res.status === 409) {
+      window.location.replace('billing.html');
+      return;
+    }
+
+    // 403 — two distinct cases:
+    //   "Trial expired"                    → upgrade page
+    //   "Invalid or missing security token" → session/CSRF stale, re-login
+    if (res.status === 403) {
+      if (data.error === 'Invalid or missing security token') {
+        window.location.replace('auth.html?mode=login');
+      } else {
+        // Covers "Trial expired" and any other 403 reason
+        window.location.replace('upgrade.html');
+      }
+      return;
+    }
+
+    // ── Normal error handling ───────────────────────────────────────────────
+
+    if (!res.ok || !data.checkoutUrl) {
+      throw new Error(data.error || 'Could not create checkout session.');
+    }
+
+    // Success — hand off to Paddle's hosted checkout immediately.
+    window.location.replace(data.checkoutUrl);
+
+  } catch (err) {
+    // Restore the button so the user can try again.
+    setButtonState(false);
+    showError(err.message || 'Something went wrong. Please try again or contact support.');
+  }
+});
+</script>
+
+</body>
+  </html>
