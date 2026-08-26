@@ -140,6 +140,25 @@ const SUPPORT_SUBJECT_MAX_LENGTH = 150;
 const SUPPORT_MESSAGE_MAX_LENGTH = 5000;
 const SUPPORT_MESSAGE_MIN_LENGTH = 10;
 
+// Email Report — sends a copy of a completed analysis to the account's own
+// verified email (never a client-supplied address, so this can't be used
+// as a spam relay). The client sends back the report JSON it already has
+// from a completed analysis — no new AI call, no quota consumed.
+const EMAIL_REPORT_MAX_BODY_BYTES = 64 * 1024; // 64 KB — a report is small JSON, well under this
+
+// Mirrors the frontend's TOOL_IDS -> label mapping (see index.html TOOLS
+// array) - kept as its own small map here rather than parsing labels out
+// of AI_TOOL_PROMPTS, since that string format is meant for the model, not
+// for reliably extracting a display label from.
+const TOOL_LABELS = {
+  'invoice-analyzer':    'Invoice Analyzer',
+  'expense-clarity':     'Expense Clarity',
+  'finance-report':      'Finance Report',
+  'payment-request':     'Payment Request',
+  'fraud-detection':     'Fraud Detection',
+  'cash-flow-forecast':  'Cash Flow Forecast'
+};
+
 // Webhooks - powers the "Custom integrations" Pro-plan feature. Owner-only,
 // same as API keys (gated on own_plan, not the team-quota overlay). One
 // delivery attempt plus one retry; no persistent retry queue in v1.
@@ -3024,6 +3043,65 @@ export default {
         return createResponse(request, { success: true, id: keyId, revoked_at: revokedAt }, 200);
       }
 
+      // ── EMAIL REPORT ─────────────────────────────────────────────────────
+      // Sends a copy of a completed analysis to the requesting account's own
+      // verified email — always session.email, never a client-supplied
+      // address, so this route can never be used as a spam relay. The
+      // client sends back the report JSON it already has from a completed
+      // analysis; this triggers no new AI call and consumes no quota.
+      if (path === '/email-report' && request.method === 'POST') {
+        const session = await authenticateSession(request, env);
+        if (!session) return createResponse(request, { error: 'Unauthorized' }, 401);
+
+        const csrfValid = await validateCsrfToken(request, env, requestId);
+        if (!csrfValid) {
+          await writeAuditLog(env, {
+            requestId, userId: session.user_id, ip: getClientIp(request),
+            eventType: 'csrf_validation_failed', result: 'failure',
+            metadata: { path: '/email-report' }
+          });
+          await trackSecurityFailure(env, request, {
+            kvPrefix:       'csrf_fail',
+            windowSeconds:  CSRF_FAIL_WINDOW_SECONDS,
+            threshold:      CSRF_FAIL_ALERT_THRESHOLD,
+            alertEventType: 'csrf_repeated_failure',
+            requestId
+          });
+          return createResponse(request, { error: 'Invalid or missing security token' }, 403);
+        }
+
+        if (await checkRateLimit(request, env, 'email-report')) {
+          return createResponse(request, { error: 'Too many requests. Please try again later.' }, 429);
+        }
+
+        const { body, error: parseError, tooLarge } = await parseJsonBody(request, EMAIL_REPORT_MAX_BODY_BYTES);
+        if (parseError) return createResponse(request, { error: parseError }, tooLarge ? 413 : 400);
+
+        const toolError = validateToolField(body?.tool);
+        if (toolError) return createResponse(request, { error: toolError }, 400);
+        const toolLabel = TOOL_LABELS[body?.tool] || 'Analysis Report';
+
+        if (!body?.report || typeof body.report !== 'object' || Array.isArray(body.report)) {
+          return createResponse(request, { error: 'report must be an object' }, 400);
+        }
+
+        ctx.waitUntil(sendEmailWithRetry(env, {
+          to:      session.email,
+          subject: `Your ${toolLabel} report — Wissely`,
+          html:    buildAnalysisReportEmailHtml(toolLabel, body.report),
+          text:    `${body.report.title || toolLabel}\n\n${body.report.summary || ''}`,
+          logTag:  'EmailReport'
+        }));
+
+        await writeAuditLog(env, {
+          requestId, userId: session.user_id, ip: getClientIp(request),
+          eventType: 'analysis_emailed', result: 'success',
+          metadata: { tool: body.tool || 'unknown' }
+        });
+
+        return createResponse(request, { success: true }, 200);
+      }
+
       // ── SUPPORT: CREATE TICKET ────────────────────────────────────────────
       // Available to every plan, logged in or not - billing/login problems
       // are exactly when someone can't authenticate to ask for help. Pro
@@ -3938,6 +4016,83 @@ function buildSupportTicketNotificationHtml(ticket) {
 // promise is concrete and differs by priority, so "Dedicated Support" is a
 // commitment the customer can actually hold Wissely to, not just a word on
 // the pricing page.
+// Renders a completed analysis report as an HTML email. Generic across all
+// six tools - only the guaranteed schema fields (title/summary/metrics/
+// findings/risks/recommendations/confidence, see validateAIReport) are
+// rendered structurally; any additional tool-specific fields the AI
+// returned (e.g. Invoice Analyzer's vendor/customer/totals/dates) are
+// rendered as a simple label/value list rather than hand-built per tool,
+// since the schema for those is intentionally loose (see AI_TOOL_PROMPTS).
+// Sent only to the requesting account's own verified email - never a
+// client-supplied address - so this can't become a spam relay.
+const KNOWN_REPORT_KEYS = new Set([
+  'schemaVersion', 'tool', 'title', 'status', 'generatedAt', 'summary',
+  'metrics', 'findings', 'risks', 'recommendations', 'confidence'
+]);
+
+function buildAnalysisReportEmailHtml(toolLabel, report) {
+  const metricsHtml = (Array.isArray(report.metrics) && report.metrics.length)
+    ? report.metrics.map(m => `<tr><td style="padding:4px 0;color:rgba(255,255,255,0.55);">${escapeHtml(m.label)}</td><td style="padding:4px 0;text-align:right;color:rgba(255,255,255,0.9);font-weight:600;">${escapeHtml(String(m.value))}${m.unit ? ' ' + escapeHtml(m.unit) : ''}</td></tr>`).join('')
+    : '';
+
+  const listSectionHtml = (label, items, renderItem) => {
+    if (!Array.isArray(items) || !items.length) return '';
+    return `<p style="margin:20px 0 8px;font-size:11px;color:#e8c97a;font-family:'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;">${escapeHtml(label)}</p>` +
+      items.map(renderItem).join('');
+  };
+
+  const findingsHtml = listSectionHtml('Findings', report.findings, f =>
+    `<p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;"><strong style="color:rgba(255,255,255,0.9);">${escapeHtml(f.title)}</strong> — ${escapeHtml(f.detail)}</p>`);
+
+  const risksHtml = listSectionHtml('Risks', report.risks, r =>
+    `<p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;">[${escapeHtml(r.level)}] ${escapeHtml(r.description)}</p>`);
+
+  const recsHtml = listSectionHtml('Recommendations', report.recommendations, r =>
+    `<p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;">[${escapeHtml(r.priority)}] ${escapeHtml(r.action)}</p>`);
+
+  // Any extra tool-specific fields the AI returned (vendor/customer/totals/
+  // dates for Invoice Analyzer, etc.) — rendered generically since their
+  // shape isn't strictly validated (see AI_TOOL_PROMPTS' optional fields).
+  const extraKeys = Object.keys(report).filter(k => !KNOWN_REPORT_KEYS.has(k));
+  const extraHtml = extraKeys.length
+    ? `<p style="margin:20px 0 8px;font-size:11px;color:#e8c97a;font-family:'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;">Additional Details</p>` +
+      extraKeys.map(k => `<p style="margin:0 0 6px;font-size:12px;color:rgba(255,255,255,0.6);"><strong style="color:rgba(255,255,255,0.8);">${escapeHtml(k)}:</strong> ${escapeHtml(typeof report[k] === 'object' ? JSON.stringify(report[k]) : String(report[k]))}</p>`).join('')
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>${escapeHtml(report.title || toolLabel)}</title></head>
+<body style="margin:0;padding:0;background-color:#0c0c0a;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0a;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
+        <tr><td style="padding-bottom:28px;" align="center">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="width:32px;height:32px;background-color:#2d4a3e;border-radius:7px;text-align:center;vertical-align:middle;"><span style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#e8c97a;line-height:32px;">W</span></td>
+            <td style="padding-left:10px;vertical-align:middle;"><span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#fefefc;letter-spacing:-0.5px;">Wissely</span></td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="background-color:#1a1a14;border:1px solid rgba(255,255,255,0.07);border-radius:18px;overflow:hidden;">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:3px;background:linear-gradient(90deg,#2d4a3e,#c9a84c,#2d4a3e);"></td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px 40px 36px;">
+            <p style="margin:0 0 18px;font-size:10px;font-family:'Courier New',monospace;letter-spacing:3px;text-transform:uppercase;color:#c9a84c;font-weight:600;">${escapeHtml(toolLabel)}</p>
+            <h1 style="margin:0 0 14px;font-family:Georgia,serif;font-size:26px;font-weight:600;color:#fefefc;letter-spacing:-1px;line-height:1.2;">${escapeHtml(report.title || toolLabel)}</h1>
+            ${report.summary ? `<p style="margin:0 0 20px;font-size:14px;color:rgba(255,255,255,0.65);line-height:1.75;">${escapeHtml(report.summary)}</p>` : ''}
+            ${typeof report.confidence === 'number' ? `<p style="margin:0 0 20px;font-size:12px;color:rgba(255,255,255,0.4);">Confidence: <strong style="color:#e8c97a;">${report.confidence}%</strong></p>` : ''}
+            ${metricsHtml ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;background-color:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;"><tr><td style="padding:14px 18px;"><table width="100%" cellpadding="0" cellspacing="0">${metricsHtml}</table></td></tr></table>` : ''}
+            ${findingsHtml}${risksHtml}${recsHtml}${extraHtml}
+          </td></tr></table>
+          <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid rgba(255,255,255,0.05);padding:20px 40px;">
+            <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.3);font-family:'Courier New',monospace;line-height:1.6;">&copy; ${new Date().getFullYear()} Wissely. Sent because you requested a copy of this analysis.</p>
+          </td></tr></table>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 function buildSupportTicketConfirmationEmailHtml(ticket) {
   const responseTime = ticket.priority === 'high'
     ? 'within 4 business hours'

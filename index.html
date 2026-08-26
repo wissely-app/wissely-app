@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Wissely - Your Finances, Finally Clear</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-<!-- pdf.js, tesseract.js and jsPDF are lazy-loaded on first use (see ensurePdfJs / ensureTesseract / ensureJsPdf) to reduce initial page weight -->
+<!-- pdf.js and tesseract.js are lazy-loaded on first use (see ensurePdfJs / ensureTesseract) to reduce initial page weight -->
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--ink:#0c0c0a;--sage:#2d4a3e;--sage2:#3d6b58;--gold:#c9a84c;--gold2:#e8c97a;--gold3:#f5e0a0;--cream:#f8f6f0;--cream2:#ede9df;--cream3:#dedad0;--text:#2a2a20;--muted:#7a7a66;--ease:cubic-bezier(0.16,1,0.3,1)}
@@ -172,7 +172,7 @@ textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gol
 .upload-card-title{font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:4px}
 .upload-card-sub{font-size:11.5px;color:var(--muted);font-family:'DM Mono',monospace}
 .upload-filename{margin-top:14px;display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--sage);border-radius:8px;padding:7px 14px;font-size:12px;color:var(--sage2);font-family:'DM Mono',monospace;max-width:100%}
-.upload-filename span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.upload-filename span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .camera-card{width:100%;text-align:center}
 .camera-trigger-btn{background:linear-gradient(135deg,#2d4a3e,#1a3027);color:var(--gold3);border:none;border-radius:12px;padding:16px 24px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:all 0.25s var(--ease);box-shadow:0 4px 16px rgba(45,74,62,0.25),inset 0 1px 0 rgba(255,255,255,0.1)}
@@ -567,8 +567,8 @@ textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gol
           <div class="output-actions">
             <button class="copy-btn" id="copyBtn" aria-live="polite" aria-label="Copy analysis to clipboard">Copy</button>
             <button class="copy-btn" id="csvBtn" aria-label="Export analysis as CSV">CSV</button>
-            <button class="copy-btn" id="pdfBtn" title="Print via browser" aria-label="Print analysis as PDF">Print</button>
-            <button class="copy-btn" id="downloadPdfBtn" title="Download a Premium PDF file" aria-label="Download analysis as a premium PDF">Download</button>
+            <button class="copy-btn" id="pdfBtn" title="Print via browser (use 'Save as PDF' as the destination to download)" aria-label="Print or save analysis as PDF">Print / PDF</button>
+            <button class="copy-btn" id="emailReportBtn" aria-label="Email this analysis to your account email">Email</button>
           </div>
         </div>
         <div class="output-text" id="outputText" aria-live="polite"></div>
@@ -732,17 +732,6 @@ async function ensureTesseract() {
   if (typeof Tesseract !== 'undefined') return;
   await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js');
   if (typeof Tesseract === 'undefined') throw new Error('OCR engine failed to load. Check your connection and try again.');
-}
-
-async function ensureJsPdf() {
-  if (typeof window.jspdf !== 'undefined' && typeof window.html2canvas !== 'undefined') return;
-  await Promise.all([
-    loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
-    loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
-  ]);
-  if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
-    throw new Error('PDF export engine failed to load. Check your connection and try again.');
-  }
 }
 
 // ─── Task 1/2/3: Centralised auth-failure handler ────────────────────────────
@@ -1326,6 +1315,42 @@ function exportCSV() {
   }
 }
 
+async function emailReport() {
+  if (!currentReport) { showToast('No analysis available to email.', 'error'); return; }
+
+  const btn = document.getElementById('emailReportBtn');
+  if (!btn || btn.disabled) return; // guards against duplicate submits
+
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/email-report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+      credentials: 'include',
+      body: JSON.stringify({ tool: TOOL_IDS[currentTool], report: currentReport })
+    });
+
+    const authOk = await handleAuthResponse(res);
+    if (!authOk) return;
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || 'Could not send email. Please try again.', 'error');
+      return;
+    }
+
+    showToast('Report emailed to your account address.', 'success');
+  } catch (err) {
+    showToast(getFriendlyErrorMessage(err, 'email-report'), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
 async function generate() {
   if (isQuotaExhausted || isProcessing) return;
   let input = document.getElementById('inputText').value.trim();
@@ -1846,13 +1871,13 @@ function buildPremiumPDFReport(report) {
   const formattedPrintDate = currentAnalysisDate ? currentAnalysisDate : "Legacy Report";
 
   // Field cards below are built as an HTML <table>, not the on-screen
-  // .premium-data-grid (CSS Grid) - html2canvas (used internally by PDF
-  // export, see downloadPremiumPDF) has unreliable support for CSS Grid
-  // and flexbox layouts, which silently dropped this entire section from
-  // exported PDFs while leaving the separately-drawn header/footer intact.
-  // Tables are the most reliably-captured layout mode for html2canvas, so
-  // this section - and the header row below - use one instead. Purely a
-  // PDF-export change; the on-screen invoice cards are untouched.
+  // .premium-data-grid (CSS Grid). This dates from when a separate
+  // "Download" button also existed, built via html2canvas - which has
+  // unreliable support for CSS Grid/flexbox and silently dropped this
+  // section from exported PDFs. That Download path has since been
+  // removed (Print already covers PDF export via the browser's own
+  // "Save as PDF"), but the table markup was left in place here since it
+  // renders identically fine for Print too - no reason to revert it.
   const fieldRows = [
     ['Vendor', data.vendor, 'Invoice Date', data.invDate],
     ['Invoice #', data.invoice, 'Due Date', data.due],
@@ -2299,89 +2324,6 @@ function handleIncomingFile(file, filenameTextEl, filenameWrapEl, cardEl) {
   runExtraction(file, validation.kind);
 }
 
-// ─── Task 3: downloadable Premium PDF (in addition to Print) ───────────────
-async function downloadPremiumPDF() {
-  if (!outputText || !outputText.trim()) { showToast('No active data profile to export.', 'error'); return; }
-  const downloadBtn = document.getElementById('downloadPdfBtn');
-  const prevLabel = downloadBtn ? downloadBtn.textContent : '';
-  if (downloadBtn) { downloadBtn.disabled = true; downloadBtn.textContent = 'Preparing...'; }
-
-  try {
-    await ensureJsPdf();
-    const { jsPDF } = window.jspdf;
-
-    const content = (currentTool === 0) ? buildPremiumPDFReport(currentReport) : `<div class="invoice-summary">${cleanOutput(outputText)}</div>`;
-
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.width = '760px';
-    container.style.background = '#ffffff';
-    container.style.padding = '32px';
-    container.style.fontFamily = "'DM Sans', sans-serif";
-    container.innerHTML = `<div style="border-bottom:2px solid #0c0c0a;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center">
-      <strong style="font-size:22px;font-family:'Cormorant Garamond',serif;color:#0c0c0a">Wissely</strong>
-      <span style="font-size:11px;color:#7a7a66;font-family:'DM Mono',monospace">${escapeHTML(currentAnalysisId || '')}</span>
-    </div>${content}`;
-    document.body.appendChild(container);
-
-    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 36;
-
-    await new Promise((resolve, reject) => {
-      doc.html(container, {
-        x: margin, y: margin,
-        width: pageWidth - margin * 2,
-        windowWidth: 760,
-        autoPaging: 'text',
-        html2canvas: { scale: 0.75, useCORS: true },
-        callback: function () { resolve(); }
-      });
-      setTimeout(() => reject(new Error('PDF rendering took too long. Please try again.')), 20000);
-    });
-
-    // Repeated header + footer with Wissely branding and page numbers on every page.
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-
-      // Repeating header: thin gold rule + report label/ID, sitting above the margin
-      // so it never overlaps the rendered content below it.
-      doc.setDrawColor(201, 168, 76);
-      doc.setLineWidth(0.75);
-      doc.line(margin, 20, pageWidth - margin, 20);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(45, 74, 62);
-      doc.text('WISSELY PREMIUM REPORT', margin, 14);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(122, 122, 102);
-      doc.text(String(currentAnalysisId || ''), pageWidth - margin - 60, 14);
-
-      // Repeating footer: branding + page number.
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(122, 122, 102);
-      doc.text('WISSELY.COM · YOUR FINANCES, FINALLY CLEAR', margin, pageHeight - 18);
-      doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin - 60, pageHeight - 18);
-    }
-
-    document.body.removeChild(container);
-
-    const toolLabel = TOOLS[currentTool].label.replace(/\s+/g, '_');
-    const d = new Date();
-    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    doc.save(`${toolLabel}_Report_${stamp}.pdf`);
-    showToast('Premium PDF downloaded successfully.', 'success');
-  } catch (err) {
-    showToast(getFriendlyErrorMessage(err, 'pdf-export'), 'error');
-  } finally {
-    if (downloadBtn) { downloadBtn.disabled = false; downloadBtn.textContent = prevLabel || 'Download'; }
-  }
-}
 
 window.addEventListener('DOMContentLoaded', () => {
   const methodPasteBtn = document.getElementById('methodPasteBtn');
@@ -2456,8 +2398,8 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('copyBtn').addEventListener('click', copyOutput);
   document.getElementById('csvBtn').addEventListener('click', exportCSV);
   document.getElementById('pdfBtn').addEventListener('click', exportPDF);
-  const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-  if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', downloadPremiumPDF);
+  const emailReportBtnEl = document.getElementById('emailReportBtn');
+  if (emailReportBtnEl) emailReportBtnEl.addEventListener('click', emailReport);
   
   const textInput = document.getElementById('inputText');
   if (textInput) {
