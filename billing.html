@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Billing Settings - Wissely</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink: #0c0c0a;
+  --sage: #2d4a3e;
+  --sage-muted: #4a6b5d;
+  --gold: #c9a84c;
+  --gold2: #b0913b;
+  --cream: #fbfaf7;
+  --cream-card: #ffffff;
+  --cream3: #e8e5dc;
+  --text: #2a2a20;
+  --text-muted: #6b6b5b;
+  --success-bg: #f0fdf4;
+  --success-border: #dcfce7;
+  --success-text: #16a34a;
+  --shadow: 0 20px 40px -15px rgba(45, 74, 62, 0.07), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+nav {
+  height: 70px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+}
+
+.logo {
+  color: #ffffff;
+  text-decoration: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  transition: var(--transition);
+}
+
+.logo:hover {
+  opacity: .85;
+}
+
+.back-btn {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.back-btn:hover {
+  color: var(--gold);
+}
+
+main {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: auto;
+  padding: 60px 20px;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.hero h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 58px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 12px;
+}
+
+.hero p {
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+.billing-card {
+  background: #ffffff;
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: var(--shadow);
+  margin-bottom: 32px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.info-box {
+  background: var(--cream);
+  border: 1px solid var(--cream3);
+  border-radius: 16px;
+  padding: 24px;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.info-box:hover {
+  transform: translateY(-2px);
+  border-color: var(--gold);
+  box-shadow: 0 10px 20px -10px rgba(201, 168, 76, 0.15);
+}
+
+.label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--sage);
+  line-height: 1.2;
+}
+
+.status-active {
+  color: var(--success-text);
+  background: var(--success-bg);
+  align-self: flex-start;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: 1px solid var(--success-border);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.features-list {
+  list-style: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cream3);
+}
+
+.features-list li {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.features-list li:last-child {
+  margin-bottom: 0;
+}
+
+.features-list .checkmark {
+  color: var(--gold2);
+  margin-right: 8px;
+  font-weight: bold;
+}
+
+.note-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--cream3);
+  font-style: italic;
+}
+
+.usage-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--cream3);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.usage-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--sage), #3f6d5a);
+  border-radius: 999px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 36px;
+}
+
+/* Single-button state when cancel is hidden */
+.actions.single {
+  grid-template-columns: 1fr;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  text-align: center;
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.btn-upgrade {
+  background: linear-gradient(135deg, #c9a84c, #a8873c);
+  color: #0c0c0a;
+  border: 1px solid #b0913b;
+}
+
+.btn-upgrade:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 168, 76, 0.2);
+  opacity: 0.95;
+}
+
+.btn-manage {
+  background: transparent;
+  color: var(--sage);
+  border: 1px solid var(--cream3);
+}
+
+.btn-manage:hover {
+  background: var(--cream);
+  border-color: var(--sage-muted);
+  transform: translateY(-1px);
+}
+
+/* History Section */
+.history-section {
+  background: #ffffff;
+  border: 1px solid var(--cream3);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: var(--shadow);
+}
+
+.history-section h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--sage);
+  margin-bottom: 24px;
+}
+
+.history-table {
+  width: 100%;
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--cream);
+}
+
+.history-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.history-row:first-child {
+  padding-top: 0;
+}
+
+.invoice-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invoice-plan {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.invoice-date {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.invoice-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success-text);
+  background: var(--success-bg);
+  padding: 4px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--success-border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-empty {
+  font-size: 14px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.footer {
+  text-align: center;
+  padding: 40px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  border-top: 1px solid var(--cream3);
+  background: #ffffff;
+  font-weight: 500;
+}
+
+@media(max-width:768px){
+  nav {
+    padding: 0 20px;
+  }
+
+  .hero h1 {
+    font-size: 42px;
+  }
+
+  .billing-card, .history-section {
+    padding: 28px 20px;
+    border-radius: 20px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .info-box {
+    padding: 20px;
+  }
+
+  .actions {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .actions.single {
+    grid-template-columns: 1fr;
+  }
+  
+  .btn {
+    padding: 14px;
+  }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">Wissely</a>
+  <a href="index.html" class="back-btn">← Back to Dashboard</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <h1>Billing Settings</h1>
+    <p>Manage your Wissely quota and workspace usage.</p>
+  </div>
+
+  <div class="billing-card">
+    <div class="info-grid">
+
+      <!-- Current Plan ───────────────────────────────────────────────────── -->
+      <div class="info-box">
+        <h2 class="label">Current Plan</h2>
+        <div class="value" id="planName" aria-live="polite">—</div>
+        <ul class="features-list" id="featuresList"></ul>
+      </div>
+
+      <!-- Billing Status ─────────────────────────────────────────────────── -->
+      <div class="info-box">
+        <h2 class="label">Billing Status</h2>
+        <div class="status-active" id="billingStatus" aria-live="polite">—</div>
+      </div>
+
+      <!-- Analyses Used ───────────────────────────────────────────────────── -->
+      <div class="info-box">
+        <h2 class="label" id="usage-label">Analyses Used</h2>
+        <div class="value" id="usageValue" aria-labelledby="usage-label" aria-live="polite">—</div>
+        <div class="usage-bar"
+             role="progressbar"
+             id="usageBar"
+             aria-valuenow="0"
+             aria-valuemin="0"
+             aria-valuemax="0"
+             aria-label="Analysis quota utilization">
+          <div class="usage-fill" id="usageFill"></div>
+        </div>
+      </div>
+
+      <!-- Refill Anytime ──────────────────────────────────────────────────── -->
+      <div class="info-box">
+        <h2 class="label">Refill Anytime</h2>
+        <!-- No plan — trial or paid — has a calendar expiry or auto-recurring
+             charge. Quota is a fixed pack you buy once; when it runs low,
+             buying again (same plan or a different one) adds more on top.
+             Nothing here is set dynamically per-plan since this is true
+             for every plan. -->
+        <div class="value" id="renewalValue" aria-live="polite">No expiration date</div>
+        <p class="note-text" id="renewalNote">Pay only for what you use — buy more analyses anytime, and nothing you've already paid for is ever lost.</p>
+      </div>
+
+    </div>
+
+    <div class="actions" id="actionsRow">
+      <a href="upgrade.html" class="btn btn-upgrade" id="upgradeBtn">Buy More Analyses</a>
+      <button type="button" class="btn btn-manage" id="manageBtn">View Receipts</button>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <h2>Billing History</h2>
+    <div class="history-table" id="historyTable">
+      <!-- Replaced by JS — no invoice endpoint exists in worker.js -->
+      <p class="history-empty">No billing history available.</p>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  WISSELY.COM · YOUR FINANCES, FINALLY CLEAR · 2026
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Configuration ───────────────────────────────────────────────────────────
+
+  const API_BASE = 'https://api.wissely.com';
+
+  // Worker /me returns user.plan as one of these exact strings (from worker.js
+  // PLAN_FREE and PADDLE_PRICE_PLANS constants). No other plan values exist.
+  const PAID_PLANS = new Set(['starter', 'growth', 'pro']);
+
+  // Display label for each plan value
+  const PLAN_LABELS = {
+    trial:   'Trial',
+    free:    'Free',
+    starter: 'Starter',
+    growth:  'Growth',
+    pro:     'Pro'
+  };
+
+  // Billing status text driven solely by user.plan — worker.js does not
+  // expose a subscription status, and one-time purchases have none anyway.
+  const PLAN_STATUS = {
+    trial:   'Trial',
+    free:    'Free',
+    starter: 'Active',
+    growth:  'Active',
+    pro:     'Active'
+  };
+
+  // Feature bullet points per plan. These mirror the plan descriptions in
+  // PADDLE_PRICE_PLANS (worker.js) and the public pricing page.
+  const PLAN_FEATURES = {
+    trial: [
+      '20 Analyses included',
+      'All core tools',
+      'Basic CSV Export',
+      'No time limit'
+    ],
+    free: [
+      '5 Analyses / Month',
+      'Invoice Analyzer',
+      'Expense Clarity',
+      'Standard processing'
+    ],
+    starter: [
+      '50 Analyses included',
+      'All analysis tools',
+      'Basic CSV Export',
+      'Standard processing'
+    ],
+    growth: [
+      '250 Analyses included',
+      'Advanced CSV Export',
+      'Cash Flow Forecasting',
+      'Priority Processing'
+    ],
+    pro: [
+      '1,000 Analyses included',
+      'Full tool suite',
+      'Advanced CSV Export',
+      'Cash Flow Forecasting',
+      'Priority Processing'
+    ]
+  };
+
+  // ── DOM references ──────────────────────────────────────────────────────────
+
+  const elPlanName      = document.getElementById('planName');
+  const elFeaturesList  = document.getElementById('featuresList');
+  const elBillingStatus = document.getElementById('billingStatus');
+  const elUsageValue    = document.getElementById('usageValue');
+  const elUsageBar      = document.getElementById('usageBar');
+  const elUsageFill     = document.getElementById('usageFill');
+  const elRenewalValue  = document.getElementById('renewalValue');
+  const elRenewalNote   = document.getElementById('renewalNote');
+  const elActionsRow    = document.getElementById('actionsRow');
+  const elManageBtn     = document.getElementById('manageBtn');
+
+  // ── Render helpers ──────────────────────────────────────────────────────────
+
+  // Writes the feature list for the given plan into #featuresList.
+  function renderFeatures(plan) {
+    const features = PLAN_FEATURES[plan] || PLAN_FEATURES.free;
+    elFeaturesList.innerHTML = features
+      .map(f => `<li><span class="checkmark" aria-hidden="true">✓</span> ${f}</li>`)
+      .join('');
+  }
+
+  // Updates the usage bar width and all ARIA attributes.
+  // Clamps pct to [0, 100] so the bar never overflows or goes negative.
+  function renderUsage(used, limit) {
+    const safeUsed  = Math.max(0, used  || 0);
+    const safeLimit = Math.max(1, limit || 1); // avoid division by zero
+    const pct       = Math.min(100, Math.max(0, (safeUsed / safeLimit) * 100));
+
+    elUsageValue.textContent   = `${safeUsed} / ${safeLimit}`;
+    elUsageFill.style.width    = `${pct.toFixed(1)}%`;
+    elUsageBar.setAttribute('aria-valuenow',  String(safeUsed));
+    elUsageBar.setAttribute('aria-valuemax',  String(safeLimit));
+  }
+
+  // ── Main render ─────────────────────────────────────────────────────────────
+  // Applies all backend data to the DOM. Called once after /me resolves.
+
+  function render(user) {
+    const plan = (user.plan || 'free').toLowerCase();
+
+    const upgradeBtn = document.getElementById('upgradeBtn');
+
+    if (plan === 'pro') {
+      upgradeBtn.textContent = 'Change Plan';
+    }
+
+    // ── Current Plan ──────────────────────────────────────────────────────────
+    elPlanName.textContent = PLAN_LABELS[plan] || plan;
+    renderFeatures(plan);
+
+    // ── Billing Status ────────────────────────────────────────────────────────
+    elBillingStatus.textContent = PLAN_STATUS[plan] || plan;
+
+    // ── Usage ─────────────────────────────────────────────────────────────────
+    renderUsage(user.analyses_used, user.analyses_limit);
+
+    // ── Refill Anytime ───────────────────────────────────────────────────────
+    // No plan — trial or paid — has a calendar expiry or auto-recurring
+    // charge, so the same message is correct for every plan and is set
+    // once in the HTML default rather than branched per-plan here.
+
+    // ── Buttons ───────────────────────────────────────────────────────────────
+    // Upgrade button always points to upgrade.html (handles both first-time
+    // purchase and refill/plan-switch flows). The receipts button is only
+    // relevant once a purchase has happened (i.e. a Paddle customer exists).
+    if (!PAID_PLANS.has(plan)) {
+      // trial — never made a purchase yet, no Paddle customer record to
+      // view receipts for; hide the button and collapse the actions grid
+      // to a single column so Upgrade/Buy fills the row.
+      elManageBtn.style.display = 'none';
+      elActionsRow.classList.add('single');
+    }
+    // else: both buttons remain visible as in the HTML defaults
+  }
+
+  // ── Auth check and data load ────────────────────────────────────────────────
+
+  async function init() {
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/me`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store'
+      });
+    } catch {
+      // Network failure — page remains functional with static placeholder values.
+      // Nothing is rendered so no misleading data is shown.
+      return;
+    }
+
+    // 401 — no valid session
+    if (res.status === 401) {
+      window.location.replace('auth.html?mode=login');
+      return;
+    }
+
+    // 403 — expired trial (worker.js sets trialExpired: true at 403)
+    if (res.status === 403) {
+      window.location.replace('upgrade.html');
+      return;
+    }
+
+    // Any other non-OK response (5xx, etc.) — degrade gracefully
+    if (!res.ok) return;
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      return; // Parse failure — degrade gracefully
+    }
+
+    if (!data?.user) return;
+
+    render(data.user);
+  }
+
+  // ── Billing portal button ────────────────────────────────────────────────────
+  // Calls POST /billing-portal (auth + CSRF required) to obtain a single-use
+  // Paddle Customer Portal URL, then immediately redirects the user there.
+  // Under the one-time-purchase model there's no subscription to cancel or
+  // plan to change here — the portal is used purely to view past receipts
+  // and update the saved payment method for future purchases.
+
+  elManageBtn.addEventListener('click', async function () {
+    // Prevent double-clicks while the request is in flight
+    elManageBtn.disabled = true;
+    const originalText = elManageBtn.textContent;
+    elManageBtn.textContent = 'Opening portal…';
+
+    try {
+      const csrfToken = (() => {
+        try {
+          return sessionStorage.getItem('csrfToken') || '';
+        } catch {
+          return '';
+        }
+      })();
+
+      const res = await fetch(`${API_BASE}/billing-portal`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({})
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 401) {
+        window.location.replace('auth.html?mode=login');
+        return;
+      }
+
+      if (res.status === 403) {
+        if ((data.error || '').toLowerCase().includes('trial')) {
+          window.location.replace('upgrade.html');
+        } else {
+          alert(data.error || 'Your session has expired. Please sign in again.');
+        }
+        return;
+      }
+
+      if (!res.ok || !data.portalUrl) {
+        throw new Error(data.error || 'Unable to open billing portal. Please try again.');
+      }
+
+      window.location.href = data.portalUrl;
+
+    } catch (err) {
+      alert(err.message || 'Something went wrong. Please try again or contact support@wissely.com.');
+    } finally {
+      elManageBtn.disabled = false;
+      elManageBtn.textContent = originalText;
+    }
+  });
+
+  init();
+
+})();
+</script>
+
+</body>
+</html>
