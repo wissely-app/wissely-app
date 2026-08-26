@@ -4030,6 +4030,52 @@ const KNOWN_REPORT_KEYS = new Set([
   'metrics', 'findings', 'risks', 'recommendations', 'confidence'
 ]);
 
+// Turns a camelCase/snake_case key into a readable label, e.g.
+// "invoiceNumber" -> "Invoice Number", "tax_rate" -> "Tax Rate".
+function humanizeReportKey(key) {
+  return String(key)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Recursively renders an arbitrary nested value (object, array, or plain
+// value) from the AI's optional/loosely-schemaed fields (invoice, vendor,
+// totals, etc. — see AI_TOOL_PROMPTS) as indented, labeled HTML instead of
+// a raw JSON string. Depth is capped defensively since these fields are
+// AI-generated and not strictly validated in shape.
+function renderReportFieldHtml(value, depth) {
+  if (depth > 4) return '';
+  const indent = 14 + depth * 14;
+
+  if (Array.isArray(value)) {
+    if (!value.length) return '';
+    return value.map(item => `
+      <div style="margin:6px 0;padding:8px 0 8px 12px;border-left:2px solid rgba(255,255,255,0.12);margin-left:${indent}px;">
+        ${(item && typeof item === 'object')
+          ? renderReportObjectHtml(item, depth + 1)
+          : `<span style="font-size:12px;color:rgba(255,255,255,0.65);">${escapeHtml(String(item))}</span>`}
+      </div>`).join('');
+  }
+  if (value && typeof value === 'object') {
+    return renderReportObjectHtml(value, depth);
+  }
+  return '';
+}
+
+function renderReportObjectHtml(obj, depth) {
+  const indent = 14 + depth * 14;
+  return Object.entries(obj)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => {
+      const isNested = (v && typeof v === 'object');
+      return `<p style="margin:3px 0;margin-left:${indent}px;font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6;">
+        <strong style="color:rgba(255,255,255,0.85);">${escapeHtml(humanizeReportKey(k))}:</strong>
+        ${isNested ? '' : ' ' + escapeHtml(String(v))}
+      </p>${isNested ? renderReportFieldHtml(v, depth + 1) : ''}`;
+    }).join('');
+}
+
 function buildAnalysisReportEmailHtml(toolLabel, report) {
   const metricsHtml = (Array.isArray(report.metrics) && report.metrics.length)
     ? report.metrics.map(m => `<tr><td style="padding:4px 0;color:rgba(255,255,255,0.55);">${escapeHtml(m.label)}</td><td style="padding:4px 0;text-align:right;color:rgba(255,255,255,0.9);font-weight:600;">${escapeHtml(String(m.value))}${m.unit ? ' ' + escapeHtml(m.unit) : ''}</td></tr>`).join('')
@@ -4051,12 +4097,18 @@ function buildAnalysisReportEmailHtml(toolLabel, report) {
     `<p style="margin:0 0 10px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;">[${escapeHtml(r.priority)}] ${escapeHtml(r.action)}</p>`);
 
   // Any extra tool-specific fields the AI returned (vendor/customer/totals/
-  // dates for Invoice Analyzer, etc.) — rendered generically since their
-  // shape isn't strictly validated (see AI_TOOL_PROMPTS' optional fields).
-  const extraKeys = Object.keys(report).filter(k => !KNOWN_REPORT_KEYS.has(k));
+  // dates for Invoice Analyzer, etc.) — rendered with proper labels and
+  // indentation via renderReportFieldHtml, since their shape isn't
+  // strictly validated (see AI_TOOL_PROMPTS' optional fields) and a raw
+  // JSON.stringify dump reads as a bug report, not a finished feature.
+  const extraKeys = Object.keys(report).filter(k => !KNOWN_REPORT_KEYS.has(k) && report[k] !== null && report[k] !== undefined && report[k] !== '');
   const extraHtml = extraKeys.length
     ? `<p style="margin:20px 0 8px;font-size:11px;color:#e8c97a;font-family:'Courier New',monospace;letter-spacing:1px;text-transform:uppercase;">Additional Details</p>` +
-      extraKeys.map(k => `<p style="margin:0 0 6px;font-size:12px;color:rgba(255,255,255,0.6);"><strong style="color:rgba(255,255,255,0.8);">${escapeHtml(k)}:</strong> ${escapeHtml(typeof report[k] === 'object' ? JSON.stringify(report[k]) : String(report[k]))}</p>`).join('')
+      extraKeys.map(k => {
+        const v = report[k];
+        const isNested = (v && typeof v === 'object');
+        return `<p style="margin:0 0 4px;font-size:12px;color:rgba(255,255,255,0.6);"><strong style="color:rgba(255,255,255,0.8);">${escapeHtml(humanizeReportKey(k))}:</strong>${isNested ? '' : ' ' + escapeHtml(String(v))}</p>${isNested ? renderReportFieldHtml(v, 0) : ''}`;
+      }).join('')
     : '';
 
   return `<!DOCTYPE html>
