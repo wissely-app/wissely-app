@@ -221,7 +221,7 @@ textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gol
 .sample-label{font-size:10px;color:var(--sage);font-family:'DM Mono',monospace;letter-spacing:2px;margin-bottom:16px;text-align:center;text-transform:uppercase}
 .empty-sub{font-size:11px;color:#bbb;font-family:'DM Mono',monospace;text-align:center;margin-top:12px}
 
-.app-footer{text-align:center;padding-top:8px}
+.app-footer{text-align:center;padding-top:8px;max-width:100%;overflow-x:hidden}
 .app-footer span{font-size:10px;color:#aaa;font-family:'DM Mono',monospace;letter-spacing:1.5px;white-space:nowrap}
 
 .invoice-summary{background:#f8f6f0;border:1px solid #dedad0;border-radius:12px;padding:18px;max-width:100%;word-wrap:break-word;overflow-wrap:break-word;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6)}
@@ -251,6 +251,8 @@ textarea:focus{background:rgba(45,74,62,0.02);box-shadow:inset 3px 0 0 var(--gol
 .validation-box-title{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-family:'DM Mono',monospace;padding:10px 12px;background:#f4f1e8;border-bottom:1px solid #dedad0}
 .validation-list{list-style:none;margin:0;padding:0}
 .validation-list li{padding:9px 12px;font-size:12px;border-bottom:1px solid #ede9df;display:flex;gap:8px;align-items:flex-start}
+.validation-icon{flex-shrink:0}
+.validation-text{min-width:0;overflow-wrap:break-word;word-break:break-word}
 .validation-list li:last-child{border-bottom:none}
 .validation-list li.warn{color:#8a5a1a;background:#fffaf0}
 .validation-list li.ok{color:#2d4a3e;background:#f4faf6}
@@ -1752,10 +1754,10 @@ function buildValidationHTML(data) {
     return `
    <div class="validation-box">
      <div class="validation-box-title">Premium Validation</div>
-     <ul class="validation-list"><li class="ok">✓ No validation issues detected.</li></ul>
+     <ul class="validation-list"><li class="ok"><span class="validation-icon">✓</span><span class="validation-text">No validation issues detected.</span></li></ul>
    </div>`;
   }
-  const items = data.warnings.map(w => `<li class="warn">⚠ ${escapeHTML(w)}</li>`).join('');
+  const items = data.warnings.map(w => `<li class="warn"><span class="validation-icon">⚠</span><span class="validation-text">${escapeHTML(w)}</span></li>`).join('');
   return `
    <div class="validation-box">
      <div class="validation-box-title">Premium Validation</div>
