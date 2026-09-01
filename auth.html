@@ -492,7 +492,7 @@ body::before {
 
     <div id="registerPane" class="auth-pane active">
       <div class="auth-header">
-        <h1>Start 14-day trial</h1>
+        <h1>Start free trial</h1>
         <p>Turn your metrics into clear financial strategies. No payment method required upfront.</p>
       </div>
       <form id="registerForm" onsubmit="handleAuth(event, 'register')">
@@ -546,7 +546,7 @@ body::before {
     <div class="trust-metrics">
       <div class="metric-item">
         <span>Timeline</span>
-        14-day trial
+        Lifetime access
       </div>
       <div class="metric-item">
         <span>Volume</span>
@@ -715,6 +715,19 @@ async function handleAuth(event, type) {
         statusBanner.textContent = "Your email address hasn't been verified yet. You can request a new verification email below.";
         statusBanner.className = 'status-banner error';
         document.getElementById('resendSection').classList.add('visible');
+        button.disabled = false;
+        btnTextNode.textContent = initialButtonText;
+        return;
+      }
+      // ── Login rate-limit block ──────────────────────────────────────────
+      // Shows the actual remaining time instead of a generic "later" message,
+      // using retryAfterSeconds from the backend rather than guessing.
+      if (response.status === 429 && typeof data.retryAfterSeconds === 'number' && data.retryAfterSeconds > 0) {
+        const mins = Math.ceil(data.retryAfterSeconds / 60);
+        statusBanner.textContent = mins > 1
+          ? `Too many failed login attempts. Try again in about ${mins} minutes.`
+          : 'Too many failed login attempts. Try again in about a minute.';
+        statusBanner.className = 'status-banner error';
         button.disabled = false;
         btnTextNode.textContent = initialButtonText;
         return;
