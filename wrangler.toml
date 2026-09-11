@@ -1,0 +1,101 @@
+name = "wissely-worker"
+main = "worker.js"
+compatibility_date = "2026-06-02"
+
+# Wrangler auto-disables the *.workers.dev subdomain whenever a `routes`
+# array is present, unless this is explicitly kept true. Keeping this on
+# means the workers.dev URL keeps working as a fallback regardless of any
+# custom domain or route config.
+workers_dev = true
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
+# Intentionally NOT declaring a `routes` array here. It was tried, but the
+# GitHub Actions deploy's Cloudflare API token doesn't have the
+# `Zone -> Workers Routes: Edit` permission needed to apply it - every
+# deploy failed with "Authentication error [code: 10000]" on the
+# /zones/.../workers/routes API call, even though the Worker script itself
+# deployed successfully every time.
+#
+# It also turned out to be unnecessary: every frontend file (all 17 HTML
+# pages) calls `https://api.wissely.com` directly now, not a relative path,
+# so none of them depend on wissely.com routing to this Worker at all.
+# `api.wissely.com` itself is configured as a Custom Domain instead (added
+# manually via Workers & Pages -> wissely-worker -> Domains -> Add Domain),
+# which uses a different permission scope than zone routes and deploys
+# without issue.
+#
+# If routes are ever needed again in the future (e.g. to also serve
+# app.wissely.com/* directly from this Worker), the CI token will need
+# `Zone -> Workers Routes: Edit` added first at
+# https://dash.cloudflare.com/profile/api-tokens, or they'll need to keep
+# being added manually through the dashboard, which does not survive
+# being reconciled away by a future `wrangler deploy` that declares no
+# routes (as this one does).
+
+# ── Cron Triggers ─────────────────────────────────────────────────────────────
+# Fires at 00:00 UTC on the 1st of every month.
+[triggers]
+crons = ["0 0 1 * *"]
+
+# ── D1 Database ───────────────────────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "wissely-db"
+database_id = "b2ffe2c9-0ddf-4053-88fa-8377d837e962"
+
+# ── KV Namespace — Rate Limiting ──────────────────────────────────────────────
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "3b8bd68d09a64a9baaf52b64c76c9318"
+
+# ── Application Variables ─────────────────────────────────────────────────────
+[vars]
+APP_URL = "https://app.wissely.com"
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# Do NOT put secret values here.
+# Set them using:
+#
+# wrangler secret put ANTHROPIC_API_KEY
+# wrangler secret put RESEND_API_KEY
+# wrangler secret put PADDLE_WEBHOOK_SECRET
+#
+# They will be available as:
+# env.ANTHROPIC_API_KEY
+# env.RESEND_API_KEY
+# env.PADDLE_WEBHOOK_SECRET
+
+# ── Staging Environment ─────────────────────────────────────────────────────
+# A fully separate Worker + database + KV namespace, used for testing
+# without ever touching real customer data. Confirmed necessary after an
+# earlier incident where a D1 "Time Travel" restore accidentally reset a
+# real account's quota on the production database during manual testing.
+#
+# Deploy to staging explicitly with:
+#   wrangler deploy --env staging
+# (plain `wrangler deploy`, with no --env flag, still deploys production
+# exactly as before - this section changes nothing about that.)
+#
+# Secrets are NOT automatically inherited by named environments in
+# Wrangler. Before staging can run real AI analyses, ANTHROPIC_API_KEY
+# must be set for it specifically:
+#   wrangler secret put ANTHROPIC_API_KEY --env staging
+# The same applies to RESEND_API_KEY (only needed here if you want to
+# verify real email delivery from staging) and PADDLE_WEBHOOK_SECRET (only
+# needed if staging will ever receive real Paddle webhook calls, which is
+# unlikely - Paddle's own sandbox/test mode is the more usual way to test
+# billing without this).
+[env.staging]
+name = "wissely-worker-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "wissely-db-staging"
+database_id = "cd2afafa-c2bd-4616-a16c-830a576f61ab"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "77d93aa344b544a58809f9e26c759616"
+
+[env.staging.vars]
+APP_URL = "https://staging.wissely.com"
